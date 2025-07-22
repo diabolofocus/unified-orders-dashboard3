@@ -86,10 +86,10 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
           }}
           onClick={() => {
             if (!settingsStore.clickToCopyEnabled) return;
-            orderController.copyToClipboard(shippingAddress.streetAddress!.apt, 'Apartment/Unit', false);
+            orderController.copyToClipboard(shippingAddress.streetAddress!.apt!, 'Apartment/Unit', false);
           }}
         >
-          {shippingAddress.streetAddress.apt}
+          {shippingAddress.streetAddress!.apt}
         </Text>
       )}
 
@@ -104,7 +104,7 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
           }}
           onClick={() => {
             if (!settingsStore.clickToCopyEnabled) return;
-            orderController.copyToClipboard(shippingAddress.addressLine1, 'Street Address', false);
+            orderController.copyToClipboard(shippingAddress.addressLine1!, 'Street Address', false);
           }}
         >
           {shippingAddress.addressLine1}
@@ -121,7 +121,7 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
           }}
           onClick={() => {
             if (!settingsStore.clickToCopyEnabled) return;
-            orderController.copyToClipboard(shippingAddress.addressLine2, 'Address Line 2', false);
+            orderController.copyToClipboard(shippingAddress.addressLine2!, 'Address Line 2', false);
           }}
         >
           {shippingAddress.addressLine2}
@@ -139,7 +139,7 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
                 cursor: settingsStore.clickToCopyEnabled ? 'pointer' : 'default',
                 color: settingsStore.clickToCopyEnabled ? 'inherit' : 'var(--text-color, #2B2B2B)'
               }}
-              onClick={() => orderController.copyToClipboard(shippingAddress.postalCode, 'Postal Code', false)}
+              onClick={() => orderController.copyToClipboard(shippingAddress.postalCode!, 'Postal Code', false)}
             >
               {shippingAddress.postalCode}
             </Text>
@@ -153,7 +153,7 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
                 cursor: settingsStore.clickToCopyEnabled ? 'pointer' : 'default',
                 color: settingsStore.clickToCopyEnabled ? 'inherit' : 'var(--text-color, #2B2B2B)'
               }}
-              onClick={() => orderController.copyToClipboard(shippingAddress.city, 'City', false)}
+              onClick={() => orderController.copyToClipboard(shippingAddress.city!, 'City', false)}
             >
               {shippingAddress.city}
             </Text>
@@ -173,7 +173,7 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
           onClick={() => {
             if (!settingsStore.clickToCopyEnabled) return;
             const subdivision = shippingAddress.subdivisionFullname || shippingAddress.subdivision;
-            orderController.copyToClipboard(subdivision, 'State/Province', false);
+            orderController.copyToClipboard(subdivision!, 'State/Province', false);
           }}
         >
           {shippingAddress.subdivisionFullname || shippingAddress.subdivision}
@@ -192,7 +192,7 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
           onClick={() => {
             if (!settingsStore.clickToCopyEnabled) return;
             const countryName = shippingAddress.countryFullname || getCountryName(shippingAddress.country);
-            orderController.copyToClipboard(countryName, 'Country', false);
+            orderController.copyToClipboard(countryName!, 'Country', false);
           }}
         >
           {shippingAddress.countryFullname || getCountryName(shippingAddress.country)}

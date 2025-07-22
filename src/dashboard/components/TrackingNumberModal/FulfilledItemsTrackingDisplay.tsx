@@ -96,7 +96,7 @@ export const FulfilledItemsTrackingDisplay: React.FC<FulfilledItemsTrackingDispl
                             {hasTrackingUrl ? (
                                 <TextButton
                                     size="tiny"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         window.open(fulfillment.trackingUrl, '_blank');
                                     }}

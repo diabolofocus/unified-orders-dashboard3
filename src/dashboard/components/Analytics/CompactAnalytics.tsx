@@ -80,25 +80,25 @@ export const CompactAnalytics: React.FC = observer(() => {
 
             if (result.success) {
                 orderStore.setAnalyticsData({
-                    TOTAL_SALES: { total: result.data.totalSales },
-                    TOTAL_ORDERS: { total: result.data.totalOrders },
-                    TOTAL_SESSIONS: { total: result.data.totalSessions }
+                    TOTAL_SALES: { total: result.data?.totalSales },
+                    TOTAL_ORDERS: { total: result.data?.totalOrders },
+                    TOTAL_SESSIONS: { total: result.data?.totalSessions }
                 });
 
                 orderStore.setFormattedAnalytics({
-                    totalSales: result.data.totalSales,
-                    totalOrders: result.data.totalOrders,
-                    totalSessions: result.data.totalSessions,
-                    totalUniqueVisitors: result.data.totalUniqueVisitors,
-                    todayUniqueVisitors: result.data.todayUniqueVisitors || 0,
-                    yesterdayUniqueVisitors: result.data.yesterdayUniqueVisitors || 0,
-                    averageOrderValue: result.data.averageOrderValue,
-                    currency: result.data.currency,
-                    salesChange: result.data.salesChange,
-                    ordersChange: result.data.ordersChange,
-                    sessionsChange: result.data.sessionsChange,
-                    uniqueVisitorsChange: result.data.uniqueVisitorsChange,
-                    aovChange: result.data.aovChange,
+                    totalSales: result.data?.totalSales,
+                    totalOrders: result.data?.totalOrders,
+                    totalSessions: result.data?.totalSessions,
+                    totalUniqueVisitors: result.data?.totalUniqueVisitors,
+                    todayUniqueVisitors: result.data?.todayUniqueVisitors || 0,
+                    yesterdayUniqueVisitors: result.data?.yesterdayUniqueVisitors || 0,
+                    averageOrderValue: result.data?.averageOrderValue,
+                    currency: result.data?.currency,
+                    salesChange: result.data?.salesChange,
+                    ordersChange: result.data?.ordersChange,
+                    sessionsChange: result.data?.sessionsChange,
+                    uniqueVisitorsChange: result.data?.uniqueVisitorsChange,
+                    aovChange: result.data?.aovChange,
                     period: period
                 });
 

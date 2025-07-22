@@ -26,6 +26,7 @@ import { OrderService } from '../../services/OrderService';
 import {
     calculateOrderFulfillmentStatus,
     getOrderUnfulfilledItems,
+    Order,
     type ItemFulfillment,
     type OrderFulfillmentCapabilities
 } from '../../types/Order';
@@ -52,7 +53,7 @@ export const OrderDetails: React.FC = observer(() => {
         let fulfilledItems = 0;
         let hasAnyTracking = false;
 
-        lineItems.forEach(item => {
+        lineItems.forEach((item: any) => {
             const quantity = item.quantity || 1;
             const fulfilled = item.fulfilledQuantity || 0;
 
@@ -61,7 +62,7 @@ export const OrderDetails: React.FC = observer(() => {
 
             // Check if this item has any tracking
             if (item.fulfillmentDetails?.trackingInfo?.length > 0 ||
-                item.fulfillmentDetails?.lineItemFulfillment?.some(f => f.trackingNumber)) {
+                item.fulfillmentDetails?.lineItemFulfillment?.some((f: any) => f.trackingNumber)) {
                 hasAnyTracking = true;
             }
         });
@@ -599,7 +600,7 @@ export const OrderDetails: React.FC = observer(() => {
 
                             <Card.Content>
                                 {/* <CustomerInfo order={selectedOrder} /> */}
-                                <CustomerInfo order={selectedOrder} />
+                                <CustomerInfo order={selectedOrder as Order} />
                                 <Box paddingTop="24px" align="left">
                                     <Divider />
                                 </Box>

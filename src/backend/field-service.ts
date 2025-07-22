@@ -25,14 +25,14 @@ export async function getCustomFieldDefinitions() {
     } catch (error) {
         return {
             success: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
             fieldDefinitions: []
         };
     }
 }
 
 // Backend function to get specific field definition by key
-export async function getFieldDefinitionByKey(fieldKey) {
+export async function getFieldDefinitionByKey(fieldKey: string) {
     try {
         const queryResults = await extendedFields
             .queryExtendedFields()
@@ -61,7 +61,7 @@ export async function getFieldDefinitionByKey(fieldKey) {
     } catch (error) {
         return {
             success: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
             fieldDefinition: null
         };
     }

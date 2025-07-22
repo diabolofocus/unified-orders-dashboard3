@@ -62,20 +62,20 @@ export async function POST(request: Request) {
         const relevantFields = allFields.filter(field => {
             return fieldKeys.some(requestedKey => {
                 // Exact match
-                if (field.key === requestedKey) return true;
+                if (field?.key === requestedKey) return true;
 
                 // Match the end part (e.g., 'form_field_e391' matches 'e391')
-                const fieldKeyEnd = field.key.split('.').pop() || '';
+                const fieldKeyEnd = field?.key?.split('.').pop() || '';
                 if (requestedKey.endsWith(fieldKeyEnd) && fieldKeyEnd.length > 0) return true;
 
                 // Match if the field key ends with the requested key
-                if (field.key.endsWith(requestedKey)) return true;
+                if (field?.key?.endsWith(requestedKey)) return true;
 
                 // Match if the requested key contains the field key
-                if (requestedKey.includes(field.key)) return true;
+                if (requestedKey.includes(field?.key)) return true;
 
                 // Special handling for form fields
-                if (requestedKey.includes('form_field_') && field.key.includes(requestedKey.replace('form_field_', ''))) return true;
+                if (requestedKey.includes('form_field_') && field?.key?.includes(requestedKey.replace('form_field_', ''))) return true;
 
                 return false;
             });

@@ -120,13 +120,16 @@ const OrdersTable: React.FC = observer(() => {
     const [printingOrders, setPrintingOrders] = useState<Record<string, boolean>>({});
     const [isPrinting, setIsPrinting] = useState(false);
 
-    // Customer badge loading state - TEMPORARILY DISABLED
+    // Customer badge loading state - RE-ENABLED with stable implementation
     const [badgeLoadingProgress, setBadgeLoadingProgress] = useState<{
         isLoading: boolean;
         completed: number;
         total: number;
         currentEmail?: string;
     }>({ isLoading: false, completed: 0, total: 0 });
+
+    // Track which customers have been processed to avoid duplicates
+    const processedCustomersRef = useRef<Set<string>>(new Set());
 
     // Customer counts loading state - TEMPORARILY DISABLED
     // const [customerCountsLoaded, setCustomerCountsLoaded] = useState<Set<string>>(new Set());
@@ -1019,17 +1022,110 @@ const OrdersTable: React.FC = observer(() => {
         ...order
     }));
 
-    // Customer badge loading logic - TEMPORARILY DISABLED
+    // Customer badge loading logic - RE-ENABLED with safer implementation
     useEffect(() => {
-        // DISABLED: Customer badge loading to fix infinite loop
-        console.log('Customer badge loading temporarily disabled');
-        return;
-
-        if (!settingsStore.settings.showCustomerBadges || finalFilteredOrders.length === 0) {
+        if (!settingsStore.settings.showCustomerBadges) {
+            setBadgeLoadingProgress({ isLoading: false, completed: 0, total: 0 });
             return;
         }
-        // ... rest commented out for now
-    }, [finalFilteredOrders, settingsStore.settings.showCustomerBadges]);
+
+        // Use a stable reference to prevent infinite loops
+        const ordersToProcess = finalFilteredOrders.slice(0, 50); // Limit to first 50 orders for performance
+
+        if (ordersToProcess.length === 0) {
+            return;
+        }
+
+        // Extract unique customer emails from visible orders
+        const customerEmails = Array.from(new Set(
+            ordersToProcess.map(order => {
+                const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
+                const billingContact = order.rawOrder?.billingInfo?.contactDetails;
+                const buyerEmail = order.rawOrder?.buyerInfo?.email;
+                return recipientContact?.email || billingContact?.email || buyerEmail || order.customer.email;
+            }).filter(email => email && email.trim() !== '')
+        ));
+
+        // Filter out customers we've already processed in this session
+        const newCustomers = customerEmails.filter(email =>
+            !processedCustomersRef.current.has(email) &&
+            orderStore.getCachedCustomerOrderCount(email) === 0
+        );
+
+        if (newCustomers.length === 0) {
+            // All customers already have cached counts
+            return;
+        }
+
+        console.log(`🎯 Processing ${newCustomers.length} new customers for badge calculation`);
+
+        // Mark these customers as being processed
+        newCustomers.forEach(email => processedCustomersRef.current.add(email));
+
+        // Start batch processing
+        const processBadgeData = async () => {
+            setBadgeLoadingProgress({
+                isLoading: true,
+                completed: 0,
+                total: newCustomers.length
+            });
+
+            try {
+                // Process customers in small batches with delays
+                const BATCH_SIZE = 3;
+                for (let i = 0; i < newCustomers.length; i += BATCH_SIZE) {
+                    const batch = newCustomers.slice(i, i + BATCH_SIZE);
+
+                    // Process batch in parallel
+                    await Promise.all(
+                        batch.map(async (email, batchIndex) => {
+                            try {
+                                setBadgeLoadingProgress(prev => ({
+                                    ...prev,
+                                    currentEmail: email,
+                                    completed: i + batchIndex
+                                }));
+
+                                await orderStore.getCustomerOrderCount(email);
+                                console.log(`✅ Processed customer ${i + batchIndex + 1}/${newCustomers.length}: ${email}`);
+                            } catch (error) {
+                                console.error(`❌ Failed to process ${email}:`, error);
+                            }
+                        })
+                    );
+
+                    // Update progress
+                    setBadgeLoadingProgress(prev => ({
+                        ...prev,
+                        completed: Math.min(i + BATCH_SIZE, newCustomers.length)
+                    }));
+
+                    // Delay between batches to prevent API rate limiting
+                    if (i + BATCH_SIZE < newCustomers.length) {
+                        await new Promise(resolve => setTimeout(resolve, 400));
+                    }
+                }
+
+                console.log(`🎉 Completed processing ${newCustomers.length} customers for badges`);
+            } catch (error) {
+                console.error('❌ Badge processing failed:', error);
+            } finally {
+                setBadgeLoadingProgress({
+                    isLoading: false,
+                    completed: newCustomers.length,
+                    total: newCustomers.length
+                });
+            }
+        };
+
+        // Debounce the processing to prevent rapid fire calls
+        const timeoutId = setTimeout(processBadgeData, 500);
+
+        return () => {
+            clearTimeout(timeoutId);
+        };
+
+    }, [settingsStore.settings.showCustomerBadges, finalFilteredOrders.length]); // Use length instead of array reference
 
     const columns = [
         {
@@ -1124,10 +1220,15 @@ const OrdersTable: React.FC = observer(() => {
                             )}
                         </Box>
 
-                        {/* TEMPORARILY DISABLED: Customer badges */}
-                        {/* {settingsStore.settings.showCustomerBadges && customerOrderCount > 0 && (
-                            <CustomerBadge orderCount={customerOrderCount} />
-                        )} */}
+                        {/* RE-ENABLED: Customer badges */}
+                        {settingsStore.settings.showCustomerBadges && (() => {
+                            const customerEmail = recipientContact?.email || billingContact?.email || order.customer.email;
+                            const customerOrderCount = customerEmail ? orderStore.getCachedCustomerOrderCount(customerEmail) : 0;
+
+                            return customerOrderCount > 1 ? (
+                                <CustomerBadge orderCount={customerOrderCount} />
+                            ) : null;
+                        })()}
                     </Box>
                 );
             },
@@ -1291,6 +1392,19 @@ const OrdersTable: React.FC = observer(() => {
     const hasActiveSearch = orderStore.hasActiveSearch;
     const isDisplayingSearchResults = orderStore.isDisplayingSearchResults;
     const [selectedSkus, setSelectedSkus] = useState<string[]>([]);
+
+    // Helper to clear processed customers cache when needed
+    const clearProcessedCustomers = useCallback(() => {
+        processedCustomersRef.current.clear();
+        console.log('🗑️ Cleared processed customers cache');
+    }, []);
+
+    // Clear processed customers when settings change
+    useEffect(() => {
+        if (!settingsStore.settings.showCustomerBadges) {
+            clearProcessedCustomers();
+        }
+    }, [settingsStore.settings.showCustomerBadges, clearProcessedCustomers]);
 
     return (
         <Card className="relative">
@@ -1642,8 +1756,8 @@ const OrdersTable: React.FC = observer(() => {
                 />
             )}
 
-            {/* Customer Badge Loading Progress - TEMPORARILY DISABLED */}
-            {false && badgeLoadingProgress.isLoading && settingsStore.settings.showCustomerBadges && (
+            {/* Customer Badge Loading Progress - RE-ENABLED */}
+            {badgeLoadingProgress.isLoading && settingsStore.settings.showCustomerBadges && (
                 <Box
                     style={{
                         position: 'fixed',

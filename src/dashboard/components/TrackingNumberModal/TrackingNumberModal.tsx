@@ -153,14 +153,14 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
 
     // Function to get existing tracking for an item - uses FRESH fulfillment data
     const getExistingTracking = (itemId: string) => {
-        const trackingData = [];
+        const trackingData: any[] = [];
 
         try {
             fulfillmentsData.forEach((fulfillment) => {
                 if (!fulfillment.trackingInfo?.trackingNumber) return;
 
                 // Check if this fulfillment contains our specific item
-                const itemLineItem = fulfillment.lineItems?.find(li => {
+                const itemLineItem = fulfillment.lineItems?.find((li: any) => {
                     // Try different possible property names that might exist
                     const lineItemId = li.lineItemId || li.id || li._id;
                     return lineItemId === itemId || li._id === itemId;
@@ -464,7 +464,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
     const renderProductOptions = (item: LineItem) => {
 
         if (item.descriptionLines?.length > 0) {
-            return item.descriptionLines.map((line: any, idx: number) => {
+            return item.descriptionLines?.map((line: any, idx: number) => {
                 const optionValue = line.plainText?.original || line.color || '';
 
                 return (
@@ -798,7 +798,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                         }
                     } else {
                         // For fully fulfilled or fully unfulfilled items, show as single entry
-                        const isItemEnabled = updateMode ? (hasTracking || isFullyFulfilled || (item.fulfilledQuantity > 0 && !hasTracking)) : (!hasTracking && remainingQuantity > 0);
+                        const isItemEnabled = updateMode ? (hasTracking || isFullyFulfilled || (item.fulfilledQuantity! > 0 && !hasTracking)) : (!hasTracking && remainingQuantity > 0);
                         const isSelected = isItemEnabled && (selectedItemsState[originalIndex.toString()] !== false);
 
                         // Determine tracking status for badge display

@@ -62,7 +62,7 @@ export const ItemTrackingDisplay: React.FC<ItemTrackingDisplayProps> = ({
                             quantity: itemLineItem.quantity || 1,
                             fulfillmentDate: typeof fulfillment._createdDate === 'string'
                                 ? fulfillment._createdDate
-                                : new Date(fulfillment._createdDate).toISOString()
+                                : new Date(fulfillment._createdDate || '').toISOString()
                         });
                     }
                 });

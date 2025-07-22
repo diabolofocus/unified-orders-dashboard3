@@ -320,7 +320,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         try {
                             console.log('Trying URL:', urlToTry);
 
-                            const response = await fetch(urlToTry, {
+                            const response = await fetch(urlToTry as string, {
                                 mode: 'cors',
                                 headers: {
                                     'Accept': 'image/*'
@@ -400,8 +400,8 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         : '<div style="width: 60px; height: 45px; background-color: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #999;">No Image</div>';
 
                     const ordersHTML = item.orders
-                        .sort((a, b) => b.orderTimestamp - a.orderTimestamp)
-                        .map(order => `<div style="margin-bottom: 4px; font-size: 10px; line-height: 1.3;"><strong>#${order.orderNumber}</strong> - Qty: ${order.quantity}<br><span style="color: #666;">${order.customerName}</span></div>`)
+                        .sort((a: any, b: any) => b.orderTimestamp - a.orderTimestamp)
+                        .map((order: any) => `<div style="margin-bottom: 4px; font-size: 10px; line-height: 1.3;"><strong>#${order.orderNumber}</strong> - Qty: ${order.quantity}<br><span style="color: #666;">${order.customerName}</span></div>`)
                         .join('');
 
                     return `

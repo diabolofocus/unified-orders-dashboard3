@@ -193,7 +193,7 @@ const createNewFulfillment = async (params: {
                     _id: itemId,
                     quantity: remainingQuantity > 0 ? remainingQuantity : safeGetItemQuantity(item)
                 };
-            }).filter(item => item._id);
+            }).filter((item: any) => item._id);
         }
 
         if (fulfillmentLineItems.length === 0) {
@@ -335,10 +335,10 @@ export const validateLineItems = webMethod(
                 };
             }
 
-            const orderItemIds = order.lineItems.map((item: any) => safeGetItemId(item));
+            const orderItemIds = order.lineItems?.map((item: any) => safeGetItemId(item));
 
             const validation = lineItems.map(inputItem => {
-                const orderItem = order.lineItems.find((item: any) => safeGetItemId(item) === inputItem.id);
+                const orderItem = order.lineItems?.find((item: any) => safeGetItemId(item) === inputItem.id);
 
                 if (!orderItem) {
                     return {
