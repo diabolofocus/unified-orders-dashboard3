@@ -53,6 +53,8 @@ export class OrderStore {
         // This automatically makes everything observable and actions
         makeAutoObservable(this);
 
+        // Load customer counts cache from localStorage
+        this.loadCustomerCountsFromStorage();
     }
 
     // Analytics methods
@@ -189,6 +191,21 @@ export class OrderStore {
         // If we have a search active, update search results too
         if (this.searchQuery) {
             this.searchOrders(this.searchQuery);
+        }
+    }
+
+    /**
+ * Handle new order placement - only recalculate for the specific customer
+ */
+    handleNewOrder(order: Order): void {
+        // Add the order to our local list
+        this.addNewOrder(order);
+
+        // Invalidate cache only for this customer so their count gets recalculated
+        const customerEmail = this.getCustomerEmail(order);
+        if (customerEmail) {
+            this.invalidateCustomerCache(customerEmail);
+            console.log(`🔄 New order detected, will recalculate badges for ${customerEmail}`);
         }
     }
 
@@ -482,123 +499,241 @@ export class OrderStore {
         };
     }
 
-    // Global customer rankings cache
-    private globalCustomerRankings: Map<string, { rank: number; totalCustomers: number; totalSpent: number; orderCount: number }> = new Map();
-    private globalRankingsLoaded: boolean = false;
-    private globalRankingsLoading: boolean = false;
-    private globalRankingsLastUpdated: number = 0;
-    private readonly RANKINGS_CACHE_DURATION = 240 * 60 * 1000; // 4 hours
+    // Enhanced customer order count cache with timestamps and API calls
+    private customerOrderCounts: Map<string, { count: number; timestamp: number; calculating: boolean }> = new Map();
+    private readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days cache (weekly reset)
+    private readonly CACHE_STORAGE_KEY = 'wix_customer_order_counts_cache';
+    /**
+     * Get customer order count using Wix API with smart caching
+     * This gives the TRUE total order count for proper badge calculation
+     */
 
-    // Load global customer rankings from backend
-    private async loadGlobalCustomerRankings(): Promise<void> {  // Check if rankings are enabled in settings
-        const { settingsStore } = await import('./SettingsStore');
-        if (!settingsStore.settings.showCustomerRankings) {
-            console.log('Customer rankings disabled in settings - skipping load');
-            return;
-        }
-
-        if (this.globalRankingsLoading) return;
+    async getCustomerOrderCount(customerEmail: string): Promise<number> {
+        if (!customerEmail) return 0;
 
         const now = Date.now();
-        if (this.globalRankingsLoaded && (now - this.globalRankingsLastUpdated) < this.RANKINGS_CACHE_DURATION) {
-            return; // Use cached data
+        const cached = this.customerOrderCounts.get(customerEmail);
+
+        // Return cached value if it's fresh and not currently calculating
+        if (cached && !cached.calculating && (now - cached.timestamp) < this.CACHE_DURATION) {
+            console.log(`🚀 Using cached count for ${customerEmail}: ${cached.count} orders`);
+            return cached.count;
         }
 
+        // If already calculating, return cached count or 0
+        if (cached?.calculating) {
+            return cached.count || 0;
+        }
+
+        // Mark as calculating to prevent duplicate requests
+        this.customerOrderCounts.set(customerEmail, {
+            count: cached?.count || 0,
+            timestamp: now,
+            calculating: true
+        });
+
         try {
-            this.globalRankingsLoading = true;
+            console.log(`🔍 Fetching total order count for ${customerEmail}...`);
 
-            // Import the web method dynamically
-            const { getCustomerRankings } = await import('../../backend/customer-rankings.web');
-            const result = await getCustomerRankings();
+            const { orders } = await import('@wix/ecom');
 
-            // Log cache performance
-            if (result.fromCache) {
-                console.log(`Customer rankings loaded from cache in ${result.processingTime}ms`);
-            } else {
-                console.log(`Customer rankings calculated fresh in ${result.processingTime}ms`);
-            }
+            // Since queryOrders doesn't exist, we'll use searchOrders with pagination
+            let totalCount = 0;
+            let hasMore: boolean = true;
+            let cursor: string | undefined = undefined;
 
-            if (result.success && result.rankings) {
-                // Clear existing rankings
-                this.globalCustomerRankings.clear();
-
-                // Populate rankings map for fast lookup
-                result.rankings.forEach(ranking => {
-                    this.globalCustomerRankings.set(ranking.email, {
-                        rank: ranking.rank,
-                        totalCustomers: result.totalCustomers,
-                        totalSpent: ranking.totalSpent,
-                        orderCount: ranking.orderCount
+            // We'll paginate through orders and filter manually
+            while (hasMore && totalCount < 1000) { // Safety limit
+                try {
+                    const response = await orders.searchOrders({
+                        cursorPaging: {
+                            limit: 100,
+                            ...(cursor ? { cursor } : {})
+                        }
                     });
+
+                    const pageOrders = response.orders || [];
+
+                    // Count orders that match this customer email manually
+                    const matchingOrders = pageOrders.filter((order: any) => {
+                        // Check multiple possible email locations
+                        const recipientEmail = order.recipientInfo?.contactDetails?.email;
+                        const billingEmail = order.billingInfo?.contactDetails?.email;
+                        const buyerEmail = order.buyerInfo?.email;
+
+                        return [recipientEmail, billingEmail, buyerEmail].some((email: string | undefined) =>
+                            email && email.toLowerCase() === customerEmail.toLowerCase()
+                        );
+                    });
+
+                    totalCount += matchingOrders.length;
+
+                    console.log(`📊 Found ${matchingOrders.length} matching orders in this page (total so far: ${totalCount})`);
+
+                    // Fix the boolean and string type issues
+                    hasMore = Boolean(response.metadata?.hasNext) && pageOrders.length > 0;
+                    cursor = response.metadata?.cursors?.next || undefined;
+
+                    // If we get less than requested, we're likely done
+                    if (pageOrders.length < 100) {
+                        hasMore = false;
+                    }
+
+                    // Small delay to avoid overwhelming the API
+                    if (hasMore) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+
+                } catch (pageError) {
+                    console.error('Error in pagination:', pageError);
+                    break;
+                }
+            }
+
+            // Cache the result
+            this.customerOrderCounts.set(customerEmail, {
+                count: totalCount,
+                timestamp: now,
+                calculating: false
+            });
+
+            // Save to localStorage for persistence
+            this.saveCustomerCountsToStorage();
+
+            console.log(`✅ Total orders for ${customerEmail}: ${totalCount}`);
+            return totalCount;
+
+        } catch (error) {
+            console.error(`❌ Error fetching orders for ${customerEmail}:`, error);
+
+            // Keep old cached value if available, otherwise return 0
+            const fallbackCount = cached?.count || 0;
+            this.customerOrderCounts.set(customerEmail, {
+                count: fallbackCount,
+                timestamp: now,
+                calculating: false
+            });
+
+            return fallbackCount;
+        }
+    }
+
+    /**
+     * Get customer order count from cache only (for immediate UI updates)
+     */
+    getCachedCustomerOrderCount(customerEmail: string): number {
+        const cached = this.customerOrderCounts.get(customerEmail);
+        return cached?.count || 0;
+    }
+
+    /**
+     * Load customer counts cache from localStorage
+     */
+    private loadCustomerCountsFromStorage(): void {
+        try {
+            const storedData = localStorage.getItem(this.CACHE_STORAGE_KEY);
+            if (!storedData) return;
+
+            const parsed = JSON.parse(storedData);
+            const now = Date.now();
+
+            // Filter out expired entries (older than 7 days)
+            const validEntries = Object.entries(parsed).filter(([email, data]: [string, any]) => {
+                return data && (now - data.timestamp) < this.CACHE_DURATION;
+            });
+
+            // Restore valid entries to the cache
+            this.customerOrderCounts.clear();
+            validEntries.forEach(([email, data]: [string, any]) => {
+                this.customerOrderCounts.set(email, {
+                    count: data.count,
+                    timestamp: data.timestamp,
+                    calculating: false // Reset calculating flag on load
                 });
+            });
 
-                this.globalRankingsLoaded = true;
-                this.globalRankingsLastUpdated = now;
+            console.log(`📱 Loaded ${validEntries.length} customer counts from localStorage cache`);
 
-                console.log(`Loaded ${result.rankings.length} global customer rankings from ${result.totalOrders} orders`);
-            } else {
-                console.warn('Failed to load global customer rankings');
+            // Clean up expired entries from localStorage
+            if (validEntries.length !== Object.keys(parsed).length) {
+                this.saveCustomerCountsToStorage();
+                console.log(`🧹 Cleaned up expired cache entries`);
             }
         } catch (error) {
-            console.error('Error loading global customer rankings:', error);
-        } finally {
-            this.globalRankingsLoading = false;
+            console.error('❌ Error loading customer counts from localStorage:', error);
+            // Clear corrupted cache
+            localStorage.removeItem(this.CACHE_STORAGE_KEY);
         }
     }
 
-    // NEW: Customer ranking methods with global data
-    async getCustomerRanking(customerEmail: string): Promise<{ rank: number; totalCustomers: number; totalSpent: number } | null> {
-        if (!customerEmail) return null;
-
+    /**
+     * Save customer counts cache to localStorage
+     */
+    private saveCustomerCountsToStorage(): void {
         try {
-            // Ensure global rankings are loaded
-            await this.loadGlobalCustomerRankings();
+            const cacheObject: Record<string, any> = {};
 
-            const ranking = this.globalCustomerRankings.get(customerEmail);
-            if (ranking) {
-                return {
-                    rank: ranking.rank,
-                    totalCustomers: ranking.totalCustomers,
-                    totalSpent: ranking.totalSpent
-                };
-            }
+            this.customerOrderCounts.forEach((data, email) => {
+                // Only save completed calculations (not currently calculating)
+                if (!data.calculating) {
+                    cacheObject[email] = {
+                        count: data.count,
+                        timestamp: data.timestamp
+                    };
+                }
+            });
 
-            return null;
+            localStorage.setItem(this.CACHE_STORAGE_KEY, JSON.stringify(cacheObject));
+            console.log(`💾 Saved ${Object.keys(cacheObject).length} customer counts to localStorage`);
         } catch (error) {
-            console.error('Error getting customer ranking:', error);
-            return null;
+            console.error('❌ Error saving customer counts to localStorage:', error);
         }
     }
 
-    async getCustomerOrderCountRanking(customerEmail: string): Promise<{ rank: number; totalCustomers: number; orderCount: number } | null> {
-        if (!customerEmail) return null;
+    /**
+     * Clear customer counts cache from both memory and localStorage
+     */
+    clearCustomerOrderCountCache(): void {
+        this.customerOrderCounts.clear();
+        localStorage.removeItem(this.CACHE_STORAGE_KEY);
+        console.log('🗑️ Cleared customer order count cache from memory and localStorage');
+    }
 
-        try {
-            // Ensure global rankings are loaded
-            await this.loadGlobalCustomerRankings();
+    /**
+ * Pre-calculate order counts for visible customers (batch processing)
+ */
+    async preCalculateCustomerCounts(customerEmails: string[]): Promise<void> {
+        console.log(`🚀 Pre-calculating order counts for ${customerEmails.length} customers...`);
 
-            const ranking = this.globalCustomerRankings.get(customerEmail);
-            if (ranking) {
-                return {
-                    rank: ranking.rank,
-                    totalCustomers: ranking.totalCustomers,
-                    orderCount: ranking.orderCount
-                };
+        // Process customers one by one with delays to avoid API rate limits
+        for (let i = 0; i < customerEmails.length; i++) {
+            const email = customerEmails[i];
+
+            try {
+                await this.getCustomerOrderCount(email);
+
+                // Add delay between requests to be API-friendly
+                if (i < customerEmails.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            } catch (error) {
+                console.error(`Error pre-calculating for ${email}:`, error);
             }
+        }
 
-            return null;
-        } catch (error) {
-            console.error('Error getting customer order count ranking:', error);
-            return null;
+        console.log(`✅ Finished pre-calculating order counts`);
+    }
+
+    /**
+     * Invalidate cache for specific customer (when they place a new order)
+     */
+    invalidateCustomerCache(customerEmail: string): void {
+        if (customerEmail) {
+            this.customerOrderCounts.delete(customerEmail);
+            console.log(`🗑️ Invalidated cache for ${customerEmail}`);
         }
     }
 
-    // Method to force refresh global rankings
-    async refreshGlobalCustomerRankings(): Promise<void> {
-        this.globalRankingsLoaded = false;
-        this.globalRankingsLastUpdated = 0;
-        await this.loadGlobalCustomerRankings();
-    }
 
     private getCustomerEmail(order: Order): string | null {
         const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
@@ -729,7 +864,7 @@ export class OrderStore {
             order.customer.lastName.toLowerCase().includes(term) ||
             order.customer.email.toLowerCase().includes(term) ||
             order.customer.phone?.toLowerCase().includes(term) ||
-            order.items.some(item =>
+            (order.items || []).some(item =>
                 item.name.toLowerCase().includes(term) ||
                 item.sku?.toLowerCase().includes(term)
             )

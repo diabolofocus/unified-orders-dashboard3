@@ -27,6 +27,7 @@ interface OrdersSettingsResponse {
 type Settings = {
   automaticDetection: boolean;
   soundAlert: boolean;
+  showCustomerBadges: boolean;
   showSKU: boolean;
   showTotalWeight: boolean;
   showIndividualWeights: boolean;
@@ -64,8 +65,10 @@ const DEFAULT_SETTINGS: Settings = {
   initialOrderLimit: 30,
   autoCreateInvoice: true,
   enableClickToCopy: true,
+  showCustomerBadges: true,
   showCustomerRankings: true,
 };
+
 
 const STORAGE_KEY = 'order_notification_settings';
 
@@ -420,8 +423,8 @@ export class SettingsStore {
     this.saveSettings();
   };
 
-  setShowCustomerRankings = (enabled: boolean) => {
-    this.settings.showCustomerRankings = enabled;
+  setShowCustomerBadges = (enabled: boolean) => {
+    this.settings.showCustomerBadges = enabled;
     this.saveSettings();
   };
 

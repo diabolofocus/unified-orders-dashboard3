@@ -21,7 +21,7 @@ interface CustomerRankingsResponse {
 }
 
 // Cache configuration
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds (calculate less frequently)
 const CACHE_TAG = 'customer-rankings';
 
 // Remove the old cache - we'll use Wix Cache API instead
@@ -71,7 +71,7 @@ export const getCustomerRankings = webMethod(
   }
 );
 
-// Optimized calculation function with chunked processing
+// Optimized calculation function - only process recent orders
 async function calculateCustomerRankings(): Promise<{
   success: boolean;
   rankings: CustomerRanking[];
@@ -86,7 +86,11 @@ async function calculateCustomerRankings(): Promise<{
   let hasMore = true;
   let cursor: string | undefined;
   let pageCount = 0;
-  const MAX_PAGES = 300; // Safety limit - adjust based on your needs
+  const MAX_PAGES = 100; // Reduced from 300 to 100 - process fewer orders
+
+  // Only process orders from last 6 months for better performance
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
   // Optimized: Load orders in smaller chunks for better memory management
   const CHUNK_SIZE = 50; // Smaller chunks for better performance

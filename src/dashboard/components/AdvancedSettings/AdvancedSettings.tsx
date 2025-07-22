@@ -262,60 +262,41 @@ export const AdvancedSettings: React.FC = observer(() => {
           <Divider />
 
           <Box direction="vertical" gap="12px">
-            <Text weight="normal" size="medium">Customer Rankings</Text>
+            <Text weight="normal" size="medium">Customer Badges</Text>
 
-            {/* Toggle for enabling/disabling customer rankings */}
+            {/* Toggle for enabling/disabling customer badges */}
             <Box direction="horizontal" align="space-between" verticalAlign="middle">
               <Box direction="vertical" gap="4px" flex="1">
                 <Text secondary size="small">
-                  Display badges for customers based on total spending. Top 50%, Top 25%, Top 10% for the highest spenders.
+                  Display badges for customers based on order count in current view:
                 </Text>
                 <Text secondary size="small">
-                  Customer rankings are calculated from all orders globally and cached for 2 hours using Wix Cache API.
+                  • 2+ orders: "Frequent Buyer" • 3+ orders: "Loyal Customer" • 4+ orders: "VIP Customer"
+                </Text>
+                <Text secondary size="small">
+                  Super fast - only counts from loaded orders (batch size: {settingsStore.initialOrderLimit}). Shows repeat customers in current context.
                 </Text>
               </Box>
               <ToggleSwitch
-                checked={settingsStore.settings.showCustomerRankings}
-                onChange={(e) => settingsStore.setShowCustomerRankings(e.target.checked)}
+                checked={settingsStore.settings.showCustomerBadges}
+                onChange={(e) => settingsStore.setShowCustomerBadges(e.target.checked)}
                 size="large"
               />
             </Box>
 
-            {/* Show cache controls only when rankings are enabled */}
-            {settingsStore.settings.showCustomerRankings && (
-              <Box direction="vertical" gap="8px" paddingTop="12px">
-                <Box direction="horizontal" gap="16px" align="left">
-                  <Button
-                    size="small"
-                    priority="secondary"
-                    disabled={isRefreshing}
-                    onClick={async () => {
-                      setIsRefreshing(true);
-                      try {
-                        // First invalidate the cache
-                        const { invalidateCustomerRankingsCache } = await import('../../../backend/customer-rankings.web');
-                        await invalidateCustomerRankingsCache();
-
-                        // Then refresh the rankings (this will recalculate and cache fresh data)
-                        await orderStore.refreshGlobalCustomerRankings();
-                        console.log('Global customer rankings refreshed successfully');
-
-                        // Update cache status
-                        setCacheStatus('Refreshed - Active (2-hour TTL)');
-                      } catch (error) {
-                        console.error('Failed to refresh rankings:', error);
-                        setCacheStatus('Error during refresh');
-                      } finally {
-                        setIsRefreshing(false);
-                      }
-                    }}
-                  >
-                    {isRefreshing ? 'Refreshing...' : 'Refresh Global Rankings'}
-                  </Button>
-                </Box>
-                <Text size="tiny" secondary style={{ marginTop: '8px' }}>
-                  Cache Status: {cacheStatus}
-                </Text>
+            {/* Show clear cache option when badges are enabled */}
+            {settingsStore.settings.showCustomerBadges && (
+              <Box direction="horizontal" gap="16px" align="left" paddingTop="12px">
+                <Button
+                  size="small"
+                  priority="secondary"
+                  onClick={() => {
+                    orderStore.clearCustomerOrderCountCache();
+                    console.log('Customer badge cache cleared');
+                  }}
+                >
+                  Clear Badge Cache
+                </Button>
               </Box>
             )}
           </Box>

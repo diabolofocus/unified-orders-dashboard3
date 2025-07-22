@@ -2,6 +2,22 @@ import React from 'react';
 import { Box, Text } from '@wix/design-system';
 import { Check } from '@wix/wix-ui-icons-common';
 
+// Define types for the order data
+interface CustomerOrder {
+    _id: string;
+    number: string;
+    _createdDate: string;
+    status: string;
+    totals?: {
+        total?: number;
+    };
+}
+
+interface CustomerOrderHistoryProps {
+    orders: CustomerOrder[];
+    onOrderClick: (orderId: string) => void;
+}
+
 // Simple date formatter
 const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -31,7 +47,7 @@ const tableStyle = {
     },
 };
 
-export const CustomerOrderHistory = ({ orders, onOrderClick }) => {
+export const CustomerOrderHistory: React.FC<CustomerOrderHistoryProps> = ({ orders, onOrderClick }) => {
     if (!orders?.length) {
         return (
             <Box padding="24px" align="center">
@@ -55,7 +71,7 @@ export const CustomerOrderHistory = ({ orders, onOrderClick }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.map((order) => (
+                        {orders.map((order: CustomerOrder) => (
                             <tr key={order._id}>
                                 <td>{order.number || 'N/A'}</td>
                                 <td>{formatDate(order._createdDate)}</td>

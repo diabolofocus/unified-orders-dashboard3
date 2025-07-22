@@ -22,7 +22,7 @@ import { useStores } from '../../hooks/useStores';
 import { useOrderController } from '../../hooks/useOrderController';
 import { useOrderUpdates } from '../../hooks/useOrderUpdates';
 import { StatusBadge } from '../shared/StatusBadge';
-import { CustomerRating } from '../shared/CustomerRating';
+import { CustomerBadge } from '../shared/CustomerBadge';
 import { formatDate } from '../../utils/formatters';
 import { orderContainsProduct } from '../../utils/orderFilters';
 import type { Order } from '../../types/Order';
@@ -120,6 +120,17 @@ const OrdersTable: React.FC = observer(() => {
     const [printingOrders, setPrintingOrders] = useState<Record<string, boolean>>({});
     const [isPrinting, setIsPrinting] = useState(false);
 
+    // Customer badge loading state - TEMPORARILY DISABLED
+    const [badgeLoadingProgress, setBadgeLoadingProgress] = useState<{
+        isLoading: boolean;
+        completed: number;
+        total: number;
+        currentEmail?: string;
+    }>({ isLoading: false, completed: 0, total: 0 });
+
+    // Customer counts loading state - TEMPORARILY DISABLED
+    // const [customerCountsLoaded, setCustomerCountsLoaded] = useState<Set<string>>(new Set());
+
     useOrderUpdates(orderStore.orders);
 
     const [searchValue, setSearchValue] = useState('');
@@ -146,6 +157,7 @@ const OrdersTable: React.FC = observer(() => {
     useEffect(() => {
         setIsSearching(uiStore.searching);
     }, [uiStore.searching]);
+
     const getTrackingInfo = async (orderId: string) => {
         if (orderTrackingCache[orderId] !== undefined) {
             return orderTrackingCache[orderId];
@@ -157,13 +169,20 @@ const OrdersTable: React.FC = observer(() => {
 
             const withTracking = fulfillments
                 .filter(f => f.trackingInfo?.trackingNumber)
-                .sort((a, b) => new Date(b._createdDate).getTime() - new Date(a._createdDate).getTime())[0];
+                .sort((a, b) => {
+                    const dateA = a._createdDate ? new Date(a._createdDate).getTime() : 0;
+                    const dateB = b._createdDate ? new Date(b._createdDate).getTime() : 0;
+                    return dateB - dateA;
+                })[0];
 
             const trackingInfo = withTracking?.trackingInfo || null;
 
             setOrderTrackingCache(prev => ({
                 ...prev,
-                [orderId]: trackingInfo
+                [orderId]: trackingInfo ? {
+                    trackingNumber: trackingInfo.trackingNumber || undefined,
+                    trackingLink: trackingInfo.trackingLink || undefined
+                } : null
             }));
 
             return trackingInfo;
@@ -176,6 +195,8 @@ const OrdersTable: React.FC = observer(() => {
             return null;
         }
     };
+
+
 
     const checkOrderSeenStatus = async (orderId: string): Promise<boolean> => {
         if (orderSeenCache[orderId] !== undefined) {
@@ -290,7 +311,7 @@ const OrdersTable: React.FC = observer(() => {
                 try {
                     console.log('Trying URL:', urlToTry);
 
-                    const response = await fetch(urlToTry, {
+                    const response = await fetch(urlToTry as string, {
                         mode: 'cors',
                         headers: {
                             'Accept': 'image/*'
@@ -939,13 +960,13 @@ const OrdersTable: React.FC = observer(() => {
 
                 switch (paymentStatusFilter) {
                     case 'paid':
-                        return paymentStatus === 'PAID' || paymentStatus === 'FULLY_PAID';
+                        return paymentStatus === 'PAID';
 
                     case 'unpaid':
-                        return paymentStatus === 'UNPAID' || paymentStatus === 'NOT_PAID';
+                        return paymentStatus === 'UNPAID';
 
                     case 'refunded':
-                        return paymentStatus === 'FULLY_REFUNDED' || paymentStatus === 'REFUNDED';
+                        return paymentStatus === 'FULLY_REFUNDED';
 
                     case 'partially_refunded':
                         return paymentStatus === 'PARTIALLY_REFUNDED';
@@ -997,6 +1018,18 @@ const OrdersTable: React.FC = observer(() => {
         id: order._id,
         ...order
     }));
+
+    // Customer badge loading logic - TEMPORARILY DISABLED
+    useEffect(() => {
+        // DISABLED: Customer badge loading to fix infinite loop
+        console.log('Customer badge loading temporarily disabled');
+        return;
+
+        if (!settingsStore.settings.showCustomerBadges || finalFilteredOrders.length === 0) {
+            return;
+        }
+        // ... rest commented out for now
+    }, [finalFilteredOrders, settingsStore.settings.showCustomerBadges]);
 
     const columns = [
         {
@@ -1079,106 +1112,8 @@ const OrdersTable: React.FC = observer(() => {
                 const customerName = `${firstName} ${lastName}`;
                 const company = recipientContact?.company || billingContact?.company || order.customer.company;
 
-                // Get customer email for ranking
-                const customerEmail = recipientContact?.email || billingContact?.email || order.customer.email;
-
-                // Customer ranking state
-                const [customerRankings, setCustomerRankings] = useState<Record<string, {
-                    spending?: { rank: number; totalCustomers: number; totalSpent: number };
-                    orders?: { rank: number; totalCustomers: number; orderCount: number };
-                }>>({});
-
-                // Load customer ranking for an email
-                const loadCustomerRanking = useCallback(async (customerEmail: string) => {
-                    if (!customerEmail || customerRankings[customerEmail]) return;
-
-                    try {
-                        const [spendingRanking, orderCountRanking] = await Promise.all([
-                            orderStore.getCustomerRanking(customerEmail),
-                            orderStore.getCustomerOrderCountRanking(customerEmail)
-                        ]);
-
-                        setCustomerRankings(prev => ({
-                            ...prev,
-                            [customerEmail]: {
-                                spending: spendingRanking || undefined,
-                                orders: orderCountRanking || undefined
-                            }
-                        }));
-                    } catch (error) {
-                        console.error('Error loading customer ranking:', error);
-                    }
-                }, [orderStore, customerRankings]);
-
-                // Load rankings for visible orders with intersection observer
-                useEffect(() => {
-                    if (!settingsStore.settings.showCustomerRankings || finalFilteredOrders.length === 0) {
-                        return;
-                    }
-
-                    // Load initial batch
-                    const loadInitialRankings = async () => {
-                        const initialOrders = finalFilteredOrders.slice(0, 30); // Increased from 20
-
-                        for (const order of initialOrders) {
-                            const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
-                            const billingContact = order.rawOrder?.billingInfo?.contactDetails;
-                            const customerEmail = recipientContact?.email || billingContact?.email || order.customer.email;
-
-                            if (customerEmail && !customerRankings[customerEmail]) {
-                                loadCustomerRanking(customerEmail);
-                            }
-                        }
-                    };
-
-                    loadInitialRankings();
-
-                    // Set up intersection observer for lazy loading rankings on scroll
-                    const observer = new IntersectionObserver(
-                        (entries) => {
-                            entries.forEach((entry) => {
-                                if (entry.isIntersecting) {
-                                    const row = entry.target as HTMLElement;
-                                    const rowIndex = parseInt(row.dataset.orderIndex || '0');
-
-                                    if (rowIndex < finalFilteredOrders.length) {
-                                        const order = finalFilteredOrders[rowIndex];
-                                        const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
-                                        const billingContact = order.rawOrder?.billingInfo?.contactDetails;
-                                        const customerEmail = recipientContact?.email || billingContact?.email || order.customer.email;
-
-                                        if (customerEmail && !customerRankings[customerEmail]) {
-                                            loadCustomerRanking(customerEmail);
-                                        }
-                                    }
-                                }
-                            });
-                        },
-                        {
-                            root: containerRef.current,
-                            rootMargin: '100px', // Start loading 100px before order comes into view
-                            threshold: 0.1
-                        }
-                    );
-
-                    // Observe all table rows after initial load
-                    const timeoutId = setTimeout(() => {
-                        const tableRows = document.querySelectorAll('.orders-table-container tbody tr');
-                        tableRows.forEach((row, index) => {
-                            (row as HTMLElement).dataset.orderIndex = index.toString();
-                            observer.observe(row);
-                        });
-                    }, 500); // Small delay to ensure DOM is ready
-
-                    return () => {
-                        observer.disconnect();
-                        clearTimeout(timeoutId);
-                    };
-                }, [finalFilteredOrders, customerRankings, loadCustomerRanking, settingsStore.settings.showCustomerRankings]);
-
-                // Get customer ranking from cache
-                const spendingRanking = customerEmail ? customerRankings[customerEmail]?.spending : null;
-                const orderCountRanking = customerEmail ? customerRankings[customerEmail]?.orders : null;
+                // TEMPORARILY DISABLED: Just show customer info without badges
+                // const customerOrderCount = customerEmail ? orderStore.getCachedCustomerOrderCount(customerEmail) : 0;
 
                 return (
                     <Box direction="vertical" gap="4px">
@@ -1189,23 +1124,10 @@ const OrdersTable: React.FC = observer(() => {
                             )}
                         </Box>
 
-                        {/* Customer Rating - only show if enabled in settings */}
-                        {settingsStore.settings.showCustomerRankings && spendingRanking && (
-                            <CustomerRating
-                                rank={spendingRanking.rank}
-                                totalCustomers={spendingRanking.totalCustomers}
-                                totalSpent={spendingRanking.totalSpent}
-                                type="spending"
-                            />
-                        )}
-                        {settingsStore.settings.showCustomerRankings && !spendingRanking && orderCountRanking && (
-                            <CustomerRating
-                                rank={orderCountRanking.rank}
-                                totalCustomers={orderCountRanking.totalCustomers}
-                                orderCount={orderCountRanking.orderCount}
-                                type="orders"
-                            />
-                        )}
+                        {/* TEMPORARILY DISABLED: Customer badges */}
+                        {/* {settingsStore.settings.showCustomerBadges && customerOrderCount > 0 && (
+                            <CustomerBadge orderCount={customerOrderCount} />
+                        )} */}
                     </Box>
                 );
             },
@@ -1275,7 +1197,7 @@ const OrdersTable: React.FC = observer(() => {
                 });
 
                 // Add divider
-                secondaryActions.push({ divider: true } as any);
+                secondaryActions.push({ divider: true, key: 'divider-1' } as any);
 
                 // Add Archive Order action
                 secondaryActions.push({
@@ -1319,7 +1241,7 @@ const OrdersTable: React.FC = observer(() => {
                 const rows = document.querySelectorAll('tbody tr');
                 rows.forEach((row, index) => {
                     const orderData = finalFilteredOrders[index]; // UPDATED: Use finalFilteredOrders
-                    if (orderData && orderData._id === orderStore.selectedOrder._id) {
+                    if (orderData && orderData._id === orderStore.selectedOrder?._id) {
                         row.setAttribute('data-selected-order', orderData._id);
                     }
                 });
@@ -1581,7 +1503,7 @@ const OrdersTable: React.FC = observer(() => {
                     onRowClick={(rowData, event) => handleRowClick(rowData as Order, event)}
                     hasMore={orderStore.searchHasMore || orderStore.hasMoreOrders}
                     itemsPerPage={batchSize}
-                    scrollElement={containerRef.current}
+                    scrollElement={containerRef.current || undefined}
                     loader={
                         <Box align="center" padding="24px 0px">
                             <Loader size="small" />
@@ -1672,7 +1594,13 @@ const OrdersTable: React.FC = observer(() => {
 
 
             {/* Add some CSS styles for better visual feedback */}
-            <style>{customStyles}</style>
+            <style>{`
+                ${customStyles}
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
 
             {showSidePanel && (
                 <SidePanel
@@ -1712,6 +1640,18 @@ const OrdersTable: React.FC = observer(() => {
                     isFulfillmentStatusLoading={isFulfillmentStatusLoading}
                     isPaymentStatusLoading={isPaymentStatusLoading}
                 />
+            )}
+
+            {/* Customer Badge Loading Progress - TEMPORARILY DISABLED */}
+            {false && badgeLoadingProgress.isLoading && settingsStore.settings.showCustomerBadges && (
+                <Box
+                    style={{
+                        position: 'fixed',
+                        // ... entire floating box
+                    }}
+                >
+                    {/* ... progress content */}
+                </Box>
             )}
         </Card>
     );
