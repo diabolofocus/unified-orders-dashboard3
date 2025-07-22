@@ -1029,16 +1029,14 @@ const OrdersTable: React.FC = observer(() => {
             return;
         }
 
-        // Use a stable reference to prevent infinite loops
-        const ordersToProcess = finalFilteredOrders.slice(0, 50); // Limit to first 50 orders for performance
-
-        if (ordersToProcess.length === 0) {
+        // Only process if we have orders and badges are enabled
+        if (finalFilteredOrders.length === 0) {
             return;
         }
 
-        // Extract unique customer emails from visible orders
-        const customerEmails = Array.from(new Set(
-            ordersToProcess.map(order => {
+        // Extract unique customer emails from visible orders (your approach)
+        const visibleCustomerEmails = Array.from(new Set(
+            finalFilteredOrders.slice(0, 50).map(order => {
                 const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
                 const billingContact = order.rawOrder?.billingInfo?.contactDetails;
                 const buyerEmail = order.rawOrder?.buyerInfo?.email;
@@ -1046,11 +1044,15 @@ const OrdersTable: React.FC = observer(() => {
             }).filter(email => email && email.trim() !== '')
         ));
 
-        // Filter out customers we've already processed in this session
-        const newCustomers = customerEmails.filter(email =>
-            !processedCustomersRef.current.has(email) &&
-            orderStore.getCachedCustomerOrderCount(email) === 0
-        );
+        // Only process customers we haven't processed AND don't have cached counts
+        const newCustomers = visibleCustomerEmails.filter(email => {
+            const isNotProcessed = !processedCustomersRef.current.has(email);
+            const hasNoCache = orderStore.getCachedCustomerOrderCount(email) === 0;
+            console.log(`🔍 Customer ${email}: processed=${!isNotProcessed}, cached=${!hasNoCache}`);
+            return isNotProcessed && hasNoCache;
+        });
+
+        console.log(`🎯 Visible customers: ${visibleCustomerEmails.length}, Need processing: ${newCustomers.length}`);
 
         if (newCustomers.length === 0) {
             // All customers already have cached counts
@@ -1062,8 +1064,23 @@ const OrdersTable: React.FC = observer(() => {
         // Mark these customers as being processed
         newCustomers.forEach(email => processedCustomersRef.current.add(email));
 
-        // Start batch processing
+        // Start batch processing (your sequential approach)
         const processBadgeData = async () => {
+            // Check if processing is already complete
+            // Debug: Check current state
+            console.log('🔍 Debug cache state:', {
+                totalVisibleCustomers: visibleCustomerEmails.length,
+                newCustomersToProcess: newCustomers.length,
+                processedCustomersInRef: processedCustomersRef.current.size,
+                sampleCustomerCacheCount: visibleCustomerEmails[0] ? orderStore.getCachedCustomerOrderCount(visibleCustomerEmails[0]) : 'none'
+            });
+
+            // Don't skip if we have customers to process
+            if (newCustomers.length === 0) {
+                console.log('🎉 All visible customers already have cached counts, skipping');
+                return;
+            }
+
             setBadgeLoadingProgress({
                 isLoading: true,
                 completed: 0,
@@ -1071,42 +1088,44 @@ const OrdersTable: React.FC = observer(() => {
             });
 
             try {
-                // Process customers in small batches with delays
-                const BATCH_SIZE = 3;
-                for (let i = 0; i < newCustomers.length; i += BATCH_SIZE) {
-                    const batch = newCustomers.slice(i, i + BATCH_SIZE);
+                // Sequential processing (your approach) - one customer at a time
+                for (let i = 0; i < newCustomers.length; i++) {
+                    const email = newCustomers[i];
 
-                    // Process batch in parallel
-                    await Promise.all(
-                        batch.map(async (email, batchIndex) => {
-                            try {
-                                setBadgeLoadingProgress(prev => ({
-                                    ...prev,
-                                    currentEmail: email,
-                                    completed: i + batchIndex
-                                }));
+                    try {
+                        console.log(`🔍 Processing customer ${i + 1}/${newCustomers.length}: ${email}`);
 
-                                await orderStore.getCustomerOrderCount(email);
-                                console.log(`✅ Processed customer ${i + batchIndex + 1}/${newCustomers.length}: ${email}`);
-                            } catch (error) {
-                                console.error(`❌ Failed to process ${email}:`, error);
-                            }
-                        })
-                    );
+                        setBadgeLoadingProgress(prev => ({
+                            ...prev,
+                            currentEmail: email,
+                            completed: i
+                        }));
 
-                    // Update progress
-                    setBadgeLoadingProgress(prev => ({
-                        ...prev,
-                        completed: Math.min(i + BATCH_SIZE, newCustomers.length)
-                    }));
+                        // Mark as processed immediately to prevent duplicates
+                        processedCustomersRef.current.add(email);
 
-                    // Delay between batches to prevent API rate limiting
-                    if (i + BATCH_SIZE < newCustomers.length) {
-                        await new Promise(resolve => setTimeout(resolve, 400));
+                        // Get count for this customer
+                        const count = await orderStore.getCustomerOrderCount(email);
+
+                        console.log(`✅ Customer ${email}: ${count} orders`);
+
+                        // Update progress
+                        setBadgeLoadingProgress(prev => ({
+                            ...prev,
+                            completed: i + 1
+                        }));
+
+                        // Delay between customers to prevent API overload
+                        if (i < newCustomers.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        }
+
+                    } catch (error) {
+                        console.error(`❌ Failed to process ${email}:`, error);
                     }
                 }
 
-                console.log(`🎉 Completed processing ${newCustomers.length} customers for badges`);
+                console.log(`🎉 Sequential processing complete for ${newCustomers.length} customers`);
             } catch (error) {
                 console.error('❌ Badge processing failed:', error);
             } finally {
@@ -1117,7 +1136,6 @@ const OrdersTable: React.FC = observer(() => {
                 });
             }
         };
-
         // Debounce the processing to prevent rapid fire calls
         const timeoutId = setTimeout(processBadgeData, 500);
 
@@ -1125,8 +1143,7 @@ const OrdersTable: React.FC = observer(() => {
             clearTimeout(timeoutId);
         };
 
-    }, [settingsStore.settings.showCustomerBadges, finalFilteredOrders.length]); // Use length instead of array reference
-
+    }, [settingsStore.settings.showCustomerBadges]); // Remove finalFilteredOrders dependency
     const columns = [
         {
             title: (
@@ -1396,15 +1413,32 @@ const OrdersTable: React.FC = observer(() => {
     // Helper to clear processed customers cache when needed
     const clearProcessedCustomers = useCallback(() => {
         processedCustomersRef.current.clear();
-        console.log('🗑️ Cleared processed customers cache');
+        console.log('🗑️ Cleared processed customers ref');
     }, []);
 
-    // Clear processed customers when settings change
+    // Expose clear function globally for settings button
+    useEffect(() => {
+        (window as any).clearProcessedCustomersRef = clearProcessedCustomers;
+        return () => {
+            delete (window as any).clearProcessedCustomersRef;
+        };
+    }, [clearProcessedCustomers]);
+
+    // Clear processed customers when settings change or cache is cleared
     useEffect(() => {
         if (!settingsStore.settings.showCustomerBadges) {
             clearProcessedCustomers();
         }
     }, [settingsStore.settings.showCustomerBadges, clearProcessedCustomers]);
+
+    // Clear processed customers when orders change significantly
+    useEffect(() => {
+        if (finalFilteredOrders.length > 0) {
+            // Clear ref every time we have a fresh batch of orders
+            processedCustomersRef.current.clear();
+            console.log('🔄 Reset processed customers ref for fresh order batch');
+        }
+    }, [finalFilteredOrders.length > 0]); // Only when we go from 0 to >0 orders
 
     return (
         <Card className="relative">

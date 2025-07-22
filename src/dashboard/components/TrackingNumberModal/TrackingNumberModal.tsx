@@ -1072,7 +1072,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
         e.preventDefault();
         try {
             dashboard.navigate({
-                pageId: '58613115-8f7e-40f4-bf0c-89a59a0aeb94',
+                pageId: '7570b9fe-ebe2-4486-9380-e5e4c41fc62d',
                 relativeUrl: '/settings'
             });
         } catch (error) {

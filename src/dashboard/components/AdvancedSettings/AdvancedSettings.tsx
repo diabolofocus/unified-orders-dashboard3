@@ -271,10 +271,12 @@ export const AdvancedSettings: React.FC = observer(() => {
                   Display badges for customers based on order count in current view:
                 </Text>
                 <Text secondary size="small">
-                  • 2+ orders: "Frequent Buyer" • 3+ orders: "Loyal Customer" • 4+ orders: "VIP Customer"
+                  • 2+ orders: "FREQUENT BUYER"
+                  • 3+ orders: "LOYAL CUSTOMER"
+                  • 4+ orders: "VIP CUSTOMER"
                 </Text>
                 <Text secondary size="small">
-                  Super fast - only counts from loaded orders (batch size: {settingsStore.initialOrderLimit}). Shows repeat customers in current context.
+                  Only counts from loaded orders (batch size: {settingsStore.initialOrderLimit}). Initially, it may take a few minutes to load and can affect the performance. Data is then cached for 7 days.
                 </Text>
               </Box>
               <ToggleSwitch
@@ -292,7 +294,11 @@ export const AdvancedSettings: React.FC = observer(() => {
                   priority="secondary"
                   onClick={() => {
                     orderStore.clearCustomerOrderCountCache();
-                    console.log('Customer badge cache cleared');
+                    // Also clear the processed customers ref
+                    if ((window as any).clearProcessedCustomersRef) {
+                      (window as any).clearProcessedCustomersRef();
+                    }
+                    console.log('Customer badge cache and processed ref cleared');
                   }}
                 >
                   Clear Badge Cache

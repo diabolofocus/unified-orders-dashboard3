@@ -33,9 +33,9 @@ export const APP_CONFIG = {
 
     // Dashboard Page IDs
     PAGES: {
-        ORDERS: '1702fa3a-de5c-44c4-8e64-27737b4d8c2f',
-        SETTINGS: 'd9440702-f4b0-4ee4-93e5-734bc6f6e9d1',
-        SUPPORT: 'ad6c9a26-e543-4546-9065-76ae53911cd5'
+        ORDERS: '8dbd275e-3b05-4a4a-aa2c-a19f82c4a712',
+        SETTINGS: '7570b9fe-ebe2-4486-9380-e5e4c41fc62d',
+        SUPPORT: '558b65a2-a92d-4c61-a6a6-267bfa06289b'
     },
 
     // API Endpoints

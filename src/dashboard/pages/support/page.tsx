@@ -357,7 +357,7 @@ Site Name: ${userInfo.name || 'Not available'}
 Site ID: ${userInfo.siteId || 'Not available'}
 Site URL: ${userInfo.siteUrl || 'Not available'}
 User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL permission)'}`;
-      
+
       setSystemInfoText(sysInfoTemplate);
     }
   }, [systemInfo, userInfo]);
@@ -368,7 +368,7 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
   }, [userInfo]);
 
   const handleBackToOrders = () => {
-    dashboard.navigate({ pageId: '1702fa3a-de5c-44c4-8e64-27737b4d8c2f' });
+    dashboard.navigate({ pageId: '8dbd275e-3b05-4a4a-aa2c-a19f82c4a712' });
   };
 
   const handleBugSubmit = async (e: React.FormEvent) => {
@@ -1091,7 +1091,7 @@ Please describe your feature request in detail here...`
             <Button
               priority="primary"
               prefixIcon={<Icons.Settings />}
-              onClick={() => dashboard.navigate({ pageId: '58613115-8f7e-40f4-bf0c-89a59a0aeb94' })}
+              onClick={() => dashboard.navigate({ pageId: '7570b9fe-ebe2-4486-9380-e5e4c41fc62d' })}
             >
               Settings
             </Button>

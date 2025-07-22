@@ -537,52 +537,44 @@ export class OrderStore {
 
             const { orders } = await import('@wix/ecom');
 
-            // Since queryOrders doesn't exist, we'll use searchOrders with pagination
-            let totalCount = 0;
-            let hasMore: boolean = true;
-            let cursor: string | undefined = undefined;
+            // Use the efficient approach: filter by buyerInfo.email directly
+            const response = await orders.searchOrders({
+                filter: {
+                    "buyerInfo.email": { $eq: customerEmail }
+                },
+                cursorPaging: {
+                    limit: 100 // Get first batch to count
+                }
+            });
 
-            // We'll paginate through orders and filter manually
-            while (hasMore && totalCount < 1000) { // Safety limit
+            let totalCount = response.orders?.length || 0;
+            let cursor = response.metadata?.cursors?.next;
+
+            // If there are more pages, continue counting
+            while (cursor && response.metadata?.hasNext) {
                 try {
-                    const response = await orders.searchOrders({
+                    const nextResponse = await orders.searchOrders({
+                        filter: {
+                            "buyerInfo.email": { $eq: customerEmail }
+                        },
                         cursorPaging: {
                             limit: 100,
-                            ...(cursor ? { cursor } : {})
+                            cursor: cursor
                         }
                     });
 
-                    const pageOrders = response.orders || [];
+                    totalCount += nextResponse.orders?.length || 0;
+                    cursor = nextResponse.metadata?.cursors?.next;
 
-                    // Count orders that match this customer email manually
-                    const matchingOrders = pageOrders.filter((order: any) => {
-                        // Check multiple possible email locations
-                        const recipientEmail = order.recipientInfo?.contactDetails?.email;
-                        const billingEmail = order.billingInfo?.contactDetails?.email;
-                        const buyerEmail = order.buyerInfo?.email;
+                    console.log(`📊 Found ${nextResponse.orders?.length || 0} more orders (total: ${totalCount})`);
 
-                        return [recipientEmail, billingEmail, buyerEmail].some((email: string | undefined) =>
-                            email && email.toLowerCase() === customerEmail.toLowerCase()
-                        );
-                    });
-
-                    totalCount += matchingOrders.length;
-
-                    console.log(`📊 Found ${matchingOrders.length} matching orders in this page (total so far: ${totalCount})`);
-
-                    // Fix the boolean and string type issues
-                    hasMore = Boolean(response.metadata?.hasNext) && pageOrders.length > 0;
-                    cursor = response.metadata?.cursors?.next || undefined;
-
-                    // If we get less than requested, we're likely done
-                    if (pageOrders.length < 100) {
-                        hasMore = false;
+                    // Break if no more pages
+                    if (!nextResponse.metadata?.hasNext) {
+                        break;
                     }
 
-                    // Small delay to avoid overwhelming the API
-                    if (hasMore) {
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
+                    // Small delay to prevent API rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 100));
 
                 } catch (pageError) {
                     console.error('Error in pagination:', pageError);

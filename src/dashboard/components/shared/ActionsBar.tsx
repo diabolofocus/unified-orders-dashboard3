@@ -35,7 +35,7 @@ export const ActionsBar: React.FC = observer(() => {
         try {
             // Navigate to settings dashboard page
             dashboard.navigate({
-                pageId: '58613115-8f7e-40f4-bf0c-89a59a0aeb94',
+                pageId: '7570b9fe-ebe2-4486-9380-e5e4c41fc62d',
                 relativeUrl: '/settings'
             });
         } catch (error) {
@@ -51,7 +51,7 @@ export const ActionsBar: React.FC = observer(() => {
         try {
             // For now, navigate to settings as well or implement support page later
             dashboard.navigate({
-                pageId: 'ad6c9a26-e543-4546-9065-76ae53911cd5',
+                pageId: '558b65a2-a92d-4c61-a6a6-267bfa06289b',
                 relativeUrl: '/support'
             });
         } catch (error) {
@@ -87,17 +87,17 @@ export const ActionsBar: React.FC = observer(() => {
         >
             {/* Left side - Refresh icon button */}
             <Box direction="horizontal" align="center">
-            <Tooltip content="Refresh">
-                <IconButton
-                    onClick={handleRefresh}
-                    disabled={uiStore.refreshing}
-                    size="medium"
-                    skin="standard"
-                    priority="secondary"
-                >
-                    <Icons.Refresh />
-                </IconButton>
-            </Tooltip>
+                <Tooltip content="Refresh">
+                    <IconButton
+                        onClick={handleRefresh}
+                        disabled={uiStore.refreshing}
+                        size="medium"
+                        skin="standard"
+                        priority="secondary"
+                    >
+                        <Icons.Refresh />
+                    </IconButton>
+                </Tooltip>
             </Box>
 
             {/* Center - More Actions PopoverMenu */}

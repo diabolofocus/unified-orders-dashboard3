@@ -38,7 +38,7 @@ const DashboardPage: FC = () => {
 
   const handleBackToOrders = () => {
     console.log('DashboardPage: Back to orders clicked');
-    dashboard.navigate({ pageId: '1702fa3a-de5c-44c4-8e64-27737b4d8c2f' });
+    dashboard.navigate({ pageId: '8dbd275e-3b05-4a4a-aa2c-a19f82c4a712' });
   };
 
   const handleSaveSettings = async () => {
@@ -98,7 +98,7 @@ const DashboardPage: FC = () => {
       }
 
       // Get current page ID from dashboard context if available
-      const currentPageId = '1702fa3a-de5c-44c4-8e64-27737b4d8c2f';
+      const currentPageId = '8dbd275e-3b05-4a4a-aa2c-a19f82c4a712';
 
       const favorite: UserFavorite = {
         id: currentPageId,
@@ -197,7 +197,7 @@ const DashboardPage: FC = () => {
                   <Button
                     priority="primary"
                     prefixIcon={<Icons.Help />}
-                    onClick={() => dashboard.navigate({ pageId: 'ad6c9a26-e543-4546-9065-76ae53911cd5' })}
+                    onClick={() => dashboard.navigate({ pageId: '558b65a2-a92d-4c61-a6a6-267bfa06289b' })}
                   >
                     Support
                   </Button>
