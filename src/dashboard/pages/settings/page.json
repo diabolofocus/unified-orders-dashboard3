@@ -1,0 +1,9 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-page.json",
+  "id": "7570b9fe-ebe2-4486-9380-e5e4c41fc62d",
+  "title": "settings",
+  "sidebar": {
+    "categoryId": "bbe1a158-0ac1-4abe-9cc0-3932a7e42346",
+    "priority": 2
+  }
+}

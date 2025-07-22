@@ -1,0 +1,327 @@
+// components/AdvancedSettings/AdvancedSettings.tsx - UPDATED with Advanced Search + Print & Archive
+
+import React, { useEffect } from 'react';
+import { observer } from 'mobx-react-lite';
+import {
+  Box,
+  Card,
+  FormField,
+  Input,
+  Text,
+  Heading,
+  ColorInput,
+  Divider,
+  Dropdown,
+  NumberInput,
+  ToggleSwitch,
+  Button
+} from '@wix/design-system';
+import * as Icons from '@wix/wix-ui-icons-common';
+import { useStores } from '../../hooks/useStores';
+import { SHIPPING_CARRIERS } from '../../utils/constants';
+
+export const AdvancedSettings: React.FC = observer(() => {
+  const { settingsStore, orderStore } = useStores();
+  const [localOrderLimit, setLocalOrderLimit] = React.useState(settingsStore.initialOrderLimit);
+  const [cacheStatus, setCacheStatus] = React.useState<string>('Unknown');
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  React.useEffect(() => {
+    setLocalOrderLimit(settingsStore.initialOrderLimit);
+  }, [settingsStore.initialOrderLimit]);
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    settingsStore.setProductHighlightFilter(e.target.value);
+  };
+
+  const handleColorChange = (color: string | object) => {
+    if (typeof color === 'string') {
+      settingsStore.setProductHighlightColor(color);
+    } else if (color && typeof color === 'object' && 'hex' in color) {
+      // Wix ColorInput may provide an object with hex/rgb properties
+      const hex = (color as any).hex;
+      if (typeof hex === 'string') {
+        settingsStore.setProductHighlightColor(hex);
+      }
+    }
+  };
+
+  const handleOrderLimitChange = (value: number | null, _stringValue: string) => {
+    if (value !== null && value !== undefined) {
+      setLocalOrderLimit(value);
+    }
+  };
+
+  const handleOrderLimitBlur = () => {
+    if (localOrderLimit >= 20 && localOrderLimit <= 100) {
+      settingsStore.setInitialOrderLimit(localOrderLimit);
+    } else {
+      const clampedValue = Math.max(20, Math.min(100, localOrderLimit));
+      setLocalOrderLimit(clampedValue);
+      settingsStore.setInitialOrderLimit(clampedValue);
+    }
+  };
+
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  useEffect(() => {
+    const loadInvoiceSettings = async () => {
+      try {
+        console.log('Loading current invoice settings...');
+        setIsLoading(true);
+        await settingsStore.fetchOrderSettings();
+      } catch (error) {
+        console.error('Failed to load invoice settings:', error);
+
+        if (typeof window !== 'undefined' && (window as any).dashboard) {
+          (window as any).dashboard.showToast({
+            message: 'Failed to load invoice settings. Please refresh the page.',
+            type: 'error',
+            duration: 5000
+          });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInvoiceSettings();
+  }, [settingsStore]);
+
+  // Load cache status
+  useEffect(() => {
+    const loadCacheStatus = async () => {
+      try {
+        const { getCustomerRankingsCacheStatus } = await import('../../../backend/customer-rankings.web');
+        const status = await getCustomerRankingsCacheStatus();
+        setCacheStatus(status.success ? 'Active (2-hour TTL)' : 'Error');
+      } catch (error) {
+        setCacheStatus('Error loading status');
+      }
+    };
+    loadCacheStatus();
+  }, []);
+
+  return (
+    <Card stretchVertically className="advanced-settings-card">
+      <Card.Header
+        title={
+          <Box direction="horizontal" align="left" gap="8px">
+            <Icons.Settings />
+            <Heading size="medium">Advanced Settings</Heading>
+          </Box>
+        }
+        subtitle="Configure default presets"
+      />
+      <Card.Divider />
+
+      <Card.Content>
+        <Box direction="vertical" gap="24px">
+          {/* Performance Settings */}
+          <Box direction="vertical" gap="12px">
+            <Text weight="normal" size="medium">Performance Settings</Text>
+            <Box direction="vertical" gap="8px">
+              <Text secondary size="small">
+                Set the number of orders to load initially. Lower values improve loading performance.
+              </Text>
+              <Box direction="horizontal" gap="16px" align="left">
+                <FormField label="Order Batch Size (20-100)">
+                  <div style={{ width: '180px' }}>
+                    <NumberInput
+                      value={localOrderLimit}
+                      onChange={handleOrderLimitChange}
+                      onBlur={handleOrderLimitBlur}
+                      min={20}
+                      max={100}
+                    />
+                  </div>
+                </FormField>
+              </Box>
+            </Box>
+          </Box>
+
+          <Divider />
+
+          <Box direction="vertical" gap="12px">
+            <Text weight="normal" size="medium">Default Shipping Carrier</Text>
+            <Box direction="vertical" gap="8px">
+              <Text secondary size="small">
+                Select the default shipping carrier that will be pre-selected in the tracking modal.
+              </Text>
+              <Box direction="horizontal" gap="24px" align="left">
+                <div style={{ width: '180px', position: 'relative' }}>
+                  <Dropdown
+                    maxHeightPixels="300px"
+                    options={[
+                      ...SHIPPING_CARRIERS,
+                      ...(settingsStore.customCarriers || []).map(customCarrier => ({
+                        id: customCarrier.id,
+                        value: customCarrier.value,
+                        label: customCarrier.value
+                      }))
+                    ]}
+                    selectedId={settingsStore.defaultShippingCarrier}
+                    onSelect={(option) => {
+                      if (option && option.id) {
+                        settingsStore.setDefaultShippingCarrier(String(option.id));
+                      }
+                    }}
+                    size="medium"
+                  />
+                </div>
+              </Box>
+            </Box>
+          </Box>
+
+          <Divider />
+
+          <Box direction="vertical" gap="16px">
+            <Box direction="horizontal" align="space-between" verticalAlign="middle" paddingBottom="8px">
+              <Box direction="vertical" gap="4px" flex="1">
+                <Text weight="normal" size="medium">Auto-Create Invoices</Text>
+                <Text secondary size="small">
+                  Automatically generate invoices for new orders (NOT YET SUPPORTED BY WIX)
+                </Text>
+              </Box>
+              <ToggleSwitch
+                checked={false}
+                onChange={() => {
+                  console.log('Toggle is disabled - auto-invoice is always enabled');
+                }}
+                disabled={true}
+                size="large"
+              />
+            </Box>
+
+            <Divider />
+
+            <Box direction="horizontal" align="space-between" paddingTop="8px" verticalAlign="middle">
+              <Box direction="vertical" gap="4px" flex="1">
+                <Text weight="normal" size="medium">Click to Copy</Text>
+                <Text secondary size="small">
+                  Enable click-to-copy functionality for order details
+                </Text>
+              </Box>
+              <ToggleSwitch
+                checked={settingsStore.clickToCopyEnabled}
+                onChange={(e) => settingsStore.setEnableClickToCopy(e.target.checked)}
+                size="large"
+              />
+            </Box>
+
+            <Divider />
+
+            <Box direction="horizontal" align="space-between" paddingTop="8px" verticalAlign="middle">
+              <Box direction="vertical" gap="4px" flex="1">
+                <Text weight="normal" size="medium">Top Selling Items</Text>
+                <Text secondary size="small">
+                  Show the top selling items section in the dashboard
+                </Text>
+              </Box>
+              <ToggleSwitch
+                checked={settingsStore.settings.showTopSellingItems}
+                onChange={(e) => settingsStore.setShowTopSellingItems(e.target.checked)}
+                size="large"
+              />
+            </Box>
+          </Box>
+
+          <Divider />
+
+          <Box direction="vertical" gap="8px">
+            <Text weight="normal" size="medium">Order Highlight Filter</Text>
+            <Text secondary size="small">
+              Visually highlight the edge of an order row to know which orders contain products with names matching this filter
+            </Text>
+            <Box direction="horizontal" gap="16px">
+              <Box flex="1" paddingTop="12px">
+                <FormField label="Product Name">
+                  <Input
+                    placeholder="e.g., Flower"
+                    value={settingsStore.productHighlightFilter}
+                    onChange={handleFilterChange}
+                    clearButton
+                  />
+                </FormField>
+              </Box>
+
+              <Box>
+                <FormField label="Highlight Color">
+                  <ColorInput
+                    value={settingsStore.productHighlightColor}
+                    onChange={handleColorChange}
+                  />
+                </FormField>
+              </Box>
+            </Box>
+            <Text size="tiny" secondary>
+              This filter is not case-sensitive. Orders containing products with names matching this filter will be highlighted with the selected color border.
+            </Text>
+          </Box>
+
+          <Divider />
+
+          <Box direction="vertical" gap="12px">
+            <Text weight="normal" size="medium">Customer Rankings</Text>
+
+            {/* Toggle for enabling/disabling customer rankings */}
+            <Box direction="horizontal" align="space-between" verticalAlign="middle">
+              <Box direction="vertical" gap="4px" flex="1">
+                <Text secondary size="small">
+                  Display badges for customers based on total spending. Top 50%, Top 25%, Top 10% for the highest spenders.
+                </Text>
+                <Text secondary size="small">
+                  Customer rankings are calculated from all orders globally and cached for 2 hours using Wix Cache API.
+                </Text>
+              </Box>
+              <ToggleSwitch
+                checked={settingsStore.settings.showCustomerRankings}
+                onChange={(e) => settingsStore.setShowCustomerRankings(e.target.checked)}
+                size="large"
+              />
+            </Box>
+
+            {/* Show cache controls only when rankings are enabled */}
+            {settingsStore.settings.showCustomerRankings && (
+              <Box direction="vertical" gap="8px" paddingTop="12px">
+                <Box direction="horizontal" gap="16px" align="left">
+                  <Button
+                    size="small"
+                    priority="secondary"
+                    disabled={isRefreshing}
+                    onClick={async () => {
+                      setIsRefreshing(true);
+                      try {
+                        // First invalidate the cache
+                        const { invalidateCustomerRankingsCache } = await import('../../../backend/customer-rankings.web');
+                        await invalidateCustomerRankingsCache();
+
+                        // Then refresh the rankings (this will recalculate and cache fresh data)
+                        await orderStore.refreshGlobalCustomerRankings();
+                        console.log('Global customer rankings refreshed successfully');
+
+                        // Update cache status
+                        setCacheStatus('Refreshed - Active (2-hour TTL)');
+                      } catch (error) {
+                        console.error('Failed to refresh rankings:', error);
+                        setCacheStatus('Error during refresh');
+                      } finally {
+                        setIsRefreshing(false);
+                      }
+                    }}
+                  >
+                    {isRefreshing ? 'Refreshing...' : 'Refresh Global Rankings'}
+                  </Button>
+                </Box>
+                <Text size="tiny" secondary style={{ marginTop: '8px' }}>
+                  Cache Status: {cacheStatus}
+                </Text>
+              </Box>
+            )}
+          </Box>
+
+        </Box>
+      </Card.Content>
+    </Card>
+  );
+});

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-page.json",
+  "id": "8dbd275e-3b05-4a4a-aa2c-a19f82c4a712",
+  "title": "Orders",
+  "sidebar": {
+    "categoryId": "bbe1a158-0ac1-4abe-9cc0-3932a7e42346",
+    "priority": 1
+  }
+}
