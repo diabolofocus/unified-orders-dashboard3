@@ -167,7 +167,6 @@ export class AdvancedSearchService {
                 sort: [{ fieldName: '_createdDate' as const, order: 'DESC' as const }]
             };
 
-            console.log('🔍 API Search with filters:', searchFilters);
 
             const result = await orders.searchOrders(searchParams);
 
@@ -177,7 +176,7 @@ export class AdvancedSearchService {
             return {
                 orders: mappedOrders,
                 hasMore: result.metadata?.hasNext || false,
-                nextCursor: result.metadata?.cursors?.next
+                nextCursor: result.metadata?.cursors?.next || undefined
             };
 
         } catch (error) {
@@ -186,134 +185,7 @@ export class AdvancedSearchService {
         }
     }
 
-    /**
-     * Search contacts by name and return their contact IDs
-     */
-    // Alternative implementation with better error handling
-    // Replace the searchContactsByName method with this version if the above still has issues:
 
-    private async searchContactsByName(searchTerm: string): Promise<string[]> {
-        try {
-            const { contacts } = await import('@wix/crm');
-
-            console.log(`🔍 Searching contacts for name: "${searchTerm}"`);
-
-            let contactsFound: any[] = [];
-
-            // Try the most basic search first
-            try {
-                const basicQuery = contacts.queryContacts();
-
-                // Check what methods are actually available
-                console.log('Available query methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(basicQuery)));
-
-                // Try different search strategies based on what's available
-                let searchResult;
-
-                // Strategy 1: Use hasSome if available
-                if (typeof basicQuery.hasSome === 'function') {
-                    console.log('Using hasSome method');
-                    searchResult = await basicQuery
-                        .hasSome('info.name.first', [searchTerm])
-                        .limit(100)
-                        .find();
-                }
-                // Strategy 2: Use in if available  
-                else if (typeof basicQuery.in === 'function') {
-                    console.log('Using in method');
-                    searchResult = await basicQuery
-                        .in('info.name.first', [searchTerm])
-                        .limit(100)
-                        .find();
-                }
-                // Strategy 3: Use eq for exact match
-                else if (typeof basicQuery.eq === 'function') {
-                    console.log('Using eq method for exact match');
-                    searchResult = await basicQuery
-                        .eq('info.name.first', searchTerm)
-                        .limit(100)
-                        .find();
-                }
-                // Strategy 4: Just get all contacts and filter client-side (last resort)
-                else {
-                    console.log('Using basic find with client-side filtering');
-                    searchResult = await basicQuery
-                        .limit(100)
-                        .find();
-                }
-
-                if (searchResult?.items) {
-                    // If we got all contacts, filter client-side
-                    if (!basicQuery.eq && !basicQuery.in && !basicQuery.hasSome) {
-                        contactsFound = searchResult.items.filter((contact: any) => {
-                            const firstName = contact.info?.name?.first?.toLowerCase() || '';
-                            const lastName = contact.info?.name?.last?.toLowerCase() || '';
-                            const searchLower = searchTerm.toLowerCase();
-                            return firstName.includes(searchLower) || lastName.includes(searchLower);
-                        });
-                    } else {
-                        contactsFound = searchResult.items;
-                    }
-
-                    // Also try to search last names with a separate query
-                    try {
-                        let lastNameResult;
-                        if (typeof basicQuery.hasSome === 'function') {
-                            lastNameResult = await contacts.queryContacts()
-                                .hasSome('info.name.last', [searchTerm])
-                                .limit(100)
-                                .find();
-                        } else if (typeof basicQuery.eq === 'function') {
-                            lastNameResult = await contacts.queryContacts()
-                                .eq('info.name.last', searchTerm)
-                                .limit(100)
-                                .find();
-                        }
-
-                        if (lastNameResult?.items) {
-                            contactsFound = [...contactsFound, ...lastNameResult.items];
-                        }
-                    } catch (lastNameError) {
-                        console.log('Last name search failed:', lastNameError);
-                    }
-                }
-
-            } catch (error) {
-                console.error('Contact query failed:', error);
-
-                // Ultimate fallback: Return empty array and rely on client-side search only
-                console.log('⚠️ Contact search completely failed, falling back to client-side filtering only');
-                return [];
-            }
-
-            // Remove duplicates
-            const uniqueContacts = contactsFound.filter((contact, index, self) =>
-                index === self.findIndex(c => c._id === contact._id)
-            );
-
-            if (uniqueContacts.length > 0) {
-                const contactIds = uniqueContacts
-                    .map(contact => contact._id)
-                    .filter(id => id) as string[];
-
-                console.log(`✅ Found ${contactIds.length} unique contacts matching "${searchTerm}"`);
-                console.log('Sample contacts:', uniqueContacts.slice(0, 3).map(c => ({
-                    id: c._id,
-                    firstName: c.info?.name?.first,
-                    lastName: c.info?.name?.last
-                })));
-
-                return contactIds;
-            }
-
-            console.log(`📭 No contacts found for "${searchTerm}"`);
-            return [];
-
-        } catch (error) {
-            console.error('❌ Contact search module failed:', error);
-            return [];
-        }
-    }
 
     /**
      * Build API filters based on search query and filters
@@ -340,19 +212,13 @@ export class AdvancedSearchService {
         else if (searchTerm.includes('@')) {
             apiFilters["buyerInfo.email"] = { $startsWith: searchTerm };
         }
-        // Name search - THIS IS THE FIX!
+        // Name search - Use only supported API fields
         else if (searchTerm.length >= 2) {
-
-            // Get contact IDs for people with this name
-            const contactIds = await this.searchContactsByName(searchTerm);
-
-            if (contactIds.length > 0) {
-                // THIS IS THE KEY: Use buyerInfo.contactId to find orders by those contacts
-                apiFilters["buyerInfo.contactId"] = { $in: contactIds };
-            } else {
-                // Return base filter - client-side filtering will handle the name matching
-                return { status: { $ne: "INITIALIZED" } };
-            }
+            // Use supported fields only: fullName and email
+            apiFilters["$or"] = [
+                { "billingInfo.contactDetails.fullName": { $startsWith: searchTerm } },
+                { "buyerInfo.email": { $startsWith: searchTerm } }
+            ];
         }
 
         // Add status filter if provided
@@ -572,13 +438,13 @@ export class AdvancedSearchService {
 
                 switch (statusFilter) {
                     case 'paid':
-                        return paymentStatus === 'PAID' || paymentStatus === 'FULLY_PAID';
+                        return paymentStatus === 'PAID';
                     case 'unpaid':
-                        return paymentStatus === 'UNPAID' || paymentStatus === 'NOT_PAID';
+                        return paymentStatus === 'UNPAID';
                     case 'partially_paid':
                         return paymentStatus === 'PARTIALLY_PAID';
                     case 'refunded':
-                        return paymentStatus === 'FULLY_REFUNDED' || paymentStatus === 'REFUNDED';
+                        return paymentStatus === 'FULLY_REFUNDED';
                     case 'partially_refunded':
                         return paymentStatus === 'PARTIALLY_REFUNDED';
                     case 'authorized':
@@ -620,8 +486,6 @@ export class AdvancedSearchService {
                 sort: [{ fieldName: '_createdDate' as const, order: 'DESC' as const }]
             };
 
-            console.log('🔍 Status API Search with filters:', searchFilters);
-
             const result = await orders.searchOrders(searchParams);
 
             // Map raw orders to our Order type
@@ -630,7 +494,7 @@ export class AdvancedSearchService {
             return {
                 orders: mappedOrders,
                 hasMore: result.metadata?.hasNext || false,
-                nextCursor: result.metadata?.cursors?.next
+                nextCursor: result.metadata?.cursors?.next || undefined
             };
 
         } catch (error) {
@@ -771,7 +635,7 @@ export class AdvancedSearchService {
             return {
                 orders: mappedOrders,
                 hasMore: result.metadata?.hasNext || false,
-                nextCursor: result.metadata?.cursors?.next
+                nextCursor: result.metadata?.cursors?.next || undefined
             };
 
         } catch (error) {

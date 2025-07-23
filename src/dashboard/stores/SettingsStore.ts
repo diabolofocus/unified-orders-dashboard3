@@ -45,9 +45,9 @@ type Settings = {
   enableClickToCopy: boolean;
   showCustomerRankings: boolean;
   customerTiers: {
-    returningCustomer: { threshold: number; name: string; color: string; skin: 'general' | 'standard' | 'premium' };
-    loyalCustomer: { threshold: number; name: string; color: string; skin: 'general' | 'standard' | 'premium' };
-    vipCustomer: { threshold: number; name: string; color: string; skin: 'general' | 'standard' | 'premium' };
+    returningCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
+    loyalCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
+    vipCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
   };
 };
 
@@ -73,9 +73,9 @@ const DEFAULT_SETTINGS: Settings = {
   showCustomerBadges: true,
   showCustomerRankings: true,
   customerTiers: {
-    returningCustomer: { threshold: 2, name: 'RETURNING CUSTOMER', color: '#10b981', skin: 'general' },
-    loyalCustomer: { threshold: 3, name: 'LOYAL CUSTOMER', color: '#3b82f6', skin: 'standard' },
-    vipCustomer: { threshold: 4, name: 'VIP CUSTOMER', color: '#f59e0b', skin: 'premium' },
+    returningCustomer: { threshold: 2, name: 'RETURNING CUSTOMER', skin: 'general' },
+    loyalCustomer: { threshold: 3, name: 'LOYAL CUSTOMER', skin: 'standard' },
+    vipCustomer: { threshold: 4, name: 'VIP CUSTOMER', skin: 'premium' },
   },
 };
 

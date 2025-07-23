@@ -32,7 +32,6 @@ export const AdvancedSettings: React.FC = observer(() => {
       if ((window as any).clearProcessedCustomersRef) {
         (window as any).clearProcessedCustomersRef();
       }
-      console.log(`Customer badge cache cleared: ${reason}`);
 
       // Show success toast
       if (typeof window !== 'undefined' && (window as any).dashboard) {
@@ -310,7 +309,6 @@ export const AdvancedSettings: React.FC = observer(() => {
                         if ((window as any).clearProcessedCustomersRef) {
                           (window as any).clearProcessedCustomersRef();
                         }
-                        console.log('Customer badge cache and processed ref cleared');
 
                         // Show success toast
                         if (typeof window !== 'undefined' && (window as any).dashboard) {
@@ -351,10 +349,6 @@ export const AdvancedSettings: React.FC = observer(() => {
                         skin={settingsStore.settings.customerTiers.vipCustomer.skin}
                         size="tiny"
                         type="outlined"
-                        style={{
-                          borderColor: settingsStore.settings.customerTiers.vipCustomer.color,
-                          color: settingsStore.settings.customerTiers.vipCustomer.color
-                        }}
                       >
                         {settingsStore.settings.customerTiers.vipCustomer.name}
                       </Badge>
@@ -387,10 +381,6 @@ export const AdvancedSettings: React.FC = observer(() => {
                         skin={settingsStore.settings.customerTiers.loyalCustomer.skin}
                         size="tiny"
                         type="outlined"
-                        style={{
-                          borderColor: settingsStore.settings.customerTiers.loyalCustomer.color,
-                          color: settingsStore.settings.customerTiers.loyalCustomer.color
-                        }}
                       >
                         {settingsStore.settings.customerTiers.loyalCustomer.name}
                       </Badge>
@@ -423,10 +413,6 @@ export const AdvancedSettings: React.FC = observer(() => {
                         skin={settingsStore.settings.customerTiers.returningCustomer.skin}
                         size="tiny"
                         type="outlined"
-                        style={{
-                          borderColor: settingsStore.settings.customerTiers.returningCustomer.color,
-                          color: settingsStore.settings.customerTiers.returningCustomer.color
-                        }}
                       >
                         {settingsStore.settings.customerTiers.returningCustomer.name}
                       </Badge>

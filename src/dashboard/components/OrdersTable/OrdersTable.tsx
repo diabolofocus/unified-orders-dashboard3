@@ -1048,36 +1048,21 @@ const OrdersTable: React.FC = observer(() => {
         const newCustomers = visibleCustomerEmails.filter(email => {
             const isNotProcessed = !processedCustomersRef.current.has(email);
             const hasNoCache = orderStore.getCachedCustomerOrderCount(email) === 0;
-            console.log(`🔍 Customer ${email}: processed=${!isNotProcessed}, cached=${!hasNoCache}`);
             return isNotProcessed && hasNoCache;
         });
-
-        console.log(`🎯 Visible customers: ${visibleCustomerEmails.length}, Need processing: ${newCustomers.length}`);
 
         if (newCustomers.length === 0) {
             // All customers already have cached counts
             return;
         }
 
-        console.log(`🎯 Processing ${newCustomers.length} new customers for badge calculation`);
-
         // Mark these customers as being processed
         newCustomers.forEach(email => processedCustomersRef.current.add(email));
 
         // Start batch processing (your sequential approach)
         const processBadgeData = async () => {
-            // Check if processing is already complete
-            // Debug: Check current state
-            console.log('🔍 Debug cache state:', {
-                totalVisibleCustomers: visibleCustomerEmails.length,
-                newCustomersToProcess: newCustomers.length,
-                processedCustomersInRef: processedCustomersRef.current.size,
-                sampleCustomerCacheCount: visibleCustomerEmails[0] ? orderStore.getCachedCustomerOrderCount(visibleCustomerEmails[0]) : 'none'
-            });
-
             // Don't skip if we have customers to process
             if (newCustomers.length === 0) {
-                console.log('🎉 All visible customers already have cached counts, skipping');
                 return;
             }
 
@@ -1093,8 +1078,6 @@ const OrdersTable: React.FC = observer(() => {
                     const email = newCustomers[i];
 
                     try {
-                        console.log(`🔍 Processing customer ${i + 1}/${newCustomers.length}: ${email}`);
-
                         setBadgeLoadingProgress(prev => ({
                             ...prev,
                             currentEmail: email,
@@ -1106,8 +1089,6 @@ const OrdersTable: React.FC = observer(() => {
 
                         // Get count for this customer
                         const count = await orderStore.getCustomerOrderCount(email);
-
-                        console.log(`✅ Customer ${email}: ${count} orders`);
 
                         // Update progress
                         setBadgeLoadingProgress(prev => ({
@@ -1413,7 +1394,6 @@ const OrdersTable: React.FC = observer(() => {
     // Helper to clear processed customers cache when needed
     const clearProcessedCustomers = useCallback(() => {
         processedCustomersRef.current.clear();
-        console.log('🗑️ Cleared processed customers ref');
     }, []);
 
     // Expose clear function globally for settings button
@@ -1436,7 +1416,6 @@ const OrdersTable: React.FC = observer(() => {
         if (finalFilteredOrders.length > 0) {
             // Clear ref every time we have a fresh batch of orders
             processedCustomersRef.current.clear();
-            console.log('🔄 Reset processed customers ref for fresh order batch');
         }
     }, [finalFilteredOrders.length > 0]); // Only when we go from 0 to >0 orders
 

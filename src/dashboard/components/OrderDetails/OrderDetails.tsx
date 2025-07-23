@@ -137,9 +137,8 @@ export const OrderDetails: React.FC = observer(() => {
                 console.log('📊 Total orders found for email:', result.orders?.length || 0);
 
                 if (result.orders && result.orders.length > 0) {
-                    // Filter out the current order and transform the data
-                    const filteredOrders = result.orders
-                        .filter(order => order._id !== selectedOrder._id)
+                    // Include ALL orders (including the current one) and sort by date
+                    const allOrders = result.orders
                         .map(order => ({
                             _id: order._id,
                             number: order.number,
@@ -147,14 +146,17 @@ export const OrderDetails: React.FC = observer(() => {
                             total: order.priceSummary?.total?.formattedAmount || '€0.00',
                             status: order.fulfillmentStatus || 'NOT_FULFILLED',
                             paymentStatus: order.paymentStatus || 'UNPAID',
-                            rawOrder: order
+                            rawOrder: order,
                         }))
-                        .slice(0, 10); // Limit to 10 most recent
+                        .sort((a, b) => {
+                            const dateA = a._createdDate ? new Date(a._createdDate).getTime() : 0;
+                            const dateB = b._createdDate ? new Date(b._createdDate).getTime() : 0;
+                            return dateB - dateA; // Sort by newest first
+                        });
+                    console.log('🎯 Found', allOrders.length, 'total orders for this customer');
+                    console.log('📋 Orders:', allOrders.map(o => `#${o.number} (${o.total})`));
 
-                    console.log('🎯 Found', filteredOrders.length, 'other orders for this customer');
-                    console.log('📋 Orders:', filteredOrders.map(o => `#${o.number} (${o.total})`));
-
-                    setCustomerOrders(filteredOrders);
+                    setCustomerOrders(allOrders);
 
                 } else {
                     console.log('✅ This customer has no other orders');
@@ -611,7 +613,24 @@ export const OrderDetails: React.FC = observer(() => {
                                         <Loader size="tiny" />
                                         <Text size="small">Loading Order History...</Text>
                                     </Box>
-                                ) : customerOrders.length === 0 ? (
+                                ) : !isLoadingOrders && (
+                                    <Box paddingTop="16px" direction="vertical" gap="8px">
+                                        <Text size="medium" weight="normal">
+                                            Order History ({customerOrders.length} order{customerOrders.length !== 1 ? 's' : ''})
+                                        </Text>
+                                        <Text size="small" secondary>
+                                            Total Spent: {(() => {
+                                                const total = customerOrders.reduce((sum, order) => {
+                                                    const orderTotal = parseFloat(order.total.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+                                                    return sum + orderTotal;
+                                                }, 0);
+                                                return `€${total.toFixed(2)}`;
+                                            })()}
+                                        </Text>
+                                    </Box>
+                                )}
+
+                                {!isLoadingOrders && customerOrders.length === 0 ? (
                                     <Box padding="24px" align="center" direction="vertical" gap="8px">
                                         <Icons.Order size="26px" style={{ color: '#ccc' }} />
                                         <Text size="medium">First-time Customer</Text>
@@ -643,8 +662,8 @@ export const OrderDetails: React.FC = observer(() => {
                                                 }}
                                             >
                                                 <Box direction="horizontal" align="space-between" verticalAlign="middle">
-                                                    <Box direction="vertical" gap="4px">
-                                                        <Box direction="horizontal" gap="8px" align="center">
+                                                    <Box direction="vertical" gap="8px" align="left">
+                                                        <Box direction="horizontal" gap="8px" align="left">
                                                             <Text size="small" weight="normal">#{order.number}</Text>
                                                             <StatusBadge status={order.paymentStatus} type="payment" />
                                                             <StatusBadge status={order.status} type="order" />

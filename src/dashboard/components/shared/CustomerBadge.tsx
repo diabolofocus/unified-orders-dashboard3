@@ -18,21 +18,18 @@ export const CustomerBadge: React.FC<CustomerBadgeProps> = ({ orderCount }) => {
             return {
                 name: tiers.vipCustomer.name,
                 skin: tiers.vipCustomer.skin,
-                color: tiers.vipCustomer.color
             };
         }
         if (count >= tiers.loyalCustomer.threshold) {
             return {
                 name: tiers.loyalCustomer.name,
                 skin: tiers.loyalCustomer.skin,
-                color: tiers.loyalCustomer.color
             };
         }
         if (count >= tiers.returningCustomer.threshold) {
             return {
                 name: tiers.returningCustomer.name,
                 skin: tiers.returningCustomer.skin,
-                color: tiers.returningCustomer.color
             };
         }
         return null;
@@ -49,10 +46,6 @@ export const CustomerBadge: React.FC<CustomerBadgeProps> = ({ orderCount }) => {
                 skin={tier.skin}
                 size="tiny"
                 type="outlined"
-                style={{
-                    borderColor: tier.color,
-                    color: tier.color
-                }}
             >
                 {tier.name}
             </Badge>

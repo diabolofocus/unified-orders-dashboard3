@@ -516,7 +516,6 @@ export class OrderStore {
 
         // Return cached value if it's fresh and not currently calculating
         if (cached && !cached.calculating && (now - cached.timestamp) < this.CACHE_DURATION) {
-            console.log(`🚀 Using cached count for ${customerEmail}: ${cached.count} orders`);
             return cached.count;
         }
 
@@ -533,8 +532,6 @@ export class OrderStore {
         });
 
         try {
-            console.log(`🔍 Fetching total order count for ${customerEmail}...`);
-
             const { orders } = await import('@wix/ecom');
 
             // Use the efficient approach: filter by buyerInfo.email directly
@@ -566,8 +563,6 @@ export class OrderStore {
                     totalCount += nextResponse.orders?.length || 0;
                     cursor = nextResponse.metadata?.cursors?.next;
 
-                    console.log(`📊 Found ${nextResponse.orders?.length || 0} more orders (total: ${totalCount})`);
-
                     // Break if no more pages
                     if (!nextResponse.metadata?.hasNext) {
                         break;
@@ -592,11 +587,9 @@ export class OrderStore {
             // Save to localStorage for persistence
             this.saveCustomerCountsToStorage();
 
-            console.log(`✅ Total orders for ${customerEmail}: ${totalCount}`);
             return totalCount;
 
         } catch (error) {
-            console.error(`❌ Error fetching orders for ${customerEmail}:`, error);
 
             // Keep old cached value if available, otherwise return 0
             const fallbackCount = cached?.count || 0;
@@ -644,12 +637,9 @@ export class OrderStore {
                 });
             });
 
-            console.log(`📱 Loaded ${validEntries.length} customer counts from localStorage cache`);
-
             // Clean up expired entries from localStorage
             if (validEntries.length !== Object.keys(parsed).length) {
                 this.saveCustomerCountsToStorage();
-                console.log(`🧹 Cleaned up expired cache entries`);
             }
         } catch (error) {
             console.error('❌ Error loading customer counts from localStorage:', error);
@@ -676,7 +666,6 @@ export class OrderStore {
             });
 
             localStorage.setItem(this.CACHE_STORAGE_KEY, JSON.stringify(cacheObject));
-            console.log(`💾 Saved ${Object.keys(cacheObject).length} customer counts to localStorage`);
         } catch (error) {
             console.error('❌ Error saving customer counts to localStorage:', error);
         }
@@ -688,7 +677,6 @@ export class OrderStore {
     clearCustomerOrderCountCache(): void {
         this.customerOrderCounts.clear();
         localStorage.removeItem(this.CACHE_STORAGE_KEY);
-        console.log('🗑️ Cleared customer order count cache from memory and localStorage');
     }
 
     /**
@@ -722,7 +710,6 @@ export class OrderStore {
     invalidateCustomerCache(customerEmail: string): void {
         if (customerEmail) {
             this.customerOrderCounts.delete(customerEmail);
-            console.log(`🗑️ Invalidated cache for ${customerEmail}`);
         }
     }
 
