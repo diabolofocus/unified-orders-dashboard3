@@ -283,10 +283,10 @@ export const AdvancedSettings: React.FC = observer(() => {
             <Box direction="horizontal" align="space-between" verticalAlign="middle">
               <Box direction="vertical" gap="4px" flex="1">
                 <Text secondary size="small">
-                  Display badges for customers based on order Count:
+                  Display badges for customers based on the number of orders made:
                 </Text>
                 <Text secondary size="tiny">
-                  Only counts from loaded orders (batch size: {settingsStore.initialOrderLimit}). Initially, it may take a few seconds to load and can affect the performance. Data is then cached for 7 days.
+                  Only counts for loaded orders (batch size: {settingsStore.initialOrderLimit}). Initially, it may take a few seconds to load and can affect the performance. Data is then cached for 7 days.
                 </Text>
               </Box>
               <ToggleSwitch

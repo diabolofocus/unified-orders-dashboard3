@@ -2,37 +2,37 @@
 import { extendedFields } from '@wix/crm';
 
 // Helper function to get CORS headers for production and development
-function getCorsHeaders(request: Request) {
+function getCorsHeaders(request: Request): Record<string, string> {
     const origin = request.headers.get('origin');
+
+    const baseHeaders: Record<string, string> = {
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Content-Type': 'application/json'
+    };
 
     // For development: allow localhost origins
     if (origin?.includes('localhost') || origin?.includes('127.0.0.1')) {
         return {
+            ...baseHeaders,
             'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Allow-Credentials': 'true',
-            'Content-Type': 'application/json'
+            'Access-Control-Allow-Credentials': 'true'
         };
     }
 
     // For production: allow specific Wix origins
     if (origin?.includes('.wix.run') || origin?.includes('wixstudio.io') || origin?.includes('.wixsite.com')) {
         return {
+            ...baseHeaders,
             'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Allow-Credentials': 'true',
-            'Content-Type': 'application/json'
+            'Access-Control-Allow-Credentials': 'true'
         };
     }
 
     // Default fallback (should handle most Wix cases)
     return {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Content-Type': 'application/json'
+        ...baseHeaders,
+        'Access-Control-Allow-Origin': '*'
     };
 }
 

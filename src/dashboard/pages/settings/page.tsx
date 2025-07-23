@@ -7,7 +7,8 @@ import {
   Text,
   Button,
   Heading,
-  Divider
+  Divider,
+  Breadcrumbs
 } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import { dashboard } from '@wix/dashboard';
@@ -189,8 +190,22 @@ const DashboardPage: FC = () => {
           <OrderControllerProvider orderController={orderController}>
             <Page height="100vh">
               <Page.Header
-                title="Orders Settings"
+                title="Settings"
                 subtitle="Configure your order preferences"
+                breadcrumbs={
+                  <Breadcrumbs
+                    activeId="2"
+                    items={[
+                      { id: '1', value: 'Orders' },
+                      { id: '2', value: 'Settings' },
+                    ]}
+                    onClick={(item) => {
+                      if (item.id === '1') {
+                        dashboard.navigate({ pageId: '8dbd275e-3b05-4a4a-aa2c-a19f82c4a712' });
+                      }
+                    }}
+                  />
+                }
                 onBackClicked={handleBackToOrders}
                 showBackButton={true}
                 actionsBar={

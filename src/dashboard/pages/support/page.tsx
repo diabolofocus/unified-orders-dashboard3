@@ -12,7 +12,8 @@ import {
   WixDesignSystemProvider,
   Tabs,
   TextButton,
-  Table
+  Table,
+  Breadcrumbs
 } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import '@wix/design-system/styles.global.css';
@@ -695,7 +696,7 @@ Please describe your feature request in detail here...`
               <FlexBox direction="vertical" gap="24px" style={{ width: '100%' }}>
                 {/* Introduction Text */}
                 <Text>
-                  I'm Guillaume, creator of the Express Orders Managment app. As a fellow Wix store owner, I've developed this tool to improve efficiency. The app is not meant to replace the Wix Orders dashboard but to extend its capabilities with additional features.
+                  I'm Guillaume, creator of the Unified Orders Dashboard app. As a fellow Wix store owner, I've developed this tool to improve efficiency. The app is not meant to replace the Wix orders dashboard but to extend its capabilities with additional features.
                   {/* You can visit{' '}
                   <TextButton
                     as="a"
@@ -762,61 +763,91 @@ Please describe your feature request in detail here...`
                             },
                             {
                               id: 4,
-                              feature: "Add custom shipping carriers url and set default carrier",
+                              feature: "Display tiered badges for returning customers",
                               ourApp: true,
                               wixApp: false
                             },
                             {
                               id: 5,
-                              feature: "Additional details : item weight, order weight, SKU, channel info..",
+                              feature: "Add custom shipping carriers url and set default carrier",
                               ourApp: true,
                               wixApp: false
                             },
                             {
                               id: 6,
-                              feature: "Filter orders by SKU (local filtering)",
+                              feature: "Quickly view the order history of a customer",
                               ourApp: true,
                               wixApp: false
                             },
                             {
                               id: 7,
-                              feature: "Control the batch size of loaded orders",
+                              feature: "Additional details : item weight, order weight, SKU, channel info..",
                               ourApp: true,
                               wixApp: false
                             },
                             {
                               id: 8,
-                              feature: "Highlight orders based on product name",
-                              ourApp: true,
-                              wixApp: false
-                            },
-                            {
-                              id: 8,
-                              feature: "Real-time Order Notifications",
+                              feature: "Filter orders by SKU (local filtering)",
                               ourApp: true,
                               wixApp: false
                             },
                             {
                               id: 9,
-                              feature: "Click on item image to edit product page",
+                              feature: "Control the batch size of loaded orders",
                               ourApp: true,
                               wixApp: false
                             },
                             {
                               id: 10,
-                              feature: "Click on order details value to copy it",
+                              feature: "Highlight orders based on product name",
                               ourApp: true,
                               wixApp: false
                             },
                             {
                               id: 11,
+                              feature: "Real-time Order Notifications with sound alert",
+                              ourApp: true,
+                              wixApp: false
+                            },
+                            {
+                              id: 12,
+                              feature: "Click on item image to edit product page",
+                              ourApp: true,
+                              wixApp: false
+                            },
+                            {
+                              id: 13,
+                              feature: "Click on order details value to copy it",
+                              ourApp: true,
+                              wixApp: false
+                            },
+                            {
+                              id: 14,
+                              feature: "No ads banner",
+                              ourApp: true,
+                              wixApp: false
+                            },
+                            {
+                              id: 15,
                               feature: "Refund orders",
                               ourApp: false,
                               wixApp: true
                             },
                             {
-                              id: 12,
+                              id: 16,
                               feature: "Add internal notes to orders",
+                              ourApp: false,
+                              wixApp: true
+                            },
+                            {
+                              id: 17,
+                              feature: "Add tags to orders",
+                              ourApp: false,
+                              wixApp: true
+                            },
+                            {
+                              id: 18,
+                              feature: "Customize order list columns",
                               ourApp: false,
                               wixApp: true
                             }
@@ -1012,7 +1043,7 @@ Please describe your feature request in detail here...`
 
                   <FlexBox direction="vertical" gap="12px" style={{ width: '700px' }}>
                     <Text>
-                      Have an idea to improve the Express Orders Management app? I'd love to hear it! Please describe your feature request below. I'm always looking for ways to make your workflow more efficient.
+                      Have an idea to improve the Unified Orders Dashboard app? I'd love to hear it! Please describe your feature request below. I'm always looking for ways to make your workflow more efficient.
                     </Text>
 
                     <Box direction="vertical" gap="12px" width="700px">
@@ -1085,6 +1116,20 @@ Please describe your feature request in detail here...`
         <Page.Header
           title="Support Center"
           subtitle="Get help and support for the Orders Dashboard"
+          breadcrumbs={
+            <Breadcrumbs
+              activeId="2"
+              items={[
+                { id: '1', value: 'Orders' },
+                { id: '2', value: 'Support' },
+              ]}
+              onClick={(item) => {
+                if (item.id === '1') {
+                  dashboard.navigate({ pageId: '8dbd275e-3b05-4a4a-aa2c-a19f82c4a712' });
+                }
+              }}
+            />
+          }
           onBackClicked={handleBackToOrders}
           showBackButton={true}
           actionsBar={
