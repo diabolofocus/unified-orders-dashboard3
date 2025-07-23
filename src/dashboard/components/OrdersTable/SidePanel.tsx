@@ -261,7 +261,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       tags.push({
         id: `date-${selectedDate}`,
         children: `Date: ${dateOption?.value || selectedDate}`,
-        filterType: 'date'
+        filterType: 'date',
+        filterValue: selectedDate
       });
     }
 
@@ -281,7 +282,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       tags.push({
         id: 'sku-more',
         children: `+${selectedSkus.length - 3} more products`,
-        filterType: 'sku-summary'
+        filterType: 'sku-summary',
+        filterValue: undefined
       });
     }
 
@@ -645,8 +647,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                                 size="small"
                                 width="auto"
                                 placeholderText="Date"
-                                value={localCustomDateRange.from}
-                                onChange={(date) => handleCustomDateChange('from', date)}
+                                value={localCustomDateRange.from || undefined}
+                                onChange={(date: Date | null) => handleCustomDateChange('from', date)}
                                 popoverProps={{
                                   appendTo: 'window',
                                   zIndex: 1000001
@@ -659,8 +661,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                                 size="small"
                                 width="auto"
                                 placeholderText="Date"
-                                value={localCustomDateRange.to}
-                                onChange={(date) => handleCustomDateChange('to', date)}
+                                value={localCustomDateRange.to || undefined}
+                                onChange={(date: Date | null) => handleCustomDateChange('to', date)}
                                 popoverProps={{
                                   appendTo: 'window',
                                   zIndex: 1000001

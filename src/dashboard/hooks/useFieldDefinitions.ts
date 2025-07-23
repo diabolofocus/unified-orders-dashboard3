@@ -48,7 +48,21 @@ export const useFieldDefinitions = (): UseFieldDefinitionsResult => {
             const result = await getCustomFieldDefinitions();
 
             if (result.success) {
-                const definitions = result.fieldDefinitions || [];
+                const rawDefinitions = result.fieldDefinitions || [];
+
+                // Filter and transform to match FieldDefinition interface
+                const definitions: FieldDefinition[] = rawDefinitions
+                    .filter((def: any) => def.key && def.displayName && def.fieldType) // Only include items with required fields
+                    .map((def: any) => ({
+                        key: def.key,
+                        displayName: def.displayName,
+                        fieldType: def.fieldType,
+                        namespace: def.namespace || '',
+                        description: def.description || undefined,
+                        type: def.type,
+                        options: def.options
+                    }));
+
                 setFieldDefinitions(definitions);
 
                 // Update cache

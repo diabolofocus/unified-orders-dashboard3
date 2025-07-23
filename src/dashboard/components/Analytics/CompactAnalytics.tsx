@@ -86,19 +86,19 @@ export const CompactAnalytics: React.FC = observer(() => {
                 });
 
                 orderStore.setFormattedAnalytics({
-                    totalSales: result.data?.totalSales,
-                    totalOrders: result.data?.totalOrders,
-                    totalSessions: result.data?.totalSessions,
-                    totalUniqueVisitors: result.data?.totalUniqueVisitors,
+                    totalSales: result.data?.totalSales || 0,
+                    totalOrders: result.data?.totalOrders || 0,
+                    totalSessions: result.data?.totalSessions || 0,
+                    totalUniqueVisitors: result.data?.totalUniqueVisitors || 0,
                     todayUniqueVisitors: result.data?.todayUniqueVisitors || 0,
                     yesterdayUniqueVisitors: result.data?.yesterdayUniqueVisitors || 0,
-                    averageOrderValue: result.data?.averageOrderValue,
-                    currency: result.data?.currency,
-                    salesChange: result.data?.salesChange,
-                    ordersChange: result.data?.ordersChange,
-                    sessionsChange: result.data?.sessionsChange,
-                    uniqueVisitorsChange: result.data?.uniqueVisitorsChange,
-                    aovChange: result.data?.aovChange,
+                    averageOrderValue: result.data?.averageOrderValue || 0,
+                    currency: result.data?.currency || '€',
+                    salesChange: result.data?.salesChange || 0,
+                    ordersChange: result.data?.ordersChange || 0,
+                    sessionsChange: result.data?.sessionsChange || 0,
+                    uniqueVisitorsChange: result.data?.uniqueVisitorsChange || 0,
+                    aovChange: result.data?.aovChange || 0,
                     period: period
                 });
 
@@ -360,11 +360,11 @@ export const CompactAnalytics: React.FC = observer(() => {
         };
     };
 
-    const handlePeriodChange = async (selectedOption: TimePeriodOption) => {
+    const handlePeriodChange = (selectedOption: any) => {
         console.log('Period changed to:', selectedOption.id);
 
         if (orderStore.connectionStatus === 'connected') {
-            await loadAnalyticsForPeriod(selectedOption.id);
+            loadAnalyticsForPeriod(selectedOption.id as TimePeriod);
         }
     };
 
@@ -472,7 +472,10 @@ export const CompactAnalytics: React.FC = observer(() => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <DropdownBase
                                 selectedId={orderStore.selectedAnalyticsPeriod as TimePeriod}
-                                options={timePeriodOptions}
+                                options={timePeriodOptions.map(option => ({
+                                    id: option.id,
+                                    value: option.value
+                                }))}
                                 onSelect={handlePeriodChange}
                                 placement="bottom-end"
                                 zIndex={9999}

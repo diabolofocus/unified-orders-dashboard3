@@ -61,14 +61,14 @@ export class OrderService {
             const orders: Order[] = [];
             let hasMore = true;
             let currentCursor = cursor;
-            
+
             while (orders.length < limit && hasMore) {
                 const result = await this.fetchOrdersChunked(limit);
-                
+
                 if (result?.success) {
                     orders.push(...result.orders);
                     hasMore = result.hasMore || false;
-                    
+
                     if (result.nextCursor) {
                         currentCursor = result.nextCursor;
                     } else {
@@ -77,12 +77,12 @@ export class OrderService {
                 } else {
                     hasMore = false;
                 }
-                
+
                 if (orders.length >= limit) {
                     break;
                 }
             }
-            
+
             // Apply filters in-memory if not already applied in the API
             let filteredOrders = orders;
             if (filter) {
@@ -99,26 +99,26 @@ export class OrderService {
                     });
                 });
             }
-            
+
             // Apply sorting
             filteredOrders.sort((a, b) => {
                 for (const [key, direction] of Object.entries(sort)) {
                     const aValue = this.getNestedValue(a, key);
                     const bValue = this.getNestedValue(b, key);
-                    
+
                     if (aValue < bValue) return -1 * direction;
                     if (aValue > bValue) return 1 * direction;
                 }
                 return 0;
             });
-            
+
             return filteredOrders.slice(0, limit);
         } catch (error) {
             console.error('Error querying orders:', error);
             throw error;
         }
     }
-    
+
     private getNestedValue(obj: any, path: string) {
         return path.split('.').reduce((o, p) => o?.[p], obj);
     }
@@ -512,7 +512,7 @@ export class OrderService {
 
             // Get the updated order details to ensure we have the latest fulfillment status
             const orderDetails = await this.getOrderFulfillmentDetails(params.orderId, params.orderNumber);
-            
+
             if (!orderDetails.success) {
                 console.warn('⚠️ Could not fetch updated order details after tracking update');
                 return {
@@ -525,7 +525,7 @@ export class OrderService {
             // If we have order details, include the status in the message
             const status = orderDetails.orderDetails?.overallFulfillmentStatus;
             const statusMessage = status ? ` Order status is now: ${status}.` : '';
-            
+
             return {
                 success: true,
                 method: 'updatePerItemTracking',
@@ -672,15 +672,15 @@ export class OrderService {
             // Prepare bulk fulfillment data
             const ordersWithFulfillments = validOrders.map(({ orderId, order }) => {
                 // Get all unfulfilled line items
-                const lineItems = (order.lineItems || [])
+                const lineItems = (order?.lineItems || [])
                     .filter(item => {
                         const totalQty = item.quantity || 1;
-                        const fulfilledQty = item.fulfilledQuantity || 0;
+                        const fulfilledQty = (item as any).fulfilledQuantity || 0;
                         return fulfilledQty < totalQty; // Only unfulfilled items
                     })
                     .map(item => ({
                         _id: item._id,
-                        quantity: (item.quantity || 1) - (item.fulfilledQuantity || 0) // Remaining quantity
+                        quantity: (item.quantity || 1) - ((item as any).fulfilledQuantity || 0) // Remaining quantity
                     }));
 
                 const fulfillment: any = {
@@ -742,7 +742,7 @@ export class OrderService {
                 orderId: result.itemMetadata?._id || '',
                 success: result.itemMetadata?.success || false,
                 error: result.itemMetadata?.success ? undefined : 'Fulfillment failed',
-                fulfillmentId: result.ordersWithFulfillments?.fulfillments?.[0]?._id
+                fulfillmentId: result.ordersWithFulfillments?.fulfillments?.[0]?._id || undefined
             }));
 
             // Add failed order retrievals to results

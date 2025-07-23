@@ -57,8 +57,8 @@ export const ItemTrackingDisplay: React.FC<ItemTrackingDisplayProps> = ({
                     if (itemLineItem) {
                         itemTrackingInfos.push({
                             trackingNumber: fulfillment.trackingInfo.trackingNumber,
-                            trackingUrl: fulfillment.trackingInfo.trackingLink,
-                            carrier: fulfillment.trackingInfo.shippingProvider,
+                            trackingUrl: fulfillment.trackingInfo.trackingLink || undefined,
+                            carrier: fulfillment.trackingInfo.shippingProvider || undefined,
                             quantity: itemLineItem.quantity || 1,
                             fulfillmentDate: typeof fulfillment._createdDate === 'string'
                                 ? fulfillment._createdDate
@@ -96,7 +96,7 @@ export const ItemTrackingDisplay: React.FC<ItemTrackingDisplayProps> = ({
                         {hasTrackingUrl ? (
                             <TextButton
                                 size="tiny"
-                                onClick={(e) => {
+                                onClick={(e: any) => {
                                     e.stopPropagation();
                                     if (!settingsStore.clickToCopyEnabled) return;
                                     window.open(tracking.trackingUrl, '_blank');

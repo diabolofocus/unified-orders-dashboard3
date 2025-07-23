@@ -614,7 +614,7 @@ export const calculateOrderFulfillmentStatus = (order: Order): {
     let fulfilledItems = 0;
     let hasTracking = false;
 
-    lineItems.forEach(item => {
+    lineItems.forEach((item: SafeOrderItem) => {
         const quantity = getItemQuantity(item);
         const fulfilled = getFulfilledQuantity(item);
 
@@ -650,8 +650,8 @@ export const getOrderUnfulfilledItems = (order: Order): UnfulfilledItem[] => {
     const lineItems = order.rawOrder?.lineItems || order.lineItems || [];
 
     return lineItems
-        .filter(item => canItemBeFulfilled(item))
-        .map(item => ({
+        .filter((item: SafeOrderItem) => canItemBeFulfilled(item))
+        .map((item: SafeOrderItem) => ({
             id: getItemId(item) || '',
             name: getItemName(item),
             quantity: getItemQuantity(item),

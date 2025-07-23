@@ -57,7 +57,7 @@ export class AnalyticsService {
             const today = new Date();
             const yesterday = new Date(today);
             yesterday.setDate(yesterday.getDate() - 1);
-            
+
             const todayStr = today.toISOString().split('T')[0];
             const yesterdayStr = yesterday.toISOString().split('T')[0];
 
@@ -75,11 +75,11 @@ export class AnalyticsService {
 
             if (currentResult.success && previousResult.success) {
                 const analytics = this.formatAnalyticsWithComparison(
-                    currentResult.data,
-                    previousResult.data,
+                    currentResult.data || [],
+                    previousResult.data || [],
                     {
-                        todayUniqueVisitors: todayResult.success ? todayResult.data[0]?.values?.[0]?.value || 0 : 0,
-                        yesterdayUniqueVisitors: yesterdayResult.success ? yesterdayResult.data[0]?.values?.[0]?.value || 0 : 0
+                        todayUniqueVisitors: todayResult.success ? todayResult.data?.[0]?.values?.[0]?.value || 0 : 0,
+                        yesterdayUniqueVisitors: yesterdayResult.success ? yesterdayResult.data?.[0]?.values?.[0]?.value || 0 : 0
                     }
                 );
 
@@ -103,7 +103,7 @@ export class AnalyticsService {
 
     // Format analytics data with percentage comparisons
     private formatAnalyticsWithComparison(
-        currentData: any[], 
+        currentData: any[],
         previousData: any[],
         additionalData: {
             todayUniqueVisitors?: number;

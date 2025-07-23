@@ -191,11 +191,11 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
           }}
           onClick={() => {
             if (!settingsStore.clickToCopyEnabled) return;
-            const countryName = shippingAddress.countryFullname || getCountryName(shippingAddress.country);
+            const countryName = shippingAddress.countryFullname || getCountryName(shippingAddress.country || '');
             orderController.copyToClipboard(countryName!, 'Country', false);
           }}
         >
-          {shippingAddress.countryFullname || getCountryName(shippingAddress.country)}
+          {shippingAddress.countryFullname || getCountryName(shippingAddress.country || '')}
         </Text>
       )}
 

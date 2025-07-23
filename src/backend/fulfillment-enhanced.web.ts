@@ -56,9 +56,15 @@ export const enhancedSmartFulfillment = webMethod(
             const { order, existingFulfillments } = orderResult;
 
             if (existingFulfillments.length > 0) {
+                const fulfillmentId = existingFulfillments[0]._id;
+
+                if (!fulfillmentId) {
+                    throw new Error(`Existing fulfillment found but has no valid ID for order ${params.orderNumber}`);
+                }
+
                 return await updateExistingFulfillment({
                     orderId: params.orderId,
-                    fulfillmentId: existingFulfillments[0]._id,
+                    fulfillmentId: fulfillmentId,
                     trackingNumber: params.trackingNumber,
                     shippingProvider: params.shippingProvider,
                     orderNumber: params.orderNumber,

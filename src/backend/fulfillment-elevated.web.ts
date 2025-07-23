@@ -65,6 +65,10 @@ export const smartFulfillOrderElevated = webMethod(
                 const existingFulfillment = fulfillmentsCheck.fulfillments[0];
                 const fulfillmentId = existingFulfillment._id;
 
+                if (!fulfillmentId) {
+                    throw new Error(`Existing fulfillment found but missing ID for order ${orderNumber}`);
+                }
+
                 if (sendShippingEmail) {
                     return await updateFulfillmentElevated({
                         orderId,

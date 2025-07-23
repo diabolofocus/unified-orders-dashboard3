@@ -463,7 +463,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
 
     const renderProductOptions = (item: LineItem) => {
 
-        if (item.descriptionLines?.length > 0) {
+        if (item.descriptionLines?.length ?? 0 > 0) {
             return item.descriptionLines?.map((line: any, idx: number) => {
                 const optionValue = line.plainText?.original || line.color || '';
 
@@ -618,9 +618,9 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                     if (!baseItem) return null;
 
                     // Calculate display quantities based on mode and item status
-                    let maxQuantity: number;
-                    let displayMax: number;
-                    let currentQty: number;
+                    let maxQuantity: number = 1;
+                    let displayMax: number = 1;
+                    let currentQty: number = 1;
                     let shouldShow = false;
 
                     if (updateMode) {

@@ -366,7 +366,7 @@ export class OrderController {
                     orders: [...this.lastSearchResult.orders, ...newOrders],
                     fromApi: [...this.lastSearchResult.fromApi, ...newOrders],
                     hasMore: result.metadata?.hasNext || false,
-                    nextCursor: result.metadata?.cursors?.next,
+                    nextCursor: result.metadata?.cursors?.next || undefined,
                     totalFound: this.lastSearchResult.totalFound + newOrders.length
                 };
 
@@ -984,25 +984,25 @@ export class OrderController {
             if (result.success) {
                 // Store the analytics data with comparison
                 this.orderStore.setAnalyticsData({
-                    TOTAL_SALES: { total: result.data.totalSales },
-                    TOTAL_ORDERS: { total: result.data.totalOrders },
-                    TOTAL_SESSIONS: { total: result.data.totalSessions }
+                    TOTAL_SALES: { total: result.data?.totalSales || 0 },
+                    TOTAL_ORDERS: { total: result.data?.totalOrders || 0 },
+                    TOTAL_SESSIONS: { total: result.data?.totalSessions || 0 }
                 });
 
                 this.orderStore.setFormattedAnalytics({
-                    totalSales: result.data.totalSales,
-                    totalOrders: result.data.totalOrders,
-                    totalSessions: result.data.totalSessions,
-                    totalUniqueVisitors: result.data.totalUniqueVisitors,
-                    todayUniqueVisitors: result.data.todayUniqueVisitors || 0,
-                    yesterdayUniqueVisitors: result.data.yesterdayUniqueVisitors || 0,
-                    averageOrderValue: result.data.averageOrderValue,
-                    currency: result.data.currency,
-                    salesChange: result.data.salesChange,
-                    ordersChange: result.data.ordersChange,
-                    sessionsChange: result.data.sessionsChange,
-                    uniqueVisitorsChange: result.data.uniqueVisitorsChange,
-                    aovChange: result.data.aovChange,
+                    totalSales: result.data?.totalSales || 0,
+                    totalOrders: result.data?.totalOrders || 0,
+                    totalSessions: result.data?.totalSessions || 0,
+                    totalUniqueVisitors: result.data?.totalUniqueVisitors || 0,
+                    todayUniqueVisitors: result.data?.todayUniqueVisitors || 0,
+                    yesterdayUniqueVisitors: result.data?.yesterdayUniqueVisitors || 0,
+                    averageOrderValue: result.data?.averageOrderValue || 0,
+                    currency: result.data?.currency || '',
+                    salesChange: result.data?.salesChange || 0,
+                    ordersChange: result.data?.ordersChange || 0,
+                    sessionsChange: result.data?.sessionsChange || 0,
+                    uniqueVisitorsChange: result.data?.uniqueVisitorsChange || 0,
+                    aovChange: result.data?.aovChange || 0,
                     period: period
                 });
 

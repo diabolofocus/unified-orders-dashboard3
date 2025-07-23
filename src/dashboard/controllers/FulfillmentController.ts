@@ -196,7 +196,7 @@ export class FulfillmentController {
         let fulfilledItems = 0;
         let hasAnyTracking = false;
 
-        lineItems.forEach(item => {
+        lineItems.forEach((item: any) => {
             const quantity = item.quantity || 1;
             const fulfilled = item.fulfilledQuantity || 0;
 
@@ -205,7 +205,7 @@ export class FulfillmentController {
 
             // Check if this item has any tracking
             if (item.fulfillmentDetails?.trackingInfo?.length > 0 ||
-                item.fulfillmentDetails?.lineItemFulfillment?.some(f => f.trackingNumber)) {
+                item.fulfillmentDetails?.lineItemFulfillment?.some((f: any) => f.trackingNumber)) {
                 hasAnyTracking = true;
             }
         });
@@ -247,12 +247,12 @@ export class FulfillmentController {
         const lineItems = order.rawOrder?.lineItems || [];
 
         return lineItems
-            .filter(item => {
+            .filter((item: any) => {
                 const total = item.quantity || 1;
                 const fulfilled = item.fulfilledQuantity || 0;
                 return fulfilled < total;
             })
-            .map(item => ({
+            .map((item: any) => ({
                 id: item._id || item.id || '',
                 name: typeof item.productName === 'object'
                     ? item.productName.original

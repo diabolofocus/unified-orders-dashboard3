@@ -77,7 +77,7 @@ export class RealtimeOrderService {
             // Always mark all fetched orders as processed first
             response.orders.forEach((order: any) => {
                 if (order._id && typeof window !== 'undefined') {
-                    window.__GLOBAL_PROCESSED_ORDERS.add(order._id);
+                    window.__GLOBAL_PROCESSED_ORDERS?.add(order._id);
                 }
             });
 
@@ -91,7 +91,7 @@ export class RealtimeOrderService {
                 const orderId = rawOrder._id!;
 
                 // Check if this order was created very recently (within last 2 minutes)
-                const orderDate = new Date(rawOrder._createdDate);
+                const orderDate = new Date(rawOrder._createdDate!);
                 const now = new Date();
                 const timeDiff = now.getTime() - orderDate.getTime();
                 const twoMinutesInMs = 2 * 60 * 1000;
