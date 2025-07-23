@@ -1242,7 +1242,7 @@ const OrdersTable: React.FC = observer(() => {
                             const customerEmail = recipientContact?.email || billingContact?.email || order.customer.email;
                             const customerOrderCount = customerEmail ? orderStore.getCachedCustomerOrderCount(customerEmail) : 0;
 
-                            return customerOrderCount > 1 ? (
+                            return customerOrderCount >= 1 ? (
                                 <CustomerBadge orderCount={customerOrderCount} />
                             ) : null;
                         })()}

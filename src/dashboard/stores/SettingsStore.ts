@@ -44,6 +44,11 @@ type Settings = {
   autoCreateInvoice: boolean;
   enableClickToCopy: boolean;
   showCustomerRankings: boolean;
+  customerTiers: {
+    returningCustomer: { threshold: number; name: string; color: string; skin: 'general' | 'standard' | 'premium' };
+    loyalCustomer: { threshold: number; name: string; color: string; skin: 'general' | 'standard' | 'premium' };
+    vipCustomer: { threshold: number; name: string; color: string; skin: 'general' | 'standard' | 'premium' };
+  };
 };
 
 
@@ -67,6 +72,11 @@ const DEFAULT_SETTINGS: Settings = {
   enableClickToCopy: true,
   showCustomerBadges: true,
   showCustomerRankings: true,
+  customerTiers: {
+    returningCustomer: { threshold: 2, name: 'RETURNING CUSTOMER', color: '#10b981', skin: 'general' },
+    loyalCustomer: { threshold: 3, name: 'LOYAL CUSTOMER', color: '#3b82f6', skin: 'standard' },
+    vipCustomer: { threshold: 4, name: 'VIP CUSTOMER', color: '#f59e0b', skin: 'premium' },
+  },
 };
 
 
@@ -291,6 +301,17 @@ export class SettingsStore {
       this.saveSettings();
     });
   }
+
+  setCustomerTierThreshold(tier: 'returningCustomer' | 'loyalCustomer' | 'vipCustomer', threshold: number) {
+    this.settings.customerTiers[tier].threshold = threshold;
+    this.saveSettings();
+  }
+
+  setCustomerTierName(tier: 'returningCustomer' | 'loyalCustomer' | 'vipCustomer', name: string) {
+    this.settings.customerTiers[tier].name = name;
+    this.saveSettings();
+  }
+
 
   // Only return settings after they're loaded
   get isReady() {

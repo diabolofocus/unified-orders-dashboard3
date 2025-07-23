@@ -9,12 +9,13 @@ import {
   Input,
   Text,
   Heading,
-  ColorInput,
   Divider,
   Dropdown,
   NumberInput,
   ToggleSwitch,
-  Button
+  Button,
+  Badge,
+  ColorInput
 } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
@@ -22,6 +23,36 @@ import { SHIPPING_CARRIERS } from '../../utils/constants';
 
 export const AdvancedSettings: React.FC = observer(() => {
   const { settingsStore, orderStore } = useStores();
+
+  // Helper function to clear cache and show toast
+  const clearCacheAndNotify = (reason: string) => {
+    try {
+      orderStore.clearCustomerOrderCountCache();
+      // Also clear the processed customers ref
+      if ((window as any).clearProcessedCustomersRef) {
+        (window as any).clearProcessedCustomersRef();
+      }
+      console.log(`Customer badge cache cleared: ${reason}`);
+
+      // Show success toast
+      if (typeof window !== 'undefined' && (window as any).dashboard) {
+        (window as any).dashboard.showToast({
+          message: `${reason} Cache cleared - badges will recalculate with new thresholds.`,
+          type: 'success',
+          duration: 4000
+        });
+      }
+    } catch (error) {
+      console.error('Error clearing badge cache:', error);
+      if (typeof window !== 'undefined' && (window as any).dashboard) {
+        (window as any).dashboard.showToast({
+          message: 'Failed to clear badge cache. Please try again.',
+          type: 'error',
+          duration: 3000
+        });
+      }
+    }
+  };
   const [localOrderLimit, setLocalOrderLimit] = React.useState(settingsStore.initialOrderLimit);
   const [cacheStatus, setCacheStatus] = React.useState<string>('Unknown');
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -209,21 +240,6 @@ export const AdvancedSettings: React.FC = observer(() => {
               />
             </Box>
 
-            <Divider />
-
-            <Box direction="horizontal" align="space-between" paddingTop="8px" verticalAlign="middle">
-              <Box direction="vertical" gap="4px" flex="1">
-                <Text weight="normal" size="medium">Top Selling Items</Text>
-                <Text secondary size="small">
-                  Show the top selling items section in the dashboard
-                </Text>
-              </Box>
-              <ToggleSwitch
-                checked={settingsStore.settings.showTopSellingItems}
-                onChange={(e) => settingsStore.setShowTopSellingItems(e.target.checked)}
-                size="large"
-              />
-            </Box>
           </Box>
 
           <Divider />
@@ -262,21 +278,16 @@ export const AdvancedSettings: React.FC = observer(() => {
           <Divider />
 
           <Box direction="vertical" gap="12px">
-            <Text weight="normal" size="medium">Customer Badges</Text>
+            <Text weight="normal" size="medium">Frequent Customer Badges</Text>
 
             {/* Toggle for enabling/disabling customer badges */}
             <Box direction="horizontal" align="space-between" verticalAlign="middle">
               <Box direction="vertical" gap="4px" flex="1">
                 <Text secondary size="small">
-                  Display badges for customers based on order count in current view:
+                  Display badges for customers based on order Count:
                 </Text>
-                <Text secondary size="small">
-                  • 2+ orders: "FREQUENT BUYER"
-                  • 3+ orders: "LOYAL CUSTOMER"
-                  • 4+ orders: "VIP CUSTOMER"
-                </Text>
-                <Text secondary size="small">
-                  Only counts from loaded orders (batch size: {settingsStore.initialOrderLimit}). Initially, it may take a few minutes to load and can affect the performance. Data is then cached for 7 days.
+                <Text secondary size="tiny">
+                  Only counts from loaded orders (batch size: {settingsStore.initialOrderLimit}). Initially, it may take a few seconds to load and can affect the performance. Data is then cached for 7 days.
                 </Text>
               </Box>
               <ToggleSwitch
@@ -285,28 +296,168 @@ export const AdvancedSettings: React.FC = observer(() => {
                 size="large"
               />
             </Box>
-
             {/* Show clear cache option when badges are enabled */}
             {settingsStore.settings.showCustomerBadges && (
-              <Box direction="horizontal" gap="16px" align="left" paddingTop="12px">
-                <Button
-                  size="small"
-                  priority="secondary"
-                  onClick={() => {
-                    orderStore.clearCustomerOrderCountCache();
-                    // Also clear the processed customers ref
-                    if ((window as any).clearProcessedCustomersRef) {
-                      (window as any).clearProcessedCustomersRef();
-                    }
-                    console.log('Customer badge cache and processed ref cleared');
-                  }}
-                >
-                  Clear Badge Cache
-                </Button>
-              </Box>
-            )}
-          </Box>
+              <>
+                <Box direction="horizontal" gap="16px" align="left" paddingTop="12px">
+                  <Button
+                    size="small"
+                    priority="secondary"
+                    onClick={() => {
+                      try {
+                        orderStore.clearCustomerOrderCountCache();
+                        // Also clear the processed customers ref
+                        if ((window as any).clearProcessedCustomersRef) {
+                          (window as any).clearProcessedCustomersRef();
+                        }
+                        console.log('Customer badge cache and processed ref cleared');
 
+                        // Show success toast
+                        if (typeof window !== 'undefined' && (window as any).dashboard) {
+                          (window as any).dashboard.showToast({
+                            message: 'Badge cache cleared successfully! Badges will recalculate on next load.',
+                            type: 'success',
+                            duration: 3000
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error clearing badge cache:', error);
+                        if (typeof window !== 'undefined' && (window as any).dashboard) {
+                          (window as any).dashboard.showToast({
+                            message: 'Failed to clear badge cache. Please try again.',
+                            type: 'error',
+                            duration: 3000
+                          });
+                        }
+                      }
+                    }}
+                  >
+                    Clear Badge Cache
+                  </Button>
+                </Box>
+
+                {/* Customer Tier Configuration */}
+                <Box direction="vertical" gap="16px" paddingTop="16px">
+                  <Text weight="normal" size="medium">Configure Badge Tiers</Text>
+                  <Text secondary size="small">
+                    Customize the order count thresholds for customer loyalty badges.
+                  </Text>
+
+                  {/* VIP Customer */}
+                  <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
+                    <Box style={{ minWidth: '150px' }}>
+                      <Badge
+                        uppercase={false}
+                        skin={settingsStore.settings.customerTiers.vipCustomer.skin}
+                        size="tiny"
+                        type="outlined"
+                        style={{
+                          borderColor: settingsStore.settings.customerTiers.vipCustomer.color,
+                          color: settingsStore.settings.customerTiers.vipCustomer.color
+                        }}
+                      >
+                        {settingsStore.settings.customerTiers.vipCustomer.name}
+                      </Badge>
+                    </Box>
+                    <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
+                      <Text size="small">for</Text>
+                      <div style={{ width: '80px' }}>
+                        <NumberInput
+                          value={settingsStore.settings.customerTiers.vipCustomer.threshold}
+                          onChange={(value) => {
+                            if (value && value >= 1) {
+                              settingsStore.setCustomerTierThreshold('vipCustomer', value);
+                              clearCacheAndNotify('VIP threshold updated.');
+                            }
+                          }}
+                          min={1}
+                          max={50}
+                          size="small"
+                        />
+                      </div>
+                      <Text size="small">+ orders</Text>
+                    </Box>
+                  </Box>
+
+                  {/* Loyal Customer */}
+                  <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
+                    <Box style={{ minWidth: '150px' }}>
+                      <Badge
+                        uppercase={false} q
+                        skin={settingsStore.settings.customerTiers.loyalCustomer.skin}
+                        size="tiny"
+                        type="outlined"
+                        style={{
+                          borderColor: settingsStore.settings.customerTiers.loyalCustomer.color,
+                          color: settingsStore.settings.customerTiers.loyalCustomer.color
+                        }}
+                      >
+                        {settingsStore.settings.customerTiers.loyalCustomer.name}
+                      </Badge>
+                    </Box>
+                    <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
+                      <Text size="small">for</Text>
+                      <div style={{ width: '80px' }}>
+                        <NumberInput
+                          value={settingsStore.settings.customerTiers.loyalCustomer.threshold}
+                          onChange={(value) => {
+                            if (value && value >= 1) {
+                              settingsStore.setCustomerTierThreshold('loyalCustomer', value);
+                              clearCacheAndNotify('Loyal Customer threshold updated.');
+                            }
+                          }}
+                          min={1}
+                          max={50}
+                          size="small"
+                        />
+                      </div>
+                      <Text size="small">+ orders</Text>
+                    </Box>
+                  </Box>
+
+                  {/* Returning Customer */}
+                  <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
+                    <Box style={{ minWidth: '150px' }}>
+                      <Badge
+                        uppercase={false}
+                        skin={settingsStore.settings.customerTiers.returningCustomer.skin}
+                        size="tiny"
+                        type="outlined"
+                        style={{
+                          borderColor: settingsStore.settings.customerTiers.returningCustomer.color,
+                          color: settingsStore.settings.customerTiers.returningCustomer.color
+                        }}
+                      >
+                        {settingsStore.settings.customerTiers.returningCustomer.name}
+                      </Badge>
+                    </Box>
+                    <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
+                      <Text size="small">for</Text>
+                      <div style={{ width: '80px' }}>
+                        <NumberInput
+                          value={settingsStore.settings.customerTiers.returningCustomer.threshold}
+                          onChange={(value) => {
+                            if (value && value >= 1) {
+                              settingsStore.setCustomerTierThreshold('returningCustomer', value);
+                              clearCacheAndNotify('Returning Customer threshold updated.');
+                            }
+                          }}
+                          min={1}
+                          max={50}
+                          size="small"
+                        />
+                      </div>
+                      <Text size="small">+ orders</Text>
+                    </Box>
+                  </Box>
+                  <Text size="tiny" secondary>
+                    Thresholds are saved automatically. Cache is cleared automatically when thresholds change - badges will recalculate on next page interaction.
+                  </Text>
+                </Box>
+              </>
+            )}
+
+          </Box>
         </Box>
       </Card.Content>
     </Card>

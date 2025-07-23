@@ -1,16 +1,40 @@
 import React from 'react';
 import { Badge, Tooltip } from '@wix/design-system';
 
+import { useStores } from '../../hooks/useStores';
+
 interface CustomerBadgeProps {
     orderCount: number;
 }
 
 export const CustomerBadge: React.FC<CustomerBadgeProps> = ({ orderCount }) => {
-    // Define tier thresholds for loaded orders context (adjusted for smaller datasets)
+    const { settingsStore } = useStores();
+
+    // Use configurable tier thresholds from settings
     const getCustomerTier = (count: number) => {
-        if (count >= 4) return { name: 'VIP CUSTOMER', skin: 'premium' as const, color: '#f59e0b' };
-        if (count >= 3) return { name: 'LOYAL CUSTOMER', skin: 'premium' as const, color: '#3b82f6' };
-        if (count >= 2) return { name: 'FREQUENT BUYER', skin: 'standard' as const, color: '#10b981' };
+        const tiers = settingsStore.settings.customerTiers;
+
+        if (count >= tiers.vipCustomer.threshold) {
+            return {
+                name: tiers.vipCustomer.name,
+                skin: tiers.vipCustomer.skin,
+                color: tiers.vipCustomer.color
+            };
+        }
+        if (count >= tiers.loyalCustomer.threshold) {
+            return {
+                name: tiers.loyalCustomer.name,
+                skin: tiers.loyalCustomer.skin,
+                color: tiers.loyalCustomer.color
+            };
+        }
+        if (count >= tiers.returningCustomer.threshold) {
+            return {
+                name: tiers.returningCustomer.name,
+                skin: tiers.returningCustomer.skin,
+                color: tiers.returningCustomer.color
+            };
+        }
         return null;
     };
 
