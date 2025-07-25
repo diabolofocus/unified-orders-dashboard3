@@ -285,6 +285,19 @@ export class OrderStore {
         };
     }
 
+    // Add these properties at the top of the class
+    private _productsApiFilteredOrders: Order[] | null = null;
+
+    // Add these methods to your OrderStore class
+    setFilteredOrders(orders: Order[]) {
+        this._productsApiFilteredOrders = orders;
+    }
+
+    clearProductsApiFilter() {
+        // Clear the Products API filter
+        this._productsApiFilteredOrders = null;
+    }
+
     // Helper method to get orders for the selected analytics period
     getOrdersForSelectedPeriod(): Order[] {
         const period = this.selectedAnalyticsPeriod;
@@ -359,8 +372,13 @@ export class OrderStore {
         return this.orders.length;
     }
 
-    // UPDATED: filteredOrders now considers search results
+    // UPDATED: filteredOrders now considers search results and Products API filter
     get filteredOrders() {
+        // If we have Products API filtered orders, return those
+        if (this._productsApiFilteredOrders) {
+            return this._productsApiFilteredOrders;
+        }
+
         // If we have search results, return those instead of filtering the main orders
         if (this.searchResults && this.searchQuery.trim()) {
             return this.searchResults.orders;

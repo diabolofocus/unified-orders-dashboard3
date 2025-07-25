@@ -37,6 +37,8 @@ import { orderFulfillments } from '@wix/ecom';
 import { SkuFilter } from '../Filters/SkuFilter';
 import { FulfillmentController } from '../../controllers/FulfillmentController';
 import { BulkFulfillmentModal } from '../BulkFulfillmentModal/BulkFulfillmentModal';
+import { ProductsApiService } from '../../services/ProductsApiService';
+
 
 
 const shimmer = keyframes`
@@ -114,6 +116,8 @@ const OrdersTable: React.FC = observer(() => {
     const [selectedPaymentStatusFilter, setSelectedPaymentStatusFilter] = useState<string | null>(null);
     const [isFulfillmentStatusLoading, setIsFulfillmentStatusLoading] = useState(false);
     const [isPaymentStatusLoading, setIsPaymentStatusLoading] = useState(false);
+    const [productsApiFilter, setProductsApiFilter] = useState<string[]>([]);
+    const [isProductsApiFiltering, setIsProductsApiFiltering] = useState(false);
     const [orderSeenCache, setOrderSeenCache] = useState<Record<string, boolean>>({});
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
     const fulfillmentController = new FulfillmentController(orderStore, uiStore, orderController.getOrderService());
@@ -848,6 +852,70 @@ const OrdersTable: React.FC = observer(() => {
         console.log(`Archive status filter changed to: ${status}`);
     };
 
+    const handleProductsApiFilterChange = async (productIds: string[]) => {
+        setProductsApiFilter(productIds);
+
+        if (productIds.length > 0) {
+            setIsProductsApiFiltering(true);
+            try {
+                // Search orders using the Products API service
+                const response = await ProductsApiService.searchOrdersByMultipleProducts(productIds, 100);
+
+                if (response.success) {
+                    // Transform the API response to match our Order interface
+                    const transformedOrders = response.orders.map(apiOrder => ({
+                        _id: apiOrder._id,
+                        number: apiOrder.number,
+                        _createdDate: apiOrder._createdDate,
+                        customer: {
+                            firstName: apiOrder.buyerInfo?.firstName || 'Unknown',
+                            lastName: apiOrder.buyerInfo?.lastName || 'Customer',
+                            email: apiOrder.buyerInfo?.email || '',
+                            phone: apiOrder.buyerInfo?.phone || '',
+                            company: apiOrder.buyerInfo?.company || ''
+                        },
+                        totalWeight: apiOrder.totalWeight || 0,
+                        total: apiOrder.priceSummary?.total?.formattedAmount || '0',
+                        status: apiOrder.fulfillmentStatus || 'NOT_FULFILLED',
+                        paymentStatus: apiOrder.paymentStatus || 'UNPAID',
+                        shippingInfo: {
+                            carrierId: apiOrder.shippingInfo?.carrierId || '',
+                            title: apiOrder.shippingInfo?.title || 'Standard Shipping',
+                            cost: apiOrder.shippingInfo?.cost?.formattedAmount || '0'
+                        },
+                        weightUnit: apiOrder.weightUnit || 'kg',
+                        shippingAddress: apiOrder.shippingInfo?.shipmentDetails?.address,
+                        billingInfo: apiOrder.billingInfo,
+                        recipientInfo: apiOrder.recipientInfo,
+                        buyerNote: apiOrder.buyerNote,
+                        rawOrder: apiOrder,
+                        customFields: apiOrder.customFields,
+                        extendedFields: apiOrder.extendedFields,
+                        lineItems: apiOrder.lineItems
+                    }));
+
+                    // Replace the current orders with API search results
+                    orderStore.setFilteredOrders(transformedOrders);
+                    console.log(`Found ${response.totalCount} orders with selected products`);
+                } else {
+                    console.error('Products API search failed:', response.error);
+                    // Clear results on error
+                    orderStore.setFilteredOrders([]);
+                }
+            } catch (error) {
+                console.error('Error searching orders by products:', error);
+                // Clear results on error  
+                orderStore.setFilteredOrders([]);
+            } finally {
+                setIsProductsApiFiltering(false);
+            }
+        } else {
+            // Clear Products API filter - restore original orders
+            orderStore.clearProductsApiFilter();
+            console.log('Products API filter cleared');
+        }
+    };
+
     const handleViewOrder = (order: Order) => {
         try {
             if (!order?._id) {
@@ -1574,99 +1642,121 @@ const OrdersTable: React.FC = observer(() => {
 
 
             {/* Filter Tags Section - Only show when filters are active */}
-            {(skuFilter.length > 0 || selectedFulfillmentStatusFilter || selectedPaymentStatusFilter || archiveStatusFilter || (dateFilter && dateFilter !== 'all')) && (<Box
-                style={{
-                    backgroundColor: '#ffffff',
-                    borderTop: '1px solid #e5e7eb',
-                    borderBottom: '1px solid #e5e7eb',
-                    minHeight: '50px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    position: 'sticky',
-                    top: '60px',
-                    zIndex: 999
-                }}
-                padding="8px 24px"
-            >
-                <Box direction="horizontal" align="space-between" verticalAlign="middle" width="100%">
-                    <Box direction="horizontal" verticalAlign="middle" gap="12px" style={{ flex: 1 }}>
-                        <TagList
-                            tags={[
-                                // Date filter tag
-                                ...(dateFilter && dateFilter !== 'all' ? [{
-                                    id: `date-${dateFilter}`,
-                                    children: `Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter}`,
-                                }] : []),
+            {(skuFilter.length > 0 || selectedFulfillmentStatusFilter || selectedPaymentStatusFilter || archiveStatusFilter || (dateFilter && dateFilter !== 'all') || productsApiFilter.length > 0) && (
+                <Box
+                    style={{
+                        backgroundColor: '#ffffff',
+                        borderTop: '1px solid #e5e7eb',
+                        borderBottom: '1px solid #e5e7eb',
+                        minHeight: '50px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        position: 'sticky',
+                        top: '60px',
+                        zIndex: 999
+                    }}
+                    padding="8px 24px"
+                >
+                    <Box direction="horizontal" align="space-between" verticalAlign="middle" width="100%">
+                        <Box direction="horizontal" verticalAlign="middle" gap="12px" style={{ flex: 1 }}>
+                            <TagList
+                                tags={[
+                                    // Date filter tag
+                                    ...(dateFilter && dateFilter !== 'all' ? [{
+                                        id: `date-${dateFilter}`,
+                                        children: `Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter}`,
+                                    }] : []),
 
-                                // SKU tags (show first 2, then summary)
-                                ...skuFilter.slice(0, 2).map(sku => ({
-                                    id: `sku-${sku}`,
-                                    children: sku,
-                                })),
-                                // Fulfillment status tag
-                                ...(selectedFulfillmentStatusFilter ? [{
-                                    id: `fulfillment-${selectedFulfillmentStatusFilter}`,
-                                    children: `Fulfillment: ${selectedFulfillmentStatusFilter}`,
-                                }] : []),
+                                    // SKU tags (show first 2, then summary)
+                                    ...skuFilter.slice(0, 2).map(sku => ({
+                                        id: `sku-${sku}`,
+                                        children: sku,
+                                    })),
 
-                                // Payment status tag
-                                ...(selectedPaymentStatusFilter ? [{
-                                    id: `payment-${selectedPaymentStatusFilter}`,
-                                    children: `Payment: ${selectedPaymentStatusFilter}`,
-                                }] : []),
+                                    // Products API tags
+                                    ...productsApiFilter.slice(0, 2).map(productId => ({
+                                        id: `products-api-${productId}`,
+                                        children: `API Product: ${productId}`,
+                                    })),
 
-                                // Archive status tag
-                                ...(archiveStatusFilter ? [{
-                                    id: `archive-${archiveStatusFilter}`,
-                                    children: `Archive: ${archiveStatusFilter}`,
-                                }] : []),
-                            ]}
-                            size="small"
-                            maxVisibleTags={3}
-                            initiallyExpanded={false}
-                            toggleMoreButton={(amountOfHiddenTags, isExpanded) => ({
-                                label: isExpanded ? 'Show Less' : `+${amountOfHiddenTags} More`,
-                                tooltipContent: !isExpanded ? 'Show More Filters' : undefined,
-                            })}
-                            onTagRemove={(tagId) => {
-                                // Handle tag removal based on tag ID
-                                if (tagId.startsWith('date-')) {
-                                    setDateFilter(null);
-                                    setCustomDateRange({ from: null, to: null });
-                                } else if (tagId.startsWith('sku-')) {
-                                    if (tagId === 'sku-more') {
-                                        setSkuFilter([]);
-                                    } else {
-                                        const skuToRemove = tagId.replace('sku-', '');
-                                        setSkuFilter(skuFilter.filter(sku => sku !== skuToRemove));
+                                    // Show summary if more than 2 Products API filters
+                                    ...(productsApiFilter.length > 2 ? [{
+                                        id: 'products-api-more',
+                                        children: `+${productsApiFilter.length - 2} more API products`,
+                                    }] : []),
+
+                                    // Fulfillment status tag
+                                    ...(selectedFulfillmentStatusFilter ? [{
+                                        id: `fulfillment-${selectedFulfillmentStatusFilter}`,
+                                        children: `Fulfillment: ${selectedFulfillmentStatusFilter}`,
+                                    }] : []),
+
+                                    // Payment status tag
+                                    ...(selectedPaymentStatusFilter ? [{
+                                        id: `payment-${selectedPaymentStatusFilter}`,
+                                        children: `Payment: ${selectedPaymentStatusFilter}`,
+                                    }] : []),
+
+                                    // Archive status tag
+                                    ...(archiveStatusFilter ? [{
+                                        id: `archive-${archiveStatusFilter}`,
+                                        children: `Archive: ${archiveStatusFilter}`,
+                                    }] : []),
+                                ]}
+                                size="small"
+                                maxVisibleTags={3}
+                                initiallyExpanded={false}
+                                toggleMoreButton={(amountOfHiddenTags, isExpanded) => ({
+                                    label: isExpanded ? 'Show Less' : `+${amountOfHiddenTags} More`,
+                                    tooltipContent: !isExpanded ? 'Show More Filters' : undefined,
+                                })}
+                                onTagRemove={(tagId) => {
+                                    // Handle tag removal based on tag ID
+                                    if (tagId.startsWith('date-')) {
+                                        setDateFilter(null);
+                                        setCustomDateRange({ from: null, to: null });
+                                    } else if (tagId.startsWith('sku-')) {
+                                        if (tagId === 'sku-more') {
+                                            setSkuFilter([]);
+                                        } else {
+                                            const skuToRemove = tagId.replace('sku-', '');
+                                            setSkuFilter(skuFilter.filter(sku => sku !== skuToRemove));
+                                        }
+                                    } else if (tagId.startsWith('products-api-')) {
+                                        if (tagId === 'products-api-more') {
+                                            handleProductsApiFilterChange([]);
+                                        } else {
+                                            const productToRemove = tagId.replace('products-api-', '');
+                                            handleProductsApiFilterChange(productsApiFilter.filter(id => id !== productToRemove));
+                                        }
+                                    } else if (tagId.startsWith('fulfillment-')) {
+                                        handleFulfillmentStatusFilterChange(null);
+                                    } else if (tagId.startsWith('payment-')) {
+                                        handlePaymentStatusFilterChange(null);
+                                    } else if (tagId.startsWith('archive-')) {
+                                        handleArchiveStatusFilterChange(null);
                                     }
-                                } else if (tagId.startsWith('fulfillment-')) {
-                                    handleFulfillmentStatusFilterChange(null);
-                                } else if (tagId.startsWith('payment-')) {
-                                    handlePaymentStatusFilterChange(null);
-                                } else if (tagId.startsWith('archive-')) {
-                                    handleArchiveStatusFilterChange(null);
-                                }
+                                }}
+                                dataHook="orders-table-filter-tags"
+                            />
+                        </Box>
+                        <Button
+                            size="tiny"
+                            priority="secondary"
+                            onClick={() => {
+                                setSkuFilter([]);
+                                handleFulfillmentStatusFilterChange(null);
+                                handlePaymentStatusFilterChange(null);
+                                handleArchiveStatusFilterChange(null);
+                                handleProductsApiFilterChange([]);
+                                setDateFilter(null);
+                                setCustomDateRange({ from: null, to: null });
                             }}
-                            dataHook="orders-table-filter-tags"
-                        />
+                        >
+                            Clear All
+                        </Button>
                     </Box>
-                    <Button
-                        size="tiny"
-                        priority="secondary"
-                        onClick={() => {
-                            setSkuFilter([]);
-                            handleFulfillmentStatusFilterChange(null);
-                            handlePaymentStatusFilterChange(null);
-                            handleArchiveStatusFilterChange(null);
-                            setDateFilter(null);
-                            setCustomDateRange({ from: null, to: null });
-                        }}
-                    >
-                        Clear All
-                    </Button>
                 </Box>
-            </Box>
             )}
 
             <div style={{ maxHeight: 'calc(100vh - 276px)', overflowY: 'scroll' }} ref={containerRef}>
@@ -1726,6 +1816,15 @@ const OrdersTable: React.FC = observer(() => {
                                             onClick={() => setSkuFilter([])}
                                         >
                                             Clear SKU filter
+                                        </Button>
+                                    )}
+                                    {productsApiFilter.length > 0 && (
+                                        <Button
+                                            priority="secondary"
+                                            size="small"
+                                            onClick={() => handleProductsApiFilterChange([])}
+                                        >
+                                            Clear Products API filter
                                         </Button>
                                     )}
                                     {fulfillmentStatusFilter && (
@@ -1822,6 +1921,8 @@ const OrdersTable: React.FC = observer(() => {
                     }}
                     isFulfillmentStatusLoading={isFulfillmentStatusLoading}
                     isPaymentStatusLoading={isPaymentStatusLoading}
+                    selectedProductsApiFilter={productsApiFilter}
+                    onProductsApiFilterChange={handleProductsApiFilterChange}
                 />
             )}
 

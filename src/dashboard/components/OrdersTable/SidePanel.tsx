@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom';
 import { SidePanel as WixSidePanel, Text, Box, Button, Search, Checkbox, IconButton, DatePicker, FormField, FieldSet, Radio, TagList } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import type { Order } from '../../types/Order';
+import { ProductsApiService, ProductSearchResult } from '../../services/ProductsApiService';
+
 
 
 
@@ -97,6 +99,8 @@ interface SidePanelProps {
   selectedDate?: string | null;
   customDateRange?: { from: Date | null; to: Date | null };
   onCustomDateRangeChange?: (range: { from: Date | null; to: Date | null }) => void;
+  onProductsApiFilterChange?: (productIds: string[]) => void;
+  selectedProductsApiFilter?: string[];
 }
 
 export const SidePanel: React.FC<SidePanelProps> = ({
@@ -115,7 +119,9 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   onDateChange,
   selectedDate = null,
   customDateRange = { from: null, to: null },
-  onCustomDateRangeChange
+  onCustomDateRangeChange,
+  onProductsApiFilterChange,
+  selectedProductsApiFilter = []
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -128,6 +134,14 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   const [selectedPaymentStatusSet, setSelectedPaymentStatusSet] = useState<Set<string>>(new Set(selectedPaymentStatus ? [selectedPaymentStatus] : []));
   const [selectedArchiveStatusSet, setSelectedArchiveStatusSet] = useState<Set<string>>(new Set(selectedArchiveStatus ? [selectedArchiveStatus] : [])); const [isArchiveStatusExpanded, setIsArchiveStatusExpanded] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(selectedDate); const [localCustomDateRange, setLocalCustomDateRange] = useState(customDateRange);
+
+  // Products API filter state
+  const [isProductsApiExpanded, setIsProductsApiExpanded] = useState(false);
+  const [productsApiSearchValue, setProductsApiSearchValue] = useState('');
+  const [selectedProductsApiSet, setSelectedProductsApiSet] = useState<Set<string>>(new Set(selectedProductsApiFilter));
+  const [productsApiResults, setProductsApiResults] = useState<ProductSearchResult[]>([]);
+  const [isProductsApiLoading, setIsProductsApiLoading] = useState(false);
+  const [productsApiError, setProductsApiError] = useState<string | null>(null);
 
   const fulfillmentStatusOptions = [
     { id: 'unfulfilled', value: 'Unfulfilled' },
@@ -296,6 +310,37 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       });
     }
 
+    // Add Products API filter tags
+    Array.from(selectedProductsApiSet).slice(0, 3).forEach(productId => {
+      const product = productsApiResults.find(p => p.id === productId);
+      tags.push({
+        id: `products-api-${productId}`,
+        children: product?.name || `Product ${productId}`,
+        filterType: 'products-api',
+        filterValue: productId
+      });
+    });
+
+    // If more Products API items are selected, add a summary tag
+    if (selectedProductsApiSet.size > 3) {
+      tags.push({
+        id: 'products-api-more',
+        children: `+${selectedProductsApiSet.size - 3} more API products`,
+        filterType: 'products-api-summary',
+        filterValue: undefined
+      });
+    }
+
+    // If more SKUs are selected, add a summary tag
+    if (selectedSkus.length > 3) {
+      tags.push({
+        id: 'sku-more',
+        children: `+${selectedSkus.length - 3} more products`,
+        filterType: 'sku-summary',
+        filterValue: undefined
+      });
+    }
+
     // Add fulfillment status tags
     Array.from(selectedFulfillmentStatusSet).forEach(status => {
       const statusOption = fulfillmentStatusOptions.find(opt => opt.id === status);
@@ -359,6 +404,21 @@ export const SidePanel: React.FC<SidePanelProps> = ({
         if (onSkusChange) onSkusChange([]);
         break;
 
+      case 'products-api':
+        if (tag.filterValue) {
+          const newSelectedProducts = new Set(selectedProductsApiSet);
+          newSelectedProducts.delete(tag.filterValue);
+          setSelectedProductsApiSet(newSelectedProducts);
+          if (onProductsApiFilterChange) onProductsApiFilterChange(Array.from(newSelectedProducts));
+        }
+        break;
+
+      case 'products-api-summary':
+        // Clear all Products API selections
+        setSelectedProductsApiSet(new Set());
+        if (onProductsApiFilterChange) onProductsApiFilterChange([]);
+        break;
+
       case 'fulfillment':
         if (tag.filterValue) {
           const newStatuses = new Set(selectedFulfillmentStatusSet);
@@ -390,6 +450,47 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           setSelectedArchiveStatusSet(newStatuses);
         }
         break;
+    }
+  };
+
+  // Handle Products API search
+  const handleProductsApiSearch = async (query: string) => {
+    setProductsApiSearchValue(query);
+
+    if (!query.trim() || query.trim().length < 2) {
+      setProductsApiResults([]);
+      setProductsApiError(null);
+      return;
+    }
+
+    setIsProductsApiLoading(true);
+    setProductsApiError(null);
+
+    try {
+      const results = await ProductsApiService.searchProducts(query.trim(), 20);
+      setProductsApiResults(results);
+    } catch (error) {
+      setProductsApiError(error instanceof Error ? error.message : 'Failed to search products');
+      setProductsApiResults([]);
+    } finally {
+      setIsProductsApiLoading(false);
+    }
+  };
+
+  // Handle Products API selection
+  const handleProductsApiToggle = (productId: string) => {
+    const newSelectedProducts = new Set(selectedProductsApiSet);
+
+    if (newSelectedProducts.has(productId)) {
+      newSelectedProducts.delete(productId);
+    } else {
+      newSelectedProducts.add(productId);
+    }
+
+    setSelectedProductsApiSet(newSelectedProducts);
+
+    if (onProductsApiFilterChange) {
+      onProductsApiFilterChange(Array.from(newSelectedProducts));
     }
   };
 
@@ -734,7 +835,14 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                     onClick={(e) => {
                       // Don't toggle if clicking on interactive elements
                       const target = e.target as HTMLElement;
-                      if (target.tagName === 'INPUT' || target.closest('input') || target.closest('[role="searchbox"]') || target.closest('.wsr-search')) {
+                      if (target.tagName === 'INPUT' ||
+                        target.closest('input') ||
+                        target.closest('[role="searchbox"]') ||
+                        target.closest('.wsr-search') ||
+                        target.closest('[data-hook]')?.getAttribute('data-hook')?.includes('search') ||
+                        target.closest('.wsr-input') ||
+                        target.closest('.wsr-text-button')) {
+                        e.stopPropagation();
                         return;
                       }
                       setIsExpanded(!isExpanded);
@@ -871,6 +979,157 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                           <Box padding="20px" align="center">
                             <Text size="small" secondary>
                               {searchValue ? `No SKUs found matching "${searchValue}"` : 'No SKUs available'}
+                            </Text>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* PRODUCTS API FILTER SECTION */}
+                  <div
+                    style={{
+                      cursor: 'pointer',
+                      flexShrink: 0
+                    }}
+                    onClick={(e) => {
+                      // Don't toggle if clicking on interactive elements or search areas
+                      const target = e.target as HTMLElement;
+
+                      // Check if click is inside search container
+                      const isInsideSearchContainer = target.closest('[data-search-container="products-api"]');
+
+                      if (isInsideSearchContainer ||
+                        target.tagName === 'INPUT' ||
+                        target.closest('input') ||
+                        target.closest('[role="searchbox"]') ||
+                        target.closest('.wsr-search') ||
+                        target.closest('.wsr-input-wrapper') ||
+                        target.closest('.wsr-input') ||
+                        target.closest('.wsr-text-button') ||
+                        target.closest('button') ||
+                        (target.closest('[data-hook]')?.getAttribute('data-hook')?.includes('search'))) {
+                        e.stopPropagation();
+                        return;
+                      }
+                      setIsProductsApiExpanded(!isProductsApiExpanded);
+                    }}
+                  >
+                    <Box
+                      style={{
+                        padding: '12px'
+                      }}
+                    >
+                      <Box
+                        align="space-between"
+                        verticalAlign="middle"
+                        width="100%"
+                        padding="16px 0px 16px 0px"
+                        borderTop="1px solid #e5e7eb"
+                      >
+                        <Text size="medium" weight="normal">
+                          Products API {selectedProductsApiSet.size > 0 ? `(${selectedProductsApiSet.size} selected)` : ''}
+                        </Text>
+                        <IconButton
+                          size="medium"
+                          skin="dark"
+                          priority="tertiary"
+                        >
+                          {isProductsApiExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  </div>
+
+                  {/* Products API Filter Content */}
+                  {isProductsApiExpanded && (
+                    <Box
+                      direction="vertical"
+                      style={{
+                        animation: 'slideDown 0.2s ease-out',
+                        minHeight: '200px',
+                        maxHeight: '300px',
+                        flexShrink: 0
+                      }}
+                      padding="0 0 24px 0"
+                    >
+                      {/* Search Bar */}
+                      <div
+                        style={{
+                          padding: '0 12px 12px 12px',
+                          paddingBottom: '12px',
+                          flexShrink: 0
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Search
+                          value={productsApiSearchValue}
+                          onChange={(e) => handleProductsApiSearch(e.target.value)}
+                          onClear={() => {
+                            setProductsApiSearchValue('');
+                            setProductsApiResults([]);
+                            setProductsApiError(null);
+                          }}
+                          placeholder="Search products by name (min 2 chars)..."
+                          size="small"
+                        />
+                      </div>
+
+                      {/* Products List */}
+                      <Box
+                        direction="vertical"
+                        gap="12px"
+                        style={{
+                          minHeight: '150px',
+                          maxHeight: '320px',
+                          overflow: 'auto',
+                          padding: '0 12px 12px 12px',
+                          scrollBehavior: 'smooth',
+                          flexShrink: 0
+                        }}
+                      >
+                        {isProductsApiLoading ? (
+                          <Box padding="20px" align="center">
+                            <Text size="small" secondary>Searching products...</Text>
+                          </Box>
+                        ) : productsApiError ? (
+                          <Box padding="20px" align="center">
+                            <Text size="small" secondary>{productsApiError}</Text>
+                          </Box>
+                        ) : productsApiResults.length > 0 ? (
+                          productsApiResults.map((product) => (
+                            <Box key={product.id} direction="vertical" gap="2px">
+                              <Checkbox
+                                checked={selectedProductsApiSet.has(product.id)}
+                                onChange={() => handleProductsApiToggle(product.id)}
+                                size="small"
+                              >
+                                <Box direction="vertical" gap="2px" style={{ flex: 1, minWidth: 0 }}>
+                                  <Text size="small" weight="normal" ellipsis>
+                                    {product.name}
+                                  </Text>
+                                  <Text size="tiny" secondary ellipsis>
+                                    ID: {product.productId}
+                                  </Text>
+                                  {product.variants && product.variants.length > 0 && (
+                                    <Text size="tiny" secondary>
+                                      {product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}
+                                    </Text>
+                                  )}
+                                </Box>
+                              </Checkbox>
+                            </Box>
+                          ))
+                        ) : productsApiSearchValue.trim().length >= 2 ? (
+                          <Box padding="20px" align="center">
+                            <Text size="small" secondary>
+                              No products found matching "{productsApiSearchValue}"
+                            </Text>
+                          </Box>
+                        ) : (
+                          <Box padding="20px" align="center">
+                            <Text size="small" secondary>
+                              Enter at least 2 characters to search products
                             </Text>
                           </Box>
                         )}
@@ -1167,12 +1426,14 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                         setSelectedArchiveStatusSet(new Set());
                         setSelectedDateFilter('all');
                         setLocalCustomDateRange({ from: null, to: null });
+                        setSelectedProductsApiSet(new Set());
                         if (onSkusChange) onSkusChange([]);
                         if (onFulfillmentStatusChange) onFulfillmentStatusChange(null);
                         if (onPaymentStatusChange) onPaymentStatusChange(null);
                         if (onArchiveStatusChange) onArchiveStatusChange(null);
                         if (onDateChange) onDateChange(null);
                         if (onCustomDateRangeChange) onCustomDateRangeChange({ from: null, to: null });
+                        if (onProductsApiFilterChange) onProductsApiFilterChange([]);
                       }}
                     >
                       Clear All
