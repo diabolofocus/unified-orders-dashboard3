@@ -15,6 +15,7 @@ import {
     TagList,
     Checkbox,
     TextButton,
+    Badge,
 } from '@wix/design-system';
 import { SidePanel } from './SidePanel';
 import * as Icons from '@wix/wix-ui-icons-common';
@@ -158,6 +159,22 @@ const OrdersTable: React.FC = observer(() => {
         }
     }, [orderStore, orderController]);
 
+    // Add this method to force refresh after creating a new order
+    const refreshOrdersAfterNewOrder = useCallback(async () => {
+        // Clear the cache for fresh data
+        setOrderSeenCache({});
+        // Reload orders
+        await orderController.loadOrders();
+    }, [orderController]);
+
+    // Expose this globally so it can be called after order creation
+    useEffect(() => {
+        (window as any).refreshOrdersAfterNewOrder = refreshOrdersAfterNewOrder;
+        return () => {
+            delete (window as any).refreshOrdersAfterNewOrder;
+        };
+    }, [refreshOrdersAfterNewOrder]);
+
 
 
     useEffect(() => {
@@ -206,60 +223,46 @@ const OrdersTable: React.FC = observer(() => {
     };
 
 
-
-    interface OrderResponse {
-        seenByAHuman?: boolean;
-        [key: string]: any; // Allow for other properties we might not know about
-    }
-
     const checkOrderSeenStatus = async (orderId: string): Promise<boolean> => {
         // Return cached value if available
         if (orderSeenCache[orderId] !== undefined) {
             return orderSeenCache[orderId];
         }
 
-        // Default to true (mark as seen) if the API call fails
-        const defaultSeenValue = true;
-
         try {
-            // Ensure orders API is available
-            if (!orders || typeof orders.getOrder !== 'function') {
-                console.warn('Orders API is not properly initialized');
-                return defaultSeenValue;
-            }
+            // Use the Wix eCommerce Orders API to get the actual seenByAHuman status
+            const orderResponse = await orders.getOrder(orderId);
+            const seenByAHuman = orderResponse.seenByAHuman;
 
-            // Try to get the order with a timeout to prevent hanging
-            const response = await Promise.race<OrderResponse | null>([
-                orders.getOrder(orderId) as Promise<OrderResponse>,
-                new Promise<null>((_, reject) =>
-                    setTimeout(() => reject(new Error('Request timeout')), 5000)
-                )
-            ]);
+            // Log for debugging
+            console.log(`Order ${orderId} seenByAHuman status:`, seenByAHuman);
 
-            // If response is null (from timeout), use default
-            if (!response) {
-                return defaultSeenValue;
-            }
-
-            // Safely get seenByAHuman with fallback to default
-            const seenByAHuman = response.seenByAHuman ?? defaultSeenValue;
+            // If seenByAHuman is undefined or null, treat as NOT seen (new order)
+            const isSeenByHuman = seenByAHuman === true;
 
             // Update cache
             setOrderSeenCache(prev => ({
                 ...prev,
-                [orderId]: seenByAHuman
+                [orderId]: isSeenByHuman
             }));
 
-            return seenByAHuman;
+            return isSeenByHuman;
         } catch (error) {
-            console.error('Error checking order seen status for order:', orderId, error);
-            // Update cache with default value on error
+            console.warn(`Failed to check order seen status for ${orderId}:`, error);
+            // For new orders, default to NOT seen so they show as NEW
             setOrderSeenCache(prev => ({
                 ...prev,
-                [orderId]: defaultSeenValue
+                [orderId]: false
             }));
-            return defaultSeenValue;
+            return false;
         }
+    };
+
+    const markOrderAsSeen = (orderId: string) => {
+        setOrderSeenCache(prev => ({
+            ...prev,
+            [orderId]: true
+        }));
     };
 
     const handleBulkFulfillment = async (params: {
@@ -949,10 +952,7 @@ const OrdersTable: React.FC = observer(() => {
         }
 
         // Mark order as seen when clicked
-        setOrderSeenCache(prev => ({
-            ...prev,
-            [order._id]: true
-        }));
+        markOrderAsSeen(order._id);
 
         // Update store for other functionality (OrderDetails panel)
         orderController.selectOrder(order);
@@ -1271,24 +1271,18 @@ const OrdersTable: React.FC = observer(() => {
                 const isNewOrder = orderSeenCache[order._id] === false;
 
                 return (
-                    <Box direction="horizontal" verticalAlign="middle" gap="4px">
+                    <Box direction="vertical" verticalAlign="middle" gap="2px">
                         <Text size="small" weight="normal">
                             #{order.number}
                         </Text>
                         {isNewOrder && (
-                            <Box
-                                style={{
-                                    backgroundColor: '#ef4444',
-                                    color: 'white',
-                                    fontSize: '8px',
-                                    fontWeight: 'bold',
-                                    padding: '1px 4px',
-                                    borderRadius: '2px',
-                                    lineHeight: '1.2'
-                                }}
+                            <Badge
+                                skin="standard"
+                                size="tiny"
+                                uppercase={true}
                             >
                                 NEW
-                            </Box>
+                            </Badge>
                         )}
                     </Box>
                 );
@@ -1483,10 +1477,18 @@ const OrdersTable: React.FC = observer(() => {
 
     useEffect(() => {
         const checkVisibleOrders = async () => {
-            const ordersToCheck = finalFilteredOrders.slice(0, 100); // Check first 100 visible orders
+            const ordersToCheck = finalFilteredOrders.slice(0, 50); // Check first 50 visible orders
 
             for (const order of ordersToCheck) {
                 if (orderSeenCache[order._id] === undefined) {
+                    // For very recent orders (less than 1 hour old), assume they might be new
+                    const orderAge = Date.now() - new Date(order._createdDate).getTime();
+                    const isVeryRecent = orderAge < (60 * 60 * 1000); // 1 hour
+
+                    if (isVeryRecent) {
+                        console.log(`Checking recent order ${order._id} (${Math.round(orderAge / 1000 / 60)} minutes old)`);
+                    }
+
                     // Don't await to avoid blocking, but check in background
                     checkOrderSeenStatus(order._id);
                 }

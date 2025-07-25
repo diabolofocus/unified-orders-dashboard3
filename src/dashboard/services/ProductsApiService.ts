@@ -31,12 +31,13 @@ export class ProductsApiService {
                 return [];
             }
 
-            const response = await products.queryProducts()
-                .hasSome('name', [query.trim()])
+            // First try: search by products that start with the query
+            let response = await products.queryProducts()
+                .startsWith('name', query.trim())
                 .limit(limit)
                 .find();
 
-            return response.items?.map((item: any) => ({
+            let results = response.items?.map((item: any) => ({
                 id: item._id || '',
                 name: item.name || 'Unknown Product',
                 productId: item._id || '',
@@ -47,6 +48,57 @@ export class ProductsApiService {
                     choices: variant.choices
                 })) || []
             })) || [];
+
+            // If we have enough results from startsWith, return them
+            if (results.length >= 5) {
+                return results;
+            }
+
+            // If not enough results, also try searching by individual words
+            const searchWords = query.trim().toLowerCase().split(' ').filter(word => word.length > 1);
+
+            for (const word of searchWords) {
+                try {
+                    const wordResponse = await products.queryProducts()
+                        .startsWith('name', word)
+                        .limit(limit)
+                        .find();
+
+                    const wordResults = wordResponse.items?.map((item: any) => ({
+                        id: item._id || '',
+                        name: item.name || 'Unknown Product',
+                        productId: item._id || '',
+                        catalogItemId: item._id || '',
+                        variants: item.variants?.map((variant: any) => ({
+                            id: variant._id || '',
+                            sku: variant.stock?.sku,
+                            choices: variant.choices
+                        })) || []
+                    })) || [];
+
+                    // Add unique results
+                    wordResults.forEach(newResult => {
+                        if (!results.some(existing => existing.id === newResult.id)) {
+                            results.push(newResult);
+                        }
+                    });
+
+                    // Stop if we have enough results
+                    if (results.length >= limit) {
+                        break;
+                    }
+                } catch (wordError) {
+                    console.warn(`Error searching for word "${word}":`, wordError);
+                    continue;
+                }
+            }
+
+            // Filter results to only include items that actually contain the search query
+            const filteredResults = results.filter(item =>
+                item.name.toLowerCase().includes(query.toLowerCase())
+            );
+
+            return filteredResults.slice(0, limit);
 
         } catch (error) {
             console.error('Error searching products:', error);

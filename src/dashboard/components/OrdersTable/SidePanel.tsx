@@ -1,12 +1,10 @@
 // Enhanced SidePanel.tsx with real SKU extraction and filtering
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { SidePanel as WixSidePanel, Text, Box, Button, Search, Checkbox, IconButton, DatePicker, FormField, FieldSet, Radio, TagList } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import type { Order } from '../../types/Order';
 import { ProductsApiService, ProductSearchResult } from '../../services/ProductsApiService';
-
-
 
 
 // Helper function to convert Wix image URLs to accessible URLs
@@ -453,13 +451,14 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     }
   };
 
-  // Handle Products API search
-  const handleProductsApiSearch = async (query: string) => {
-    setProductsApiSearchValue(query);
+  // Handle Products API search with proper debouncing
+  const debouncedSearch = useRef<NodeJS.Timeout>();
 
+  const handleProductsApiSearch = useCallback(async (query: string) => {
     if (!query.trim() || query.trim().length < 2) {
       setProductsApiResults([]);
       setProductsApiError(null);
+      setIsProductsApiLoading(false);
       return;
     }
 
@@ -475,6 +474,20 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     } finally {
       setIsProductsApiLoading(false);
     }
+  }, []);
+
+  const handleProductsApiSearchChange = (query: string) => {
+    setProductsApiSearchValue(query);
+
+    // Clear previous debounce
+    if (debouncedSearch.current) {
+      clearTimeout(debouncedSearch.current);
+    }
+
+    // Set new debounce
+    debouncedSearch.current = setTimeout(() => {
+      handleProductsApiSearch(query);
+    }, 300);
   };
 
   // Handle Products API selection
@@ -594,7 +607,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     }
   };
 
-  // Handle ESC key press
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -615,6 +627,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
+      // Clean up debounce timeout
+      if (debouncedSearch.current) {
+        clearTimeout(debouncedSearch.current);
+      }
     };
   }, [onClose]);
 
@@ -1064,11 +1080,12 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                       >
                         <Search
                           value={productsApiSearchValue}
-                          onChange={(e) => handleProductsApiSearch(e.target.value)}
+                          onChange={(e) => handleProductsApiSearchChange(e.target.value)}
                           onClear={() => {
                             setProductsApiSearchValue('');
                             setProductsApiResults([]);
                             setProductsApiError(null);
+                            setIsProductsApiLoading(false);
                           }}
                           placeholder="Search products by name (min 2 chars)..."
                           size="small"
