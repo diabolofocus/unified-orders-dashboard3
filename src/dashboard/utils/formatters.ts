@@ -1,10 +1,18 @@
 // utils/formatters.ts
-export const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+export const formatDate = (dateString: string, includeTime: boolean = false): string => {
+    const options: Intl.DateTimeFormatOptions = {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
-    });
+    };
+
+    if (includeTime) {
+        options.hour = '2-digit';
+        options.minute = '2-digit';
+        options.hour12 = false;
+    }
+
+    return new Date(dateString).toLocaleDateString('en-US', options);
 };
 
 export const formatCurrency = (amount: string | number): string => {

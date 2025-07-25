@@ -19,6 +19,7 @@ import {
 import { SidePanel } from './SidePanel';
 import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
+import { settingsStore } from '../../stores/SettingsStore';
 import { useOrderController } from '../../hooks/useOrderController';
 import { useOrderUpdates } from '../../hooks/useOrderUpdates';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -106,8 +107,9 @@ const OrdersTable: React.FC = observer(() => {
     const [orderTrackingCache, setOrderTrackingCache] = useState<Record<string, { trackingNumber?: string; trackingLink?: string } | null>>({});
     const [skuFilter, setSkuFilter] = useState<string[]>([]);
     const [fulfillmentStatusFilter, setFulfillmentStatusFilter] = useState<string | null>(null);
-    const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | null>(null); const [dateFilter, setDateFilter] = useState<string | null>(null);
-    const [customDateRange, setCustomDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
+    const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | null>(null);
+    const [archiveStatusFilter, setArchiveStatusFilter] = useState<string | null>(null);
+    const [dateFilter, setDateFilter] = useState<string | null>(null); const [customDateRange, setCustomDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
     const [selectedFulfillmentStatusFilter, setSelectedFulfillmentStatusFilter] = useState<string | null>(null);
     const [selectedPaymentStatusFilter, setSelectedPaymentStatusFilter] = useState<string | null>(null);
     const [isFulfillmentStatusLoading, setIsFulfillmentStatusLoading] = useState(false);
@@ -810,6 +812,11 @@ const OrdersTable: React.FC = observer(() => {
         }
     };
 
+    const handleArchiveStatusFilterChange = (status: string | null) => {
+        setArchiveStatusFilter(status);
+        console.log(`Archive status filter changed to: ${status}`);
+    };
+
     const handleViewOrder = (order: Order) => {
         try {
             if (!order?._id) {
@@ -871,7 +878,14 @@ const OrdersTable: React.FC = observer(() => {
     const getFilteredOrders = () => {
         let orders = statusFilteredOrders;
 
-        if (fulfillmentStatusFilter !== 'archived' && paymentStatusFilter !== 'archived') {
+        // Handle archive status filter
+        if (archiveStatusFilter === 'archived') {
+            // Show only archived orders
+            orders = orders.filter(order => {
+                return order.rawOrder?.archived === true || order.archived === true;
+            });
+        } else {
+            // Show only non-archived orders (default behavior)
             orders = orders.filter(order => {
                 return !order.rawOrder?.archived && !order.archived;
             });
@@ -1188,7 +1202,7 @@ const OrdersTable: React.FC = observer(() => {
             title: 'Date Created',
             render: (order: Order) => (
                 <Text size="small">
-                    {formatDate(order._createdDate)}
+                    {formatDate(order._createdDate, settingsStore.showTimeInDates)}
                 </Text>
             ),
             width: '90px',
@@ -1296,8 +1310,7 @@ const OrdersTable: React.FC = observer(() => {
                 });
 
                 // Add divider
-                secondaryActions.push({ divider: true, key: 'divider-1' } as any);
-
+                secondaryActions.push({ divider: true } as any);
                 // Add Archive Order action
                 secondaryActions.push({
                     text: "Archive Order",
@@ -1490,7 +1503,7 @@ const OrdersTable: React.FC = observer(() => {
                             {orderStore.loadingStatus && (
                                 <TableToolbar.Item>
                                     <TableToolbar.Label>
-                                        <Text paddingTop="20px" size="tiny">{orderStore.loadingStatus}</Text>
+                                        <Text size="tiny" style={{ paddingTop: '20px' }}>{orderStore.loadingStatus}</Text>
                                     </TableToolbar.Label>
                                 </TableToolbar.Item>
                             )}
@@ -1530,97 +1543,99 @@ const OrdersTable: React.FC = observer(() => {
 
 
             {/* Filter Tags Section - Only show when filters are active */}
-            {(skuFilter.length > 0 || selectedFulfillmentStatusFilter || selectedPaymentStatusFilter || (dateFilter && dateFilter !== 'all')) && (
-                <Box
-                    style={{
-                        backgroundColor: '#ffffff',
-                        borderTop: '1px solid #e5e7eb',
-                        borderBottom: '1px solid #e5e7eb',
-                        minHeight: '50px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        position: 'sticky',
-                        top: '60px',
-                        zIndex: 999
-                    }}
-                    padding="8px 24px"
-                >
-                    <Box direction="horizontal" align="space-between" verticalAlign="middle" width="100%">
-                        <Box direction="horizontal" verticalAlign="middle" gap="12px" style={{ flex: 1 }}>
-                            <TagList
-                                tags={[
-                                    // Date filter tag
-                                    ...(dateFilter && dateFilter !== 'all' ? [{
-                                        id: `date-${dateFilter}`,
-                                        children: `Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter}`,
-                                    }] : []),
+            {(skuFilter.length > 0 || selectedFulfillmentStatusFilter || selectedPaymentStatusFilter || archiveStatusFilter || (dateFilter && dateFilter !== 'all')) && (<Box
+                style={{
+                    backgroundColor: '#ffffff',
+                    borderTop: '1px solid #e5e7eb',
+                    borderBottom: '1px solid #e5e7eb',
+                    minHeight: '50px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    position: 'sticky',
+                    top: '60px',
+                    zIndex: 999
+                }}
+                padding="8px 24px"
+            >
+                <Box direction="horizontal" align="space-between" verticalAlign="middle" width="100%">
+                    <Box direction="horizontal" verticalAlign="middle" gap="12px" style={{ flex: 1 }}>
+                        <TagList
+                            tags={[
+                                // Date filter tag
+                                ...(dateFilter && dateFilter !== 'all' ? [{
+                                    id: `date-${dateFilter}`,
+                                    children: `Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter}`,
+                                }] : []),
 
-                                    // SKU tags (show first 2, then summary)
-                                    ...skuFilter.slice(0, 2).map(sku => ({
-                                        id: `sku-${sku}`,
-                                        children: sku,
-                                    })),
-                                    // Fulfillment status tag
-                                    ...(selectedFulfillmentStatusFilter ? [{
-                                        id: `fulfillment-${selectedFulfillmentStatusFilter}`,
-                                        children: `Fulfillment: ${selectedFulfillmentStatusFilter}`,
-                                    }] : []),
+                                // SKU tags (show first 2, then summary)
+                                ...skuFilter.slice(0, 2).map(sku => ({
+                                    id: `sku-${sku}`,
+                                    children: sku,
+                                })),
+                                // Fulfillment status tag
+                                ...(selectedFulfillmentStatusFilter ? [{
+                                    id: `fulfillment-${selectedFulfillmentStatusFilter}`,
+                                    children: `Fulfillment: ${selectedFulfillmentStatusFilter}`,
+                                }] : []),
 
-                                    // Payment status tag
-                                    ...(selectedPaymentStatusFilter ? [{
-                                        id: `payment-${selectedPaymentStatusFilter}`,
-                                        children: `Payment: ${selectedPaymentStatusFilter}`,
-                                    }] : []),
+                                // Payment status tag
+                                ...(selectedPaymentStatusFilter ? [{
+                                    id: `payment-${selectedPaymentStatusFilter}`,
+                                    children: `Payment: ${selectedPaymentStatusFilter}`,
+                                }] : []),
 
-                                    // Payment status tag
-                                    ...(paymentStatusFilter ? [{
-                                        id: `payment-${paymentStatusFilter}`,
-                                        children: `Payment: ${paymentStatusFilter}`,
-                                    }] : []),
-                                ]}
-                                size="small"
-                                maxVisibleTags={3}
-                                initiallyExpanded={false}
-                                toggleMoreButton={(amountOfHiddenTags, isExpanded) => ({
-                                    label: isExpanded ? 'Show Less' : `+${amountOfHiddenTags} More`,
-                                    tooltipContent: !isExpanded ? 'Show More Filters' : undefined,
-                                })}
-                                onTagRemove={(tagId) => {
-                                    // Handle tag removal based on tag ID
-                                    if (tagId.startsWith('date-')) {
-                                        setDateFilter(null);
-                                        setCustomDateRange({ from: null, to: null });
-                                    } else if (tagId.startsWith('sku-')) {
-                                        if (tagId === 'sku-more') {
-                                            setSkuFilter([]);
-                                        } else {
-                                            const skuToRemove = tagId.replace('sku-', '');
-                                            setSkuFilter(skuFilter.filter(sku => sku !== skuToRemove));
-                                        }
-                                    } else if (tagId.startsWith('fulfillment-')) {
-                                        handleFulfillmentStatusFilterChange(null);
-                                    } else if (tagId.startsWith('payment-')) {
-                                        handlePaymentStatusFilterChange(null);
+                                // Archive status tag
+                                ...(archiveStatusFilter ? [{
+                                    id: `archive-${archiveStatusFilter}`,
+                                    children: `Archive: ${archiveStatusFilter}`,
+                                }] : []),
+                            ]}
+                            size="small"
+                            maxVisibleTags={3}
+                            initiallyExpanded={false}
+                            toggleMoreButton={(amountOfHiddenTags, isExpanded) => ({
+                                label: isExpanded ? 'Show Less' : `+${amountOfHiddenTags} More`,
+                                tooltipContent: !isExpanded ? 'Show More Filters' : undefined,
+                            })}
+                            onTagRemove={(tagId) => {
+                                // Handle tag removal based on tag ID
+                                if (tagId.startsWith('date-')) {
+                                    setDateFilter(null);
+                                    setCustomDateRange({ from: null, to: null });
+                                } else if (tagId.startsWith('sku-')) {
+                                    if (tagId === 'sku-more') {
+                                        setSkuFilter([]);
+                                    } else {
+                                        const skuToRemove = tagId.replace('sku-', '');
+                                        setSkuFilter(skuFilter.filter(sku => sku !== skuToRemove));
                                     }
-                                }}
-                                dataHook="orders-table-filter-tags"
-                            />
-                        </Box>
-                        <Button
-                            size="tiny"
-                            priority="secondary"
-                            onClick={() => {
-                                setSkuFilter([]);
-                                handleFulfillmentStatusFilterChange(null);
-                                handlePaymentStatusFilterChange(null);
-                                setDateFilter(null);
-                                setCustomDateRange({ from: null, to: null });
+                                } else if (tagId.startsWith('fulfillment-')) {
+                                    handleFulfillmentStatusFilterChange(null);
+                                } else if (tagId.startsWith('payment-')) {
+                                    handlePaymentStatusFilterChange(null);
+                                } else if (tagId.startsWith('archive-')) {
+                                    handleArchiveStatusFilterChange(null);
+                                }
                             }}
-                        >
-                            Clear All
-                        </Button>
+                            dataHook="orders-table-filter-tags"
+                        />
                     </Box>
+                    <Button
+                        size="tiny"
+                        priority="secondary"
+                        onClick={() => {
+                            setSkuFilter([]);
+                            handleFulfillmentStatusFilterChange(null);
+                            handlePaymentStatusFilterChange(null);
+                            handleArchiveStatusFilterChange(null);
+                            setDateFilter(null);
+                            setCustomDateRange({ from: null, to: null });
+                        }}
+                    >
+                        Clear All
+                    </Button>
                 </Box>
+            </Box>
             )}
 
             <div style={{ maxHeight: 'calc(100vh - 276px)', overflowY: 'scroll' }} ref={containerRef}>
@@ -1654,8 +1669,7 @@ const OrdersTable: React.FC = observer(() => {
                                 <Icons.Search size="24px" style={{ color: '#ccc' }} />
                                 <Text secondary>
                                     {skuFilter.length > 0 || fulfillmentStatusFilter || paymentStatusFilter || (dateFilter && dateFilter !== 'all')
-                                        ? `No orders found with current filters${skuFilter.length > 0 ? ` (${skuFilter.length} SKU${skuFilter.length !== 1 ? 's' : ''})` : ''}${fulfillmentStatusFilter ? ` (Fulfillment: ${fulfillmentStatusFilter})` : ''}${paymentStatusFilter ? ` (Payment: ${paymentStatusFilter})` : ''}${dateFilter && dateFilter !== 'all' ? ` (Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter})` : ''}`
-                                        : hasActiveSearch
+                                        ? `No orders found with current filters${skuFilter.length > 0 ? ` (${skuFilter.length} SKU${skuFilter.length !== 1 ? 's' : ''})` : ''}${fulfillmentStatusFilter ? ` (Fulfillment: ${fulfillmentStatusFilter})` : ''}${paymentStatusFilter ? ` (Payment: ${paymentStatusFilter})` : ''}${archiveStatusFilter ? ` (Archive: ${archiveStatusFilter})` : ''}${dateFilter && dateFilter !== 'all' ? ` (Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter})` : ''}` : hasActiveSearch
                                             ? `No orders found matching "${orderStore.searchQuery}"`
                                             : 'No orders found'
                                     }
@@ -1699,6 +1713,15 @@ const OrdersTable: React.FC = observer(() => {
                                             onClick={() => setPaymentStatusFilter(null)}
                                         >
                                             Clear payment filter
+                                        </Button>
+                                    )}
+                                    {archiveStatusFilter && (
+                                        <Button
+                                            priority="secondary"
+                                            size="small"
+                                            onClick={() => handleArchiveStatusFilterChange(null)}
+                                        >
+                                            Clear archive filter
                                         </Button>
                                     )}
                                     {hasActiveSearch && (
@@ -1751,6 +1774,8 @@ const OrdersTable: React.FC = observer(() => {
                     onFulfillmentStatusChange={handleFulfillmentStatusFilterChange}
                     selectedPaymentStatus={selectedPaymentStatusFilter}
                     onPaymentStatusChange={handlePaymentStatusFilterChange}
+                    selectedArchiveStatus={archiveStatusFilter}
+                    onArchiveStatusChange={handleArchiveStatusFilterChange}
                     selectedDate={dateFilter}
                     onDateChange={(date) => {
                         setDateFilter(date);

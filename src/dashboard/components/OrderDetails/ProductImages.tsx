@@ -1,7 +1,7 @@
 // components/OrderDetails/ProductImages.tsx - ENHANCED with proper button logic and per-item fulfillment
 
 import React, { useState, useEffect } from 'react';
-import { Box, Text, Button, TextButton, Divider } from '@wix/design-system';
+import { Box, Text, Button, TextButton, Divider, Tooltip } from '@wix/design-system';
 import { TrackingNumberModal } from '../TrackingNumberModal/TrackingNumberModal';
 import { IMAGE_CONTAINER_STYLE, PLACEHOLDER_STYLE, IMAGE_STYLE } from '../../utils/constants';
 import { processWixImageUrl } from '../../utils/image-processor';
@@ -478,8 +478,23 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                 {order.rawOrder.lineItems.map((item: any, index: any) => {
                     const itemImage = item.image ? processWixImageUrl(item.image) : '';
                     const itemName = item.productName?.original || `Item ${index + 1}`;
-                    const itemPrice = item.price?.formattedAmount || '$0.00';
                     const itemQuantity = item.quantity || 1;
+                    // Calculate total price (price × quantity)
+                    const unitPrice = parseFloat(item.price?.formattedAmount?.replace(/[^0-9.,]/g, '').replace(',', '.') || '0');
+                    const totalPrice = (unitPrice * itemQuantity).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const currencySymbol = item.price?.formattedAmount?.replace(/[0-9.,\s]/g, '') || '';
+                    const formattedUnitPrice = unitPrice.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const itemPrice = item.price?.formattedAmount ? 
+                        `${totalPrice} ${currencySymbol}`.trim() : 
+                        '0.00';
+                    const itemPriceDisplay = `${totalPrice} ${currencySymbol}`.trim();
+                    const tooltipContent = `${formattedUnitPrice} ${currencySymbol} × ${itemQuantity} = ${itemPriceDisplay}`;
                     const fulfilledQuantity = item.fulfilledQuantity || 0;
                     const remainingQuantity = itemQuantity - fulfilledQuantity;
 
@@ -538,9 +553,11 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                                             <Text size="tiny" weight="normal">
                                                 {itemName}
                                             </Text>
-                                            <Text size="tiny" weight="normal" align="right">
-                                                {itemPrice}
-                                            </Text>
+                                            <Tooltip content={tooltipContent} placement="top">
+                                                <Text size="tiny" weight="normal" align="right" style={{ cursor: 'help' }}>
+                                                    {itemPriceDisplay}
+                                                </Text>
+                                            </Tooltip>
                                         </Box>
 
                                         {/* Per-Item Tracking Information */}

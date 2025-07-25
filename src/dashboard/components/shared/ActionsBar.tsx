@@ -27,8 +27,10 @@ export const ActionsBar: React.FC = observer(() => {
     };
 
     const handleAddNewOrder = () => {
-        // Navigate to Wix's ecommerce new order page using the proper dashboard method
-        dashboard.navigate(pages.newOrder());
+        dashboard.navigate(
+            pages.newOrder(),
+            { displayMode: "overlay" }
+        );
     };
 
     const handleOpenSettings = () => {

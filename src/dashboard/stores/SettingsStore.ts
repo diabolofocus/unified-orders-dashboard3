@@ -36,6 +36,7 @@ type Settings = {
   showTinyAnalytics: boolean;
   showTopSellingItems: boolean;
   showLowInventoryItems: boolean;
+  showTimeInDates: boolean;
   defaultShippingCarrier: string;
   customCarriers: Array<{ id: string, value: string, trackingUrl: string }>;
   productHighlightFilter: string;
@@ -63,6 +64,7 @@ const DEFAULT_SETTINGS: Settings = {
   showTinyAnalytics: true,
   showTopSellingItems: true,
   showLowInventoryItems: true,
+  showTimeInDates: true,
   defaultShippingCarrier: 'dhl',
   customCarriers: [],
   productHighlightFilter: '',
@@ -442,6 +444,15 @@ export class SettingsStore {
   setShowLowInventoryItems = (show: boolean) => {
     this.settings.showLowInventoryItems = show;
     this.saveSettings();
+  }
+
+  setShowTimeInDates = (show: boolean) => {
+    this.settings.showTimeInDates = show;
+    this.saveSettings();
+  }
+
+  get showTimeInDates() {
+    return this.settings.showTimeInDates;
   };
 
   setShowCustomerBadges = (enabled: boolean) => {

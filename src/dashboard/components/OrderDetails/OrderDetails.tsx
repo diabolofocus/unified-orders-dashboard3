@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Card, Box, Text, Heading, Tabs, EmptyState, Divider, Loader } from '@wix/design-system';
+import { Card, Box, Text, Heading, Tabs, EmptyState, Divider, Loader, Button, IconButton, Tooltip } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
-import { useOrderController } from '../../hooks/useOrderController';
 import { settingsStore } from '../../stores/SettingsStore';
+import { useOrderController } from '../../hooks/useOrderController';
 import { formatDate } from '../../utils/formatters';
 import { CustomerInfo } from './CustomerInfo';
 import ProductImages from './ProductImages';
@@ -95,6 +95,14 @@ export const OrderDetails: React.FC = observer(() => {
             setActiveTabId(1);
         }
     }, [selectedOrder?._id]);
+
+    // Auto-select most recent order if none selected but orders exist
+    useEffect(() => {
+        if (!selectedOrder && orderStore.orders.length > 0) {
+            const mostRecentOrder = orderStore.orders[0]; // Orders are typically sorted by date
+            orderController.selectOrder(mostRecentOrder);
+        }
+    }, [selectedOrder, orderStore.orders.length, orderController]);
 
     useEffect(() => {
         const fetchCustomerOrders = async () => {
@@ -359,11 +367,11 @@ export const OrderDetails: React.FC = observer(() => {
     ];
 
     const renderOrderDetailsTab = () => (
-        <Box gap="16px" direction="vertical" height="100%" width="100%" overflowY="auto">
-            {!selectedOrder ? (
+        <Box gap="16px" direction="vertical" minHeight="calc(100vh - 216px)" width="100%" overflowY="auto">
+            {(!selectedOrder && orderStore.orders.length === 0) ? (
                 <Card stretchVertically>
                     <Card.Content>
-                        <Box height="100%" minHeight="600px" verticalAlign="middle" align="center">
+                        <Box height="100%" verticalAlign="middle" align="center">
                             <EmptyState
                                 theme="section"
                                 title={
@@ -377,41 +385,74 @@ export const OrderDetails: React.FC = observer(() => {
                         </Box>
                     </Card.Content>
                 </Card>
-            ) : (
+            ) : selectedOrder ? (
                 <>
                     {/* Main Order Information Card */}
                     <Card>
-                        {/* Order Header */}
                         <Card.Header
                             title={
-                                <Box direction="horizontal" align="left" gap="16px" style={{ alignItems: 'center' }}>
-                                    <Heading
-                                        size="medium"
-                                        weight="bold"
-                                        onClick={handleOrderLinkClick}
-                                        style={{
-                                            cursor: 'pointer',
-                                            color: '#3b82f6',
-                                            textDecoration: 'none',
-                                            flex: 1
+                                <Heading
+                                    size="medium"
+
+                                    weight="bold"
+                                    onClick={handleOrderLinkClick}
+                                    style={{
+                                        cursor: 'pointer',
+                                        color: '#3b82f6',
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <Box gap="16px" direction="horizontal">
+                                        Order #{selectedOrder?.number}
+
+                                        <Icons.ExternalLink
+                                            size="22px"
+                                            style={{ color: '#3b82f6', cursor: 'pointer' }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOrderLinkClick();
+                                            }}
+                                        />
+                                    </Box>
+                                </Heading>
+                            }
+                            suffix={
+                                <Tooltip content="Edit Order" placement="top">
+                                    <IconButton
+                                        size="small"
+                                        priority="secondary"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (selectedOrder?._id) {
+                                                try {
+                                                    await dashboard.navigate(
+                                                        pages.editOrder({
+                                                            orderId: selectedOrder._id
+                                                        })
+                                                    );
+                                                } catch (error) {
+                                                    console.error('Failed to navigate to edit order:', error);
+                                                    // Fallback to URL-based navigation if SDK navigation fails
+                                                    const siteId = new URLSearchParams(window.location.search).get('instance');
+                                                    if (siteId) {
+                                                        window.open(`https://manage.wix.com/dashboard/${siteId}/ecom-platform/order-details/${selectedOrder._id}`, '_blank');
+                                                    }
+                                                }
+                                            }
                                         }}
                                     >
-                                        Order #{selectedOrder.number}
-                                        <Icons.ExternalLink
-
-                                            size="22px"
-                                            style={{ padding: '0 0 0 12px', color: '#3b82f6', cursor: 'pointer', marginLeft: 'auto' }}
-                                            onClick={handleOrderLinkClick}
-                                        />
-                                    </Heading>
-                                </Box>
+                                        <Icons.Compose size="16px" />
+                                    </IconButton>
+                                </Tooltip>
                             }
                             subtitle={
                                 <Box direction="vertical" gap="8px">
-                                    <Text size="small">{formatDate(selectedOrder._createdDate)}</Text>
+                                    <Text size="small">{formatDate(selectedOrder?._createdDate || '', settingsStore.showTimeInDates)}</Text>
                                     <Box direction="horizontal" gap="8px" align="left">
-                                        <StatusBadge status={selectedOrder.paymentStatus} type="payment" />
-                                        <StatusBadge status={selectedOrder.status} type="order" />
+                                        <StatusBadge status={selectedOrder?.paymentStatus || 'NOT_FULFILLED'} type="payment" />
+                                        <StatusBadge status={selectedOrder?.status || 'NOT_FULFILLED'} type="order" />
                                     </Box>
                                 </Box>
                             }
@@ -425,12 +466,12 @@ export const OrderDetails: React.FC = observer(() => {
                                 <CustomerInfo order={selectedOrder} />
 
                                 {/* Delivery Method Section - Only show if we have title or delivery time */}
-                                {(selectedOrder.rawOrder?.shippingInfo?.title || selectedOrder.rawOrder?.shippingInfo?.logistics?.deliveryTime) && (
+                                {(selectedOrder?.rawOrder?.shippingInfo?.title || selectedOrder?.rawOrder?.shippingInfo?.logistics?.deliveryTime) && (
                                     <>
                                         <Card.Divider />
                                         <Box direction="vertical" gap="4px" align="left">
                                             <Text size="small" className="section-title">Delivery method</Text>
-                                            {selectedOrder.rawOrder.shippingInfo.title && (
+                                            {selectedOrder?.rawOrder?.shippingInfo?.title && (
                                                 <Text size="small">
                                                     {selectedOrder.rawOrder.shippingInfo.title}
                                                 </Text>
@@ -543,21 +584,21 @@ export const OrderDetails: React.FC = observer(() => {
                     )}
 
                     {/* Buyer Note Card (if exists) */}
-                    {selectedOrder.rawOrder?.buyerNote && (
+                    {selectedOrder?.rawOrder?.buyerNote && (
                         <Card>
                             <Card.Content>
                                 <Box gap="8px" direction="vertical">
                                     <Text size="small" className="section-title">Buyer Note:</Text>
                                     <Text
                                         size="small"
-                                        onClick={() => orderController.copyToClipboard(selectedOrder.rawOrder.buyerNote, 'Buyer Note')}
+                                        onClick={() => orderController.copyToClipboard(selectedOrder?.rawOrder?.buyerNote, 'Buyer Note')}
                                         style={{
                                             cursor: settingsStore.clickToCopyEnabled ? 'pointer' : 'default',
                                             color: settingsStore.clickToCopyEnabled ? 'inherit' : 'var(--text-color, #2B2B2B)'
                                         }}
                                         className={settingsStore.clickToCopyEnabled ? 'clickable-info' : ''}
                                     >
-                                        {selectedOrder.rawOrder.buyerNote}
+                                        {selectedOrder?.rawOrder?.buyerNote}
                                     </Text>
                                 </Box>
                             </Card.Content>
@@ -571,7 +612,7 @@ export const OrderDetails: React.FC = observer(() => {
                         </Card.Content>
                     </Card>
                 </>
-            )}
+            ) : null}
         </Box>
     );
 
@@ -614,7 +655,7 @@ export const OrderDetails: React.FC = observer(() => {
                                         <Text size="small">Loading Order History...</Text>
                                     </Box>
                                 ) : !isLoadingOrders && (
-                                    <Box paddingTop="16px" direction="vertical" gap="8px">
+                                    <Box paddingTop="16px" direction="vertical" gap="8px" paddingBottom="24px">
                                         <Text size="medium" weight="normal">
                                             Order History ({customerOrders.length} order{customerOrders.length !== 1 ? 's' : ''})
                                         </Text>
@@ -668,7 +709,7 @@ export const OrderDetails: React.FC = observer(() => {
                                                             <StatusBadge status={order.paymentStatus} type="payment" />
                                                             <StatusBadge status={order.status} type="order" />
                                                         </Box>
-                                                        <Text size="tiny" secondary>{formatDate(order._createdDate)}</Text>
+                                                        <Text size="tiny" secondary>{formatDate(order._createdDate, settingsStore.showTimeInDates)}</Text>
                                                     </Box>
                                                     <Box direction="horizontal" gap="12px" align="center">
                                                         <Text size="small" >{order.total}</Text>

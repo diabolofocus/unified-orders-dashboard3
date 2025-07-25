@@ -100,6 +100,16 @@ export const ComponentsVisibility: React.FC = observer(() => {
                     })}
                     <Divider />
 
+                    {renderListItem({
+                        title: 'Time in Dates',
+                        subtitle: 'Show time alongside dates in the orders table',
+                        padding: '18px 0px 18px',
+                        toggleChecked: settingsStore.showTimeInDates,
+                        onToggleChange: (checked: boolean) => settingsStore.setShowTimeInDates(checked),
+                        disabled: false
+                    })}
+                    <Divider />
+
                     <Box direction="vertical" padding="24px 0px" gap="24px">
                         <Text size="medium" weight="bold">Analytics</Text>
                         <Box padding="0 0px 0 0px" direction="vertical" gap="24px">

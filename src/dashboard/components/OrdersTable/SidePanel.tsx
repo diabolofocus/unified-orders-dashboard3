@@ -89,6 +89,8 @@ interface SidePanelProps {
   selectedFulfillmentStatus?: string | null;
   onPaymentStatusChange?: (status: string | null) => void;
   selectedPaymentStatus?: string | null;
+  onArchiveStatusChange?: (status: string | null) => void;
+  selectedArchiveStatus?: string | null;
   isFulfillmentStatusLoading?: boolean;
   isPaymentStatusLoading?: boolean;
   onDateChange?: (date: string | null) => void;
@@ -106,6 +108,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   selectedFulfillmentStatus = null,
   onPaymentStatusChange,
   selectedPaymentStatus = null,
+  onArchiveStatusChange,
+  selectedArchiveStatus = null,
   isFulfillmentStatusLoading = false,
   isPaymentStatusLoading = false,
   onDateChange,
@@ -121,8 +125,9 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   const [isFulfillmentStatusExpanded, setIsFulfillmentStatusExpanded] = useState(false);
   const [isPaymentStatusExpanded, setIsPaymentStatusExpanded] = useState(false);
   const [selectedFulfillmentStatusSet, setSelectedFulfillmentStatusSet] = useState<Set<string>>(new Set(selectedFulfillmentStatus ? [selectedFulfillmentStatus] : []));
-  const [selectedPaymentStatusSet, setSelectedPaymentStatusSet] = useState<Set<string>>(new Set(selectedPaymentStatus ? [selectedPaymentStatus] : [])); const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(selectedDate);
-  const [localCustomDateRange, setLocalCustomDateRange] = useState(customDateRange);
+  const [selectedPaymentStatusSet, setSelectedPaymentStatusSet] = useState<Set<string>>(new Set(selectedPaymentStatus ? [selectedPaymentStatus] : []));
+  const [selectedArchiveStatusSet, setSelectedArchiveStatusSet] = useState<Set<string>>(new Set(selectedArchiveStatus ? [selectedArchiveStatus] : [])); const [isArchiveStatusExpanded, setIsArchiveStatusExpanded] = useState(false);
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(selectedDate); const [localCustomDateRange, setLocalCustomDateRange] = useState(customDateRange);
 
   const fulfillmentStatusOptions = [
     { id: 'unfulfilled', value: 'Unfulfilled' },
@@ -142,6 +147,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     { id: 'declined', value: 'Declined' },
     { id: 'canceled', value: 'Canceled' },
     { id: 'pending_refund', value: 'Pending refund' }
+  ];
+
+  const archiveStatusOptions = [
+    { id: 'archived', value: 'Archived' }
   ];
 
   const dateFilterOptions = [
@@ -309,9 +318,19 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       });
     });
 
-    return tags;
-  }, [selectedSkus, selectedFulfillmentStatusSet, selectedPaymentStatusSet, selectedDate, availableSkus]);
+    // Add archive status tags
+    Array.from(selectedArchiveStatusSet).forEach(status => {
+      const statusOption = archiveStatusOptions.find(opt => opt.id === status);
+      tags.push({
+        id: `archive-${status}`,
+        children: `Archive: ${statusOption?.value || status}`,
+        filterType: 'archive',
+        filterValue: status
+      });
+    });
 
+    return tags;
+  }, [selectedSkus, selectedFulfillmentStatusSet, selectedPaymentStatusSet, selectedArchiveStatusSet, selectedDate, availableSkus]);
   // Handle tag removal
   const handleTagRemove = (tagId: string) => {
     const tag = selectedFilterTags.find(t => t.id === tagId);
@@ -361,6 +380,14 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             const statusArray = Array.from(newStatuses);
             onPaymentStatusChange(statusArray.length > 0 ? statusArray[0] : null);
           }
+        }
+        break;
+
+      case 'archive':
+        if (tag.filterValue) {
+          const newStatuses = new Set(selectedArchiveStatusSet);
+          newStatuses.delete(tag.filterValue);
+          setSelectedArchiveStatusSet(newStatuses);
         }
         break;
     }
@@ -448,6 +475,24 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     }
   };
 
+  // Handle archive status checkbox changes
+  const handleArchiveStatusToggle = (status: string) => {
+    const newSelectedStatuses = new Set(selectedArchiveStatusSet);
+
+    if (newSelectedStatuses.has(status)) {
+      newSelectedStatuses.delete(status);
+    } else {
+      newSelectedStatuses.add(status);
+    }
+
+    setSelectedArchiveStatusSet(newSelectedStatuses);
+
+    if (onArchiveStatusChange) {
+      const statusArray = Array.from(newSelectedStatuses);
+      onArchiveStatusChange(statusArray.length > 0 ? statusArray[0] : null);
+    }
+  };
+
   // Handle ESC key press
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -484,6 +529,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   useEffect(() => {
     setSelectedPaymentStatusSet(new Set(selectedPaymentStatus ? [selectedPaymentStatus] : []));
   }, [selectedPaymentStatus]);
+
+  useEffect(() => {
+    setSelectedArchiveStatusSet(new Set(selectedArchiveStatus ? [selectedArchiveStatus] : []));
+  }, [selectedArchiveStatus]);
 
   const selectedCount = selectedSkuSet.size;
   const visibleSelectedCount = filteredSkus.filter(skuInfo => selectedSkuSet.has(skuInfo.sku)).length;
@@ -970,6 +1019,80 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                       </Box>
                     </Box>
                   )}
+
+                  {/* ARCHIVE STATUS FILTER SECTION */}
+                  <div
+                    style={{
+                      backgroundColor: 'white',
+                      cursor: 'pointer',
+                      flexShrink: 0
+                    }}
+                    onClick={() => setIsArchiveStatusExpanded(!isArchiveStatusExpanded)}
+                  >
+                    <Box
+                      style={{
+                        paddingTop: '12px'
+                      }}
+                    >
+                      <Box
+                        align="space-between"
+                        verticalAlign="middle"
+                        width="100%"
+                        padding="16px 0px 16px 0px"
+                        borderTop="1px solid #e5e7eb"
+                      >
+                        <Text size="medium" weight="normal">
+                          Archive Status {selectedArchiveStatusSet.size > 0 ? `(${Array.from(selectedArchiveStatusSet).map(id => archiveStatusOptions.find(opt => opt.id === id)?.value).join(', ')})` : ''}
+                        </Text>
+                        <IconButton
+                          size="medium"
+                          skin="dark"
+                          priority="tertiary"
+                        >
+                          {isArchiveStatusExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  </div>
+
+                  {/* Archive Status Filter Content */}
+                  {isArchiveStatusExpanded && (
+                    <Box
+                      direction="vertical"
+                      gap="16px"
+                      style={{
+                        animation: 'slideDown 0.2s ease-out',
+                        flexShrink: 0
+                      }}
+                      padding="0 0 24px 0"
+                    >
+                      <Box
+                        direction="vertical"
+                        gap="16px"
+                        style={{
+                          animation: 'slideDown 0.2s ease-out',
+                          display: 'flex',
+                          flex: '1 1 0',
+                          minHeight: '0'
+                        }}
+                      >
+                        {archiveStatusOptions.map((option) => (
+                          <Box key={option.id} direction="vertical" gap="2px">
+                            <Checkbox
+                              checked={selectedArchiveStatusSet.has(option.id)}
+                              onChange={() => handleArchiveStatusToggle(option.id)}
+                              size="medium"
+                            >
+                              <Text size="medium">
+                                {option.value}
+                              </Text>
+                            </Checkbox>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
                 </Box>
               ) : (
                 <Box
@@ -1035,11 +1158,13 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                         setSelectedSkuSet(new Set());
                         setSelectedFulfillmentStatusSet(new Set());
                         setSelectedPaymentStatusSet(new Set());
+                        setSelectedArchiveStatusSet(new Set());
                         setSelectedDateFilter('all');
                         setLocalCustomDateRange({ from: null, to: null });
                         if (onSkusChange) onSkusChange([]);
                         if (onFulfillmentStatusChange) onFulfillmentStatusChange(null);
                         if (onPaymentStatusChange) onPaymentStatusChange(null);
+                        if (onArchiveStatusChange) onArchiveStatusChange(null);
                         if (onDateChange) onDateChange(null);
                         if (onCustomDateRangeChange) onCustomDateRangeChange({ from: null, to: null });
                       }}

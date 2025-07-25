@@ -991,7 +991,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         }}
                     >
                         <Icons.Check size="48px" style={{ color: '#4caf50' }} />
-                        <Text size="medium" weight="bold">All orders fulfilled!</Text>
+                        <Text size="medium" weight="normal">All orders fulfilled!</Text>
                         <Text secondary size="small" align="center">
                             No products need preparation at this time
                         </Text>
