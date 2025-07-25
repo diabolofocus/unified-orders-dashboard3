@@ -203,14 +203,44 @@ const OrdersTable: React.FC = observer(() => {
 
 
 
+    interface OrderResponse {
+        seenByAHuman?: boolean;
+        [key: string]: any; // Allow for other properties we might not know about
+    }
+
     const checkOrderSeenStatus = async (orderId: string): Promise<boolean> => {
+        // Return cached value if available
         if (orderSeenCache[orderId] !== undefined) {
             return orderSeenCache[orderId];
         }
 
+        // Default to true (mark as seen) if the API call fails
+        const defaultSeenValue = true;
+
         try {
-            const response = await orders.getOrder(orderId);
-            const seenByAHuman = response.seenByAHuman ?? true;
+            // Ensure orders API is available
+            if (!orders || typeof orders.getOrder !== 'function') {
+                console.warn('Orders API is not properly initialized');
+                return defaultSeenValue;
+            }
+
+            // Try to get the order with a timeout to prevent hanging
+            const response = await Promise.race<OrderResponse | null>([
+                orders.getOrder(orderId) as Promise<OrderResponse>,
+                new Promise<null>((_, reject) =>
+                    setTimeout(() => reject(new Error('Request timeout')), 5000)
+                )
+            ]);
+
+            // If response is null (from timeout), use default
+            if (!response) {
+                return defaultSeenValue;
+            }
+
+            // Safely get seenByAHuman with fallback to default
+            const seenByAHuman = response.seenByAHuman ?? defaultSeenValue;
+
+            // Update cache
             setOrderSeenCache(prev => ({
                 ...prev,
                 [orderId]: seenByAHuman
@@ -218,12 +248,13 @@ const OrdersTable: React.FC = observer(() => {
 
             return seenByAHuman;
         } catch (error) {
-            console.error('Error checking order seen status:', orderId, error);
+            console.error('Error checking order seen status for order:', orderId, error);
+            // Update cache with default value on error
             setOrderSeenCache(prev => ({
                 ...prev,
-                [orderId]: true
+                [orderId]: defaultSeenValue
             }));
-            return true;
+            return defaultSeenValue;
         }
     };
 

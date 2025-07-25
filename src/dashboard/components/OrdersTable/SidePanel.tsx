@@ -731,7 +731,14 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                       cursor: 'pointer',
                       flexShrink: 0
                     }}
-                    onClick={() => setIsExpanded(!isExpanded)}
+                    onClick={(e) => {
+                      // Don't toggle if clicking on interactive elements
+                      const target = e.target as HTMLElement;
+                      if (target.tagName === 'INPUT' || target.closest('input') || target.closest('[role="searchbox"]') || target.closest('.wsr-search')) {
+                        return;
+                      }
+                      setIsExpanded(!isExpanded);
+                    }}
                   >
                     <Box
                       style={{
@@ -772,14 +779,13 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                       padding="0 0 24px 0"
                     >
                       {/* Search Bar */}
-                      <Box
-                        direction="vertical"
-                        gap="8px"
+                      <div
                         style={{
                           padding: '0 12px 12px 12px',
+                          paddingBottom: '12px',
                           flexShrink: 0
                         }}
-                        paddingBottom="12px"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <Search
                           value={searchValue}
@@ -788,7 +794,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                           placeholder="Search SKUs or product names..."
                           size="small"
                         />
-                      </Box>
+                      </div>
 
                       {/* SKU List */}
                       <Box
