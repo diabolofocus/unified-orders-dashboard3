@@ -672,12 +672,11 @@ Please describe your feature request in detail here...`
                       </form>
                     </div>
                   </Box>
-                  {/* 
                   <Divider />
                   <Box direction="vertical" gap="12px">
                     <Text weight="bold" size="medium">Contact Support</Text>
                     <Text>Email: info@karpo.studio</Text>
-                  </Box> */}
+                  </Box>
                 </FlexBox>
               </Card.Content>
             </Card>
@@ -697,7 +696,7 @@ Please describe your feature request in detail here...`
                 {/* Introduction Text */}
                 <Text>
                   I'm Guillaume, creator of the Unified Orders Dashboard app. As a fellow Wix store owner, I've developed this tool to improve efficiency. The app is not meant to replace the Wix orders dashboard but to extend its capabilities with additional features.
-                  {/* You can visit{' '}
+                  Visit{' '}
                   <TextButton
                     as="a"
                     href="https://karpo.studio"
@@ -706,7 +705,7 @@ Please describe your feature request in detail here...`
                   >
                     karpo.studio
                   </TextButton>
-                  {' '}to see upcoming apps and to learn more about my work. */}
+                  {' '}to see upcoming apps and to learn more about my work.
                 </Text>
 
                 <Divider />
@@ -745,7 +744,7 @@ Please describe your feature request in detail here...`
                           data={[
                             {
                               id: 1,
-                              feature: "Add tracking info to custom items",
+                              feature: "Add tracking info to custom items (made via Invoice, SPI Catalogue..)",
                               ourApp: true,
                               wixApp: false
                             },
@@ -848,6 +847,12 @@ Please describe your feature request in detail here...`
                             {
                               id: 18,
                               feature: "Customize order list columns",
+                              ourApp: false,
+                              wixApp: true
+                            },
+                            {
+                              id: 19,
+                              feature: "Edit customer shipping address and email",
                               ourApp: false,
                               wixApp: true
                             }

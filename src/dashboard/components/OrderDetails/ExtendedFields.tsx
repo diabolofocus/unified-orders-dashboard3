@@ -183,7 +183,7 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
                         return (
                             <Box key={namespace} direction="vertical" gap="6px">
                                 {typeof fields === 'object' && fields !== null && (
-                                    <Box direction="vertical" gap="4px" paddingLeft="12px">
+                                    <Box direction="vertical" gap="4px">
                                         {Object.entries(fields).map(([fieldKey, fieldValue]) => {
 
                                             // Use static mapping for field name
@@ -194,8 +194,8 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
 
 
                                             return (
-                                                <Box key={fieldKey} direction="vertical" gap="2px">
-                                                    <Text size="tiny" secondary weight="bold">
+                                                <Box key={fieldKey} direction="horizontal" gap="4px">
+                                                    <Text size="small">
                                                         {displayName}:
                                                     </Text>
                                                     <Text

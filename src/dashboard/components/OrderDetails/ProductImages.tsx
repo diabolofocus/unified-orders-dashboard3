@@ -553,11 +553,17 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                                             <Text size="tiny" weight="normal">
                                                 {itemName}
                                             </Text>
-                                            <Tooltip content={tooltipContent} placement="top">
-                                                <Text size="tiny" weight="normal" align="right" style={{ cursor: 'help' }}>
+                                            {itemQuantity > 1 ? (
+                                                <Tooltip content={tooltipContent} placement="top">
+                                                    <Text size="tiny" weight="normal" align="right" style={{ cursor: 'help' }}>
+                                                        {itemPriceDisplay}
+                                                    </Text>
+                                                </Tooltip>
+                                            ) : (
+                                                <Text size="tiny" weight="normal" align="right">
                                                     {itemPriceDisplay}
                                                 </Text>
-                                            </Tooltip>
+                                            )}
                                         </Box>
 
                                         {/* Per-Item Tracking Information */}

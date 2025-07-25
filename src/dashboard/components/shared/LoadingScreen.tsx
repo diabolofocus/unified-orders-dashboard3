@@ -55,7 +55,6 @@ const ProgressTrack = styled.div`
   width: 100%;
   height: 6px;
   background-color: #e8e8e8;
-  border: 1px solid #d4dcee; 
   border-radius: 30px;
   overflow: hidden;
 `;
@@ -70,16 +69,16 @@ const ProgressBar = styled.div<{ $animate: boolean }>`
   animation: ${props => props.$animate ? progressAnimation : 'none'} 2s ease-out forwards;
   
   &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 50px;
-    background: linear-gradient(90deg, transparent, #b1bcca, transparent);
-    animation: ${shimmerAnimation} 1.5s infinite ease-in-out;
-    animation-delay: 0.5s;
-  }
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 200px;
+  background: linear-gradient(90deg, transparent 0%, #9bb0c7 20%, #b8cce0 35%, #d0e0f0 50%, #b8cce0 65%, #9bb0c7 80%, transparent 100%);
+  animation: ${shimmerAnimation} 1.5s infinite ease-in-out;
+  animation-delay: 0.5s;
+}
 `;
 
 const LoadingText = styled.div`

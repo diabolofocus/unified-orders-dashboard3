@@ -592,17 +592,27 @@ export const CompactAnalytics: React.FC = observer(() => {
                                     </TextButton>
                                 )}
                             </DropdownBase>
-                            {/* 
+
+                            <div style={{
+                                width: '1px',
+                                height: '24px',
+                                backgroundColor: '#E0E0E0',
+                                margin: '0 8px',
+                                alignSelf: 'center'
+                            }} />
+
                             <IconButton
-                                onClick={() => dashboard.navigate('/dashboard/settings')}
+                                onClick={() => dashboard.navigate({
+                                    pageId: '7570b9fe-ebe2-4486-9380-e5e4c41fc62d',
+                                    relativeUrl: '/settings',
+                                })}
                                 size="medium"
-                                skin="dark"
-                                priority="tertiary"
+                                skin="light"
+                                priority="secondary"
                                 aria-label="Settings"
-                                style={{ alignSelf: 'top' }}
                             >
-                                <Icons.Settings />
-                            </IconButton> */}
+                                <Icons.Settings color="#2B7FF5" />
+                            </IconButton>
                         </div>
                     )}
                 </div>
