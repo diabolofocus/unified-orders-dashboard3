@@ -258,11 +258,33 @@ const OrdersTable: React.FC = observer(() => {
         }
     };
 
-    const markOrderAsSeen = (orderId: string) => {
+    const markOrderAsSeen = async (orderId: string) => {
+        // Immediately update the local cache for instant UI feedback
         setOrderSeenCache(prev => ({
             ...prev,
             [orderId]: true
         }));
+
+        try {
+            // Update the seenByAHuman property in the Wix database
+            await orders.bulkUpdateOrders([
+                {
+                    order: {
+                        _id: orderId,
+                        seenByAHuman: true
+                    }
+                }
+            ]);
+
+            console.log(`Successfully marked order ${orderId} as seen by human`);
+        } catch (error) {
+            console.error(`Failed to mark order ${orderId} as seen:`, error);
+            // If the API call fails, revert the local cache
+            setOrderSeenCache(prev => ({
+                ...prev,
+                [orderId]: false
+            }));
+        }
     };
 
     const handleBulkFulfillment = async (params: {
@@ -939,7 +961,7 @@ const OrdersTable: React.FC = observer(() => {
         }
     };
 
-    const handleRowClick = (order: Order, event?: any) => {
+    const handleRowClick = async (order: Order, event?: any) => {
         // Remove all previous selections
         document.querySelectorAll('[data-selected-order]').forEach(row => {
             row.removeAttribute('data-selected-order');
@@ -951,8 +973,8 @@ const OrdersTable: React.FC = observer(() => {
             clickedRow.setAttribute('data-selected-order', order._id);
         }
 
-        // Mark order as seen when clicked
-        markOrderAsSeen(order._id);
+        // Mark order as seen when clicked (both locally and in database)
+        await markOrderAsSeen(order._id);
 
         // Update store for other functionality (OrderDetails panel)
         orderController.selectOrder(order);

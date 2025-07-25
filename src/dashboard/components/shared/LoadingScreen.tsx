@@ -60,14 +60,14 @@ const ProgressTrack = styled.div`
   overflow: hidden;
 `;
 
-const ProgressBar = styled.div<{ animate: boolean }>`
+const ProgressBar = styled.div<{ $animate: boolean }>`
   height: 100%;
   background: #697e99;
   border-radius: 4px;
   position: relative;
   overflow: hidden;
   transition: width 0.3s ease;
-  animation: ${props => props.animate ? progressAnimation : 'none'} 2s ease-out forwards;
+  animation: ${props => props.$animate ? progressAnimation : 'none'} 2s ease-out forwards;
   
   &::after {
     content: '';
@@ -113,7 +113,7 @@ export const LoadingScreen: React.FC = () => {
 
         <ProgressContainer>
           <ProgressTrack>
-            <ProgressBar animate={showProgress} />
+            <ProgressBar $animate={showProgress} />
           </ProgressTrack>
         </ProgressContainer>
 
