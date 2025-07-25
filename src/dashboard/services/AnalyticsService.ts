@@ -5,16 +5,27 @@ export class AnalyticsService {
 
     // Get analytics data for a specific period
     async getAnalyticsData(measurementTypes: string[], startDate: string, endDate?: string) {
+        const endDateToUse = endDate || new Date().toISOString().split('T')[0];
+
+        console.log(`Fetching analytics for ${measurementTypes.join(', ')} from ${startDate} to ${endDateToUse}`);
+
         try {
             const response = await analyticsData.getAnalyticsData(
                 measurementTypes as any[],
                 {
                     dateRange: {
                         startDate: startDate,
-                        endDate: endDate || new Date().toISOString().split('T')[0]
+                        endDate: endDateToUse
                     }
                 }
             );
+
+            console.log(`Analytics API response for ${measurementTypes.join(', ')} (${startDate} - ${endDateToUse}):`, {
+                responseData: response.data,
+                measurementTypes,
+                startDate,
+                endDate: endDateToUse
+            });
 
             return {
                 success: true,
@@ -23,6 +34,7 @@ export class AnalyticsService {
             };
 
         } catch (error: any) {
+            console.error(`Error fetching analytics for ${measurementTypes.join(', ')} (${startDate} - ${endDateToUse}):`, error);
             return {
                 success: false,
                 error: error.message,
@@ -34,65 +46,82 @@ export class AnalyticsService {
     // Get analytics with comparison to previous period
     async getAnalyticsWithComparison(period: 'today' | 'yesterday' | '7days' | '30days' | 'thisweek' | 'thismonth' | '365days' | 'thisyear') {
         const measurementTypes = ['TOTAL_SALES', 'TOTAL_ORDERS', 'TOTAL_UNIQUE_VISITORS'];
-        const dailyMeasurementTypes = ['TOTAL_UNIQUE_VISITORS'];
+        console.log(`[getAnalyticsWithComparison] Starting for period: ${period}`);
 
         try {
             const { current, previous } = this.getComparisonDateRanges(period);
+            console.log(`[getAnalyticsWithComparison] Date ranges - Current: ${current.startDate} to ${current.endDate}, Previous: ${previous.startDate} to ${previous.endDate}`);
 
-            // Get current period data
-            const currentResult = await this.getAnalyticsData(
-                measurementTypes,
-                current.startDate,
-                current.endDate
-            );
+            // First, get the main analytics data
+            const currentResult = await this.getAnalyticsData(measurementTypes, current.startDate, current.endDate);
+            console.log(`[getAnalyticsWithComparison] Current period result:`, currentResult);
 
-            // Get previous period data
-            const previousResult = await this.getAnalyticsData(
-                measurementTypes,
-                previous.startDate,
-                previous.endDate
-            );
+            const previousResult = await this.getAnalyticsData(measurementTypes, previous.startDate, previous.endDate);
+            console.log(`[getAnalyticsWithComparison] Previous period result:`, previousResult);
 
-            // Get daily data for unique visitors
+            // Get today's and yesterday's dates
             const today = new Date();
             const yesterday = new Date(today);
             yesterday.setDate(yesterday.getDate() - 1);
-
             const todayStr = today.toISOString().split('T')[0];
             const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-            const todayResult = await this.getAnalyticsData(
-                dailyMeasurementTypes,
-                todayStr,
-                todayStr
-            );
+            // Extract today's and yesterday's visitor counts from the detailed data if available
+            let todayVisitors = 0;
+            let yesterdayVisitors = 0;
 
-            const yesterdayResult = await this.getAnalyticsData(
-                dailyMeasurementTypes,
-                yesterdayStr,
-                yesterdayStr
-            );
+            if (currentResult.success && currentResult.data) {
+                // Find the unique visitors data in the current result
+                const uniqueVisitorsData = currentResult.data.find((item: any) => item.type === 'TOTAL_UNIQUE_VISITORS');
+
+                if (uniqueVisitorsData?.values?.length) {
+                    // Try to find today's and yesterday's data in the detailed values
+                    const todayData = uniqueVisitorsData.values.find((item: any) => item.date === todayStr);
+                    const yesterdayData = uniqueVisitorsData.values.find((item: any) => item.date === yesterdayStr);
+
+                    if (todayData) {
+                        todayVisitors = todayData.value || 0;
+                    }
+
+                    if (yesterdayData) {
+                        yesterdayVisitors = yesterdayData.value || 0;
+                    }
+                }
+            }
+
+            console.log(`[getAnalyticsWithComparison] Extracted visitor data - Today (${todayStr}): ${todayVisitors}, Yesterday (${yesterdayStr}): ${yesterdayVisitors}`);
 
             if (currentResult.success && previousResult.success) {
                 const analytics = this.formatAnalyticsWithComparison(
                     currentResult.data || [],
                     previousResult.data || [],
                     {
-                        todayUniqueVisitors: todayResult.success ? todayResult.data?.[0]?.values?.[0]?.value || 0 : 0,
-                        yesterdayUniqueVisitors: yesterdayResult.success ? yesterdayResult.data?.[0]?.values?.[0]?.value || 0 : 0
+                        todayUniqueVisitors: todayVisitors,
+                        yesterdayUniqueVisitors: yesterdayVisitors,
+                        // Pass the detailed values if available
+                        detailedUniqueVisitors: currentResult.data?.find((item: any) => item.type === 'TOTAL_UNIQUE_VISITORS')?.values || []
                     }
                 );
 
+                console.log(`[getAnalyticsWithComparison] Formatted analytics:`, analytics);
+
                 return {
                     success: true,
-                    data: analytics,
+                    data: {
+                        ...analytics,
+                        // Ensure we include the detailed values in the response
+                        detailedUniqueVisitors: currentResult.data?.find((item: any) => item.type === 'TOTAL_UNIQUE_VISITORS')?.values || []
+                    },
                     period
                 };
             } else {
-                throw new Error('Failed to get analytics data for comparison');
+                const errorMsg = 'Failed to get analytics data for comparison';
+                console.error(`[getAnalyticsWithComparison] ${errorMsg}`, { currentResult, previousResult });
+                throw new Error(errorMsg);
             }
 
         } catch (error: any) {
+            console.error(`[getAnalyticsWithComparison] Error for period ${period}:`, error);
             return {
                 success: false,
                 error: error.message,
@@ -108,24 +137,80 @@ export class AnalyticsService {
         additionalData: {
             todayUniqueVisitors?: number;
             yesterdayUniqueVisitors?: number;
+            detailedUniqueVisitors?: Array<{ date?: string; value?: number }>;
         } = {}
     ) {
+        console.log('Raw currentData in formatAnalyticsWithComparison:', currentData);
+        console.log('Raw previousData in formatAnalyticsWithComparison:', previousData);
+
         const current = this.transformAnalyticsData(currentData);
         const previous = this.transformAnalyticsData(previousData);
+
+        console.log('Transformed current data:', current);
+        console.log('Transformed previous data:', previous);
 
         const calculateChange = (currentVal: number, previousVal: number): number => {
             if (previousVal === 0) return currentVal > 0 ? 100 : 0;
             return Math.round(((currentVal - previousVal) / previousVal) * 100);
         };
 
-        const todayUniqueVisitors = additionalData.todayUniqueVisitors || 0;
-        const yesterdayUniqueVisitors = additionalData.yesterdayUniqueVisitors || 0;
+        // Get today's and yesterday's unique visitors from the detailed data
+        // For periods other than 'today'/'yesterday', use the most recent available data
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        // Try to get today's and yesterday's visitors from the detailed data if available
+        let todayUniqueVisitors = additionalData.todayUniqueVisitors || 0;
+        let yesterdayUniqueVisitors = additionalData.yesterdayUniqueVisitors || 0;
+
+        // If we have detailed data for unique visitors, try to extract the values
+        if (current.TOTAL_UNIQUE_VISITORS?.values?.length > 0) {
+            const values = current.TOTAL_UNIQUE_VISITORS.values;
+
+            // First try to find exact today/yesterday dates
+            const todayData = values.find((item: any) => item.date === today);
+            const yesterdayData = values.find((item: any) => item.date === yesterdayStr);
+
+            if (todayData) {
+                todayUniqueVisitors = todayData.value || 0;
+            }
+            if (yesterdayData) {
+                yesterdayUniqueVisitors = yesterdayData.value || 0;
+            }
+
+            // If today/yesterday dates are not in the range, use the most recent available data
+            if (!todayData || !yesterdayData) {
+                // Sort values by date descending to get most recent first
+                const sortedValues = [...values].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                if (!todayData && sortedValues.length > 0) {
+                    todayUniqueVisitors = sortedValues[0].value || 0;
+                }
+                if (!yesterdayData && sortedValues.length > 1) {
+                    yesterdayUniqueVisitors = sortedValues[1].value || 0;
+                }
+            }
+        }
+
+        console.log('Visitor data in formatAnalyticsWithComparison:', {
+            today: today,
+            yesterday: yesterdayStr,
+            todayUniqueVisitors,
+            yesterdayUniqueVisitors,
+            hasCurrentData: !!current.TOTAL_UNIQUE_VISITORS,
+            hasCurrentValues: current.TOTAL_UNIQUE_VISITORS?.values?.length > 0,
+            additionalData
+        });
 
         return {
             totalSales: current.TOTAL_SALES?.total || 0,
             totalOrders: current.TOTAL_ORDERS?.total || 0,
             totalSessions: current.TOTAL_SESSIONS?.total || 0,
-            totalUniqueVisitors: current.TOTAL_UNIQUE_VISITORS?.total || 0,
+            // For total unique visitors, use the sum of values if available, otherwise use the total
+            totalUniqueVisitors: current.TOTAL_UNIQUE_VISITORS?.total ||
+                (current.TOTAL_UNIQUE_VISITORS?.values?.reduce((sum: number, item: any) => sum + (item?.value || 0), 0) || 0),
             todayUniqueVisitors,
             yesterdayUniqueVisitors,
             averageOrderValue: current.TOTAL_ORDERS?.total > 0

@@ -63,7 +63,7 @@ const ProgressTrack = styled.div`
 const ProgressBar = styled.div<{ $animate: boolean }>`
   height: 100%;
   background: #697e99;
-  border-radius: 4px;
+  border-radius: 0px;
   position: relative;
   overflow: hidden;
   transition: width 0.3s ease;

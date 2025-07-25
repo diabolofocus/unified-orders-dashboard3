@@ -29,7 +29,7 @@ export const CompactAnalytics: React.FC = observer(() => {
         { id: 'thismonth', value: 'This month' }
     ];
 
-    const API_SUPPORTED_PERIODS = ['7days', '30days', 'thismonth', 'thisweek'];
+    const API_SUPPORTED_PERIODS = ['today', 'yesterday', '7days', '30days', 'thismonth', 'thisweek'];
 
     useEffect(() => {
         if (orderStore.connectionStatus === 'connected') {
@@ -43,26 +43,45 @@ export const CompactAnalytics: React.FC = observer(() => {
             orderStore.setAnalyticsError(null);
             orderStore.setSelectedAnalyticsPeriod(period);
 
-            if (API_SUPPORTED_PERIODS.includes(period)) {
-
-                try {
-                    const analyticsResult = await loadAnalyticsFromAPI(period);
-                    if (analyticsResult.success) {
-                        return;
-                    }
-                } catch (apiError) {
+            // Always try to use the API first for all periods
+            try {
+                const analyticsResult = await loadAnalyticsFromAPI(period);
+                if (analyticsResult.success) {
+                    return;
                 }
+                // If API call was not successful, continue to fallback
+            } catch (apiError) {
+                console.warn('API call failed, falling back to local data:', apiError);
             }
 
+            // Fall back to local orders data if API fails
             await loadAnalyticsFromOrders(period);
 
         } catch (error) {
             console.error('Failed to load analytics:', error);
-            orderStore.setAnalyticsError('Failed to load analytics');
+            orderStore.setAnalyticsError('Failed to load analytics. Please check your connection and try again.');
         } finally {
             orderStore.setAnalyticsLoading(false);
         }
     };
+
+    // Define the analytics data type to include the detailed values
+    interface AnalyticsData {
+        totalSales: number;
+        totalOrders: number;
+        totalSessions: number;
+        totalUniqueVisitors: number;
+        todayUniqueVisitors: number;
+        yesterdayUniqueVisitors: number;
+        averageOrderValue: number;
+        currency: string;
+        salesChange: number;
+        ordersChange: number;
+        sessionsChange: number;
+        uniqueVisitorsChange: number;
+        aovChange: number;
+        detailedUniqueVisitors?: Array<{ date: string; value: number }>;
+    }
 
     const loadAnalyticsFromAPI = async (period: TimePeriod): Promise<{ success: boolean; error?: string }> => {
         try {
@@ -76,39 +95,110 @@ export const CompactAnalytics: React.FC = observer(() => {
                 throw new Error('Site ID not found');
             }
 
+            console.log(`[loadAnalyticsFromAPI] Fetching analytics for period: ${period}`);
+
+            // Get analytics data with comparison to previous period
             const result = await analyticsService.getAnalyticsWithComparison(period);
+            console.log(`[loadAnalyticsFromAPI] Received analytics data:`, result);
 
-            if (result.success) {
-                orderStore.setAnalyticsData({
-                    TOTAL_SALES: { total: result.data?.totalSales },
-                    TOTAL_ORDERS: { total: result.data?.totalOrders },
-                    TOTAL_SESSIONS: { total: result.data?.totalSessions }
+            if (result.success && result.data) {
+                // Cast the data to our AnalyticsData type and extract values
+                const analyticsData = result.data as AnalyticsData;
+
+                // Extract the visitor data from the result
+                let {
+                    totalUniqueVisitors = 0,
+                    todayUniqueVisitors = 0,
+                    yesterdayUniqueVisitors = 0,
+                    totalSales = 0,
+                    totalOrders = 0,
+                    totalSessions = 0,
+                    averageOrderValue = 0,
+                    salesChange = 0,
+                    ordersChange = 0,
+                    sessionsChange = 0,
+                    uniqueVisitorsChange = 0,
+                    aovChange = 0,
+                    detailedUniqueVisitors
+                } = analyticsData;
+
+                console.log(`[loadAnalyticsFromAPI] Extracted visitor data:`, {
+                    totalUniqueVisitors,
+                    todayUniqueVisitors,
+                    yesterdayUniqueVisitors
                 });
 
+                // If we don't have today/yesterday data from the API response, try to extract from detailed values
+                if (todayUniqueVisitors === 0 && detailedUniqueVisitors?.length) {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+                    const todayData = detailedUniqueVisitors.find((item: any) => item.date === todayStr);
+                    const yesterdayData = detailedUniqueVisitors.find((item: any) => item.date === yesterdayStr);
+
+                    if (todayData) todayUniqueVisitors = todayData.value || 0;
+                    if (yesterdayData) yesterdayUniqueVisitors = yesterdayData.value || 0;
+                }
+
+                // For all periods, use the total unique visitors as the main display value
+                let displayUniqueVisitors = totalUniqueVisitors;
+
+                console.log(`[loadAnalyticsFromAPI] Final visitor counts for ${period}:`, {
+                    displayUniqueVisitors,
+                    todayUniqueVisitors,
+                    yesterdayUniqueVisitors,
+                    detailedCount: detailedUniqueVisitors?.length || 0
+                });
+
+                // Update the analytics data in the store
+                const analyticsPayload: any = {
+                    TOTAL_SALES: { total: totalSales },
+                    TOTAL_ORDERS: { total: totalOrders },
+                    TOTAL_SESSIONS: { total: totalSessions },
+                    TOTAL_UNIQUE_VISITORS: {
+                        total: displayUniqueVisitors
+                    }
+                };
+
+                // Add detailed values if available
+                if (detailedUniqueVisitors?.values) {
+                    analyticsPayload.TOTAL_UNIQUE_VISITORS.values = detailedUniqueVisitors.values;
+                }
+
+                orderStore.setAnalyticsData(analyticsPayload);
+
+                // Format and set the analytics data for display
                 orderStore.setFormattedAnalytics({
-                    totalSales: result.data?.totalSales || 0,
-                    totalOrders: result.data?.totalOrders || 0,
-                    totalSessions: result.data?.totalSessions || 0,
-                    totalUniqueVisitors: result.data?.totalUniqueVisitors || 0,
-                    todayUniqueVisitors: result.data?.todayUniqueVisitors || 0,
-                    yesterdayUniqueVisitors: result.data?.yesterdayUniqueVisitors || 0,
-                    averageOrderValue: result.data?.averageOrderValue || 0,
-                    currency: result.data?.currency || '€',
-                    salesChange: result.data?.salesChange || 0,
-                    ordersChange: result.data?.ordersChange || 0,
-                    sessionsChange: result.data?.sessionsChange || 0,
-                    uniqueVisitorsChange: result.data?.uniqueVisitorsChange || 0,
-                    aovChange: result.data?.aovChange || 0,
-                    period: period
+                    totalSales,
+                    totalOrders,
+                    totalSessions,
+                    totalUniqueVisitors: displayUniqueVisitors,
+                    todayUniqueVisitors,
+                    yesterdayUniqueVisitors,
+                    averageOrderValue,
+                    currency: '€',
+                    salesChange,
+                    ordersChange,
+                    sessionsChange,
+                    uniqueVisitorsChange,
+                    aovChange,
+                    period
                 });
 
+                console.log('[loadAnalyticsFromAPI] Successfully updated analytics data');
                 return { success: true };
             } else {
-                return { success: false, error: result.error };
+                const errorMsg = result.error || 'Failed to load analytics data';
+                console.error('[loadAnalyticsFromAPI] API Error:', errorMsg);
+                return { success: false, error: errorMsg };
             }
 
         } catch (error: any) {
-            return { success: false, error: error.message };
+            console.error('[loadAnalyticsFromAPI] Error:', error);
+            return {
+                success: false,
+                error: error.message || 'An unexpected error occurred while loading analytics'
+            };
         }
     };
 
@@ -350,13 +440,14 @@ export const CompactAnalytics: React.FC = observer(() => {
 
     const metrics = getMetrics();
 
-    const formatPercentageChange = (change: number): { text: string; color: string } => {
-        if (change === 0) return { text: '0%', color: '#6b7280' };
-        const sign = change > 0 ? '+' : '';
-        const color = change > 0 ? '#15803d' : change < 0 ? '#6b7280' : '#6b7280';
+    const formatPercentageChange = (change: number): { text: string; color: string; icon: React.ReactNode } => {
+        if (change === 0) return { text: '0%', color: '#6b7280', icon: null };
+        const color = change > 0 ? '#15803d' : '#6b7280';
+        const icon = change > 0 ? <Icons.ChevronUp /> : <Icons.ChevronDown />;
         return {
-            text: `${sign}${change}%`,
-            color: color
+            text: `${Math.abs(change)}%`,
+            color: color,
+            icon: icon
         };
     };
 
@@ -390,18 +481,28 @@ export const CompactAnalytics: React.FC = observer(() => {
                         {metrics.isLoading ? 'Loading...' : value}
                     </Text>
                     {percentageData && !metrics.isLoading && (
-                        <span
-                            style={{
-                                color: percentageData.color,
-                                fontWeight: '700',
-                                fontSize: '10px',
-                                lineHeight: '1',
-                                fontFamily: 'HelveticaNeueW01-45Ligh, HelveticaNeueW02-45Ligh, HelveticaNeueW10-45Ligh, Helvetica Neue, Helvetica, Arial, sans-serif',
-                                letterSpacing: '1.3px'
-                            }}
-                        >
-                            {percentageData.text}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            {percentageData.icon && (
+                                <span style={{ color: percentageData.color, display: 'flex', alignItems: 'center' }}>
+                                    {React.cloneElement(percentageData.icon as React.ReactElement, {
+                                        size: "8px",
+                                        style: { color: percentageData.color }
+                                    })}
+                                </span>
+                            )}
+                            <span
+                                style={{
+                                    color: percentageData.color,
+                                    fontWeight: '700',
+                                    fontSize: '10px',
+                                    lineHeight: '1',
+                                    fontFamily: 'HelveticaNeueW01-45Ligh, HelveticaNeueW02-45Ligh, HelveticaNeueW10-45Ligh, Helvetica Neue, Helvetica, Arial, sans-serif',
+                                    letterSpacing: '1.3px'
+                                }}
+                            >
+                                {percentageData.text}
+                            </span>
+                        </div>
                     )}
                 </div>
             );
