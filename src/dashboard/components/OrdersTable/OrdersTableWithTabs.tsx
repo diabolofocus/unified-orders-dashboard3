@@ -396,8 +396,15 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         : '<div style="color: #666; font-size: 10px; margin-top: 4px; line-height: 1.3;">Standard item</div>';
 
                     const imageHTML = item.base64Image
-                        ? `<img src="${item.base64Image}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; display: block;" alt="${item.productName}" />`
-                        : '<div style="width: 60px; height: 45px; background-color: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #999;">No Image</div>';
+                        ? `<div style="width: 60px; height: 45px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; border: 1px solid #ddd; background: white;">
+                            <img 
+                                src="${item.base64Image}" 
+                                style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;" 
+                                alt="${item.productName}" 
+                                onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa;color:#999;font-size:9px;\'>No Image</div>';"
+                            />
+                          </div>`
+                        : '<div style="width: 60px; height: 45px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #999;">No Image</div>';
 
                     const ordersHTML = item.orders
                         .sort((a: any, b: any) => b.orderTimestamp - a.orderTimestamp)
