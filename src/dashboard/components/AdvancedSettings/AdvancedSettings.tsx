@@ -248,11 +248,11 @@ export const AdvancedSettings: React.FC = observer(() => {
             <Text secondary size="small">
               Visually highlight the edge of an order row to know which orders contain products with names matching this filter
             </Text>
-            <Box direction="horizontal" gap="16px">
-              <Box flex="1" paddingTop="12px">
+            <Box direction="horizontal" gap="16px" style={{ alignItems: 'center' }}>
+              <Box flex="1" paddingTop="16px">
                 <FormField label="Product Name">
                   <Input
-                    placeholder="e.g., Flower"
+                    placeholder="e.g. 'Pro' to highlight orders containing products with names containing 'Pro'"
                     value={settingsStore.productHighlightFilter}
                     onChange={handleFilterChange}
                     clearButton
@@ -260,7 +260,7 @@ export const AdvancedSettings: React.FC = observer(() => {
                 </FormField>
               </Box>
 
-              <Box>
+              <Box paddingTop="16px" width="200px">
                 <FormField label="Highlight Color">
                   <ColorInput
                     value={settingsStore.productHighlightColor}

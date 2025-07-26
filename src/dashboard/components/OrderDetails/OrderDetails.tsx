@@ -407,14 +407,16 @@ export const OrderDetails: React.FC = observer(() => {
                                     <Box gap="16px" direction="horizontal">
                                         Order #{selectedOrder?.number}
 
-                                        <Icons.ExternalLink
-                                            size="22px"
-                                            style={{ color: '#3b82f6', cursor: 'pointer' }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleOrderLinkClick();
-                                            }}
-                                        />
+                                        <Tooltip content="View Order" placement="top">
+                                            <Icons.ExternalLink
+                                                size="22px"
+                                                style={{ color: '#3b82f6', cursor: 'pointer' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleOrderLinkClick();
+                                                }}
+                                            />
+                                        </Tooltip>
                                     </Box>
                                 </Heading>
                             }

@@ -43,7 +43,24 @@ export const CompactAnalytics: React.FC = observer(() => {
             orderStore.setAnalyticsError(null);
             orderStore.setSelectedAnalyticsPeriod(period);
 
-            // Always try to use the API first for all periods
+            // For Today and Yesterday, ALWAYS use API and don't fall back to local data
+            if (period === 'today' || period === 'yesterday') {
+                try {
+                    const analyticsResult = await loadAnalyticsFromAPI(period);
+                    if (analyticsResult.success) {
+                        return;
+                    } else {
+                        // For Today/Yesterday, if API fails, show error instead of using incomplete local data
+                        throw new Error(analyticsResult.error || 'Analytics API failed for short period');
+                    }
+                } catch (apiError) {
+                    console.error('Analytics API failed for short period:', apiError);
+                    orderStore.setAnalyticsError('Unable to load analytics for this period. Analytics API is required for Today/Yesterday views.');
+                    return;
+                }
+            }
+
+            // For other periods, try API first, then fall back to local data
             try {
                 const analyticsResult = await loadAnalyticsFromAPI(period);
                 if (analyticsResult.success) {
@@ -54,7 +71,7 @@ export const CompactAnalytics: React.FC = observer(() => {
                 console.warn('API call failed, falling back to local data:', apiError);
             }
 
-            // Fall back to local orders data if API fails
+            // Fall back to local orders data if API fails (but not for today/yesterday)
             await loadAnalyticsFromOrders(period);
 
         } catch (error) {
@@ -121,6 +138,40 @@ export const CompactAnalytics: React.FC = observer(() => {
                     aovChange = 0,
                     detailedUniqueVisitors
                 } = analyticsData;
+
+                // For Today/Yesterday periods, if API returns zeros, fall back to local calculation
+                if ((period === 'today' || period === 'yesterday') && totalSales === 0 && totalOrders === 0) {
+                    console.log(`[loadAnalyticsFromAPI] API returned zeros for ${period}, falling back to local calculation`);
+
+                    // Calculate from local orders for the specific period
+                    const selectedPeriodOrders = orderStore.getOrdersForSelectedPeriod();
+                    const currentMetrics = calculateOrderMetrics(selectedPeriodOrders);
+
+                    // Still use API for unique visitors if available, otherwise use 0
+                    totalSales = currentMetrics.totalSales;
+                    totalOrders = currentMetrics.totalOrders;
+                    averageOrderValue = currentMetrics.averageOrderValue;
+
+                    console.log(`[loadAnalyticsFromAPI] Local calculation for ${period}: sales=${totalSales}, orders=${totalOrders}, aov=${averageOrderValue}`);
+                }
+
+                // If unique visitors is still 0 for Today/Yesterday, try to get recent visitor data
+                if ((period === 'today' || period === 'yesterday') && totalUniqueVisitors === 0 && todayUniqueVisitors === 0 && yesterdayUniqueVisitors === 0) {
+                    console.log(`[loadAnalyticsFromAPI] No visitor data for ${period}, attempting to get recent visitor data`);
+
+                    try {
+                        // Try to get visitor data from last 7 days as a fallback
+                        const recentVisitorResult = await analyticsService.getAnalyticsWithComparison('7days');
+                        if (recentVisitorResult.success && recentVisitorResult.data) {
+                            const recentData = recentVisitorResult.data as AnalyticsData;
+                            todayUniqueVisitors = recentData.todayUniqueVisitors || 0;
+                            yesterdayUniqueVisitors = recentData.yesterdayUniqueVisitors || 0;
+                            console.log(`[loadAnalyticsFromAPI] Got recent visitor data: today=${todayUniqueVisitors}, yesterday=${yesterdayUniqueVisitors}`);
+                        }
+                    } catch (visitorError) {
+                        console.warn(`[loadAnalyticsFromAPI] Failed to get recent visitor data:`, visitorError);
+                    }
+                }
 
                 console.log(`[loadAnalyticsFromAPI] Extracted visitor data:`, {
                     totalUniqueVisitors,
@@ -365,8 +416,97 @@ export const CompactAnalytics: React.FC = observer(() => {
     const getMetrics = () => {
         if (orderStore.formattedAnalytics && !orderStore.analyticsError) {
             const data = orderStore.formattedAnalytics;
-            const last30DaysOrders = orderStore.getLast30DaysOrders();
+            const selectedPeriod = orderStore.selectedAnalyticsPeriod;
 
+            // For Today/Yesterday periods, use a hybrid approach
+            if (selectedPeriod === 'today' || selectedPeriod === 'yesterday') {
+                // Get today/yesterday data from local orders for tiny analytics
+                const last30DaysOrders = orderStore.getLast30DaysOrders();
+                let todaySales = 0;
+                let yesterdaySales = 0;
+                let todayOrders = 0;
+                let yesterdayOrders = 0;
+                let todayOrderCount = 0;
+                let yesterdayOrderCount = 0;
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                last30DaysOrders.forEach(order => {
+                    const orderDate = new Date(order._createdDate);
+                    orderDate.setHours(0, 0, 0, 0);
+                    const parsedPrice = parsePrice(order.total);
+
+                    if (orderDate.getTime() === today.getTime()) {
+                        todaySales += parsedPrice;
+                        todayOrders++;
+                        todayOrderCount++;
+                    } else if (orderDate.getTime() === yesterday.getTime()) {
+                        yesterdaySales += parsedPrice;
+                        yesterdayOrders++;
+                        yesterdayOrderCount++;
+                    }
+                });
+
+                // For Today period: show today's API data as main, yesterday as tiny
+                if (selectedPeriod === 'today') {
+                    return {
+                        sales: `€${data.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        salesValue: data.totalSales,
+                        todaySales: data.totalSales, // Use API data for main value
+                        yesterdaySales, // Use local calculation for tiny analytics
+                        currency: data.currency || '€',
+                        orders: data.totalOrders,
+                        ordersValue: data.totalOrders,
+                        todayOrders: data.totalOrders, // Use API data for main value
+                        yesterdayOrders, // Use local calculation for tiny analytics
+                        aovValue: data.averageOrderValue,
+                        todayAOV: data.averageOrderValue, // Use API data for main value
+                        yesterdayAOV: yesterdayOrderCount > 0 ? yesterdaySales / yesterdayOrderCount : 0,
+                        avgOrderValue: `€${data.averageOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        salesChange: data.salesChange || 0,
+                        ordersChange: data.ordersChange || 0,
+                        aovChange: data.aovChange || 0,
+                        uniqueVisitorsValue: data.todayUniqueVisitors || 0, // Use today's count as main value
+                        todayUniqueVisitors: data.todayUniqueVisitors || 0,
+                        yesterdayUniqueVisitors: data.yesterdayUniqueVisitors || 0,
+                        uniqueVisitorsChange: data.uniqueVisitorsChange || 0,
+                        isLoading: orderStore.analyticsLoading
+                    };
+                }
+
+                // For Yesterday period: show yesterday's API data as main, today as tiny
+                if (selectedPeriod === 'yesterday') {
+                    return {
+                        sales: `€${data.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        salesValue: data.totalSales,
+                        todaySales, // Use local calculation for tiny analytics
+                        yesterdaySales: data.totalSales, // Use API data for main value
+                        currency: data.currency || '€',
+                        orders: data.totalOrders,
+                        ordersValue: data.totalOrders,
+                        todayOrders, // Use local calculation for tiny analytics
+                        yesterdayOrders: data.totalOrders, // Use API data for main value
+                        aovValue: data.averageOrderValue,
+                        todayAOV: todayOrderCount > 0 ? todaySales / todayOrderCount : 0,
+                        yesterdayAOV: data.averageOrderValue, // Use API data for main value
+                        avgOrderValue: `€${data.averageOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        salesChange: data.salesChange || 0,
+                        ordersChange: data.ordersChange || 0,
+                        aovChange: data.aovChange || 0,
+                        uniqueVisitorsValue: data.yesterdayUniqueVisitors || 0, // Use yesterday's count as main value
+                        todayUniqueVisitors: data.todayUniqueVisitors || 0,
+                        yesterdayUniqueVisitors: data.yesterdayUniqueVisitors || 0,
+                        uniqueVisitorsChange: data.uniqueVisitorsChange || 0,
+                        isLoading: orderStore.analyticsLoading
+                    };
+                }
+            }
+
+            // For other periods (7days, 30days, etc.), use the existing logic
+            const last30DaysOrders = orderStore.getLast30DaysOrders();
             let todaySales = 0;
             let yesterdaySales = 0;
             let todayOrders = 0;
@@ -551,14 +691,34 @@ export const CompactAnalytics: React.FC = observer(() => {
                                         title="Avg. Order Value"
                                         currencySymbol={metrics.currency || '€'}
                                     />
-                                    <PeriodAnalyticsCard
-                                        thirtyDaysValue={metrics.uniqueVisitorsValue || 0}
-                                        todayValue={metrics.todayUniqueVisitors || 0}
-                                        yesterdayValue={metrics.yesterdayUniqueVisitors || 0}
-                                        percentageChange={metrics.uniqueVisitorsChange || 0}
-                                        title="Unique Visitors"
-                                        isCurrency={false}
-                                    />
+                                    {(orderStore.selectedAnalyticsPeriod === 'today' || orderStore.selectedAnalyticsPeriod === 'yesterday') &&
+                                        (metrics.uniqueVisitorsValue === 0 && metrics.todayUniqueVisitors === 0 && metrics.yesterdayUniqueVisitors === 0) ? (
+                                        // For Today/Yesterday with no visitor data, show a placeholder or get data from 7 days
+                                        <div style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            padding: '20px',
+                                            minWidth: '120px'
+                                        }}>
+                                            <Text size="medium" secondary>Unique Visitors</Text>
+                                            <Text size="medium" weight="normal" style={{ fontSize: '24px', lineHeight: 1, color: '#999' }}>
+                                                N/A
+                                            </Text>
+                                            <Text size="tiny" secondary style={{ textAlign: 'center', marginTop: '4px' }}>
+                                                Data not available for short periods
+                                            </Text>
+                                        </div>
+                                    ) : (
+                                        <PeriodAnalyticsCard
+                                            thirtyDaysValue={metrics.uniqueVisitorsValue || 0}
+                                            todayValue={metrics.todayUniqueVisitors || 0}
+                                            yesterdayValue={metrics.yesterdayUniqueVisitors || 0}
+                                            percentageChange={metrics.uniqueVisitorsChange || 0}
+                                            title="Unique Visitors"
+                                            isCurrency={false}
+                                        />
+                                    )}
                                 </>
                             </>
                         ) : (

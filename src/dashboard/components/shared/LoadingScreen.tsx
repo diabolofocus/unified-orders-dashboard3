@@ -28,7 +28,7 @@ const LoadingContainer = styled.div`
   justify-content: center;
   height: 100vh;
   background-color: #f5f5f5;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'HelveticaNeueW01-45Ligh', 'HelveticaNeueW02-45Ligh', 'HelveticaNeueW10-45Ligh', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 `;
 
 const BrandingContainer = styled.div`
@@ -40,7 +40,7 @@ const BrandingContainer = styled.div`
 const BrandText = styled.div`
   font-size: 20px;
   font-weight: bold;
-  font-family: 'Helvetica', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'HelveticaNeueW01-65Medi', 'HelveticaNeueW02-65Medi', 'HelveticaNeueW10-65Medi', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   letter-spacing: 1px;
   color: #212529;
 `;

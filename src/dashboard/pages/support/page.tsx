@@ -125,11 +125,7 @@ interface SystemInfo {
 const FAQ_ITEMS = [
   {
     title: "How do I view order details?",
-    content: "Click on any order in the orders table to view detailed information including customer details, items, and fulfillment status."
-  },
-  {
-    title: "How do I fulfill an order?",
-    content: "Navigate to the Order Details tab in the right column, click on Add tracking Number button next to the Products section"
+    content: "Click on any order in the orders list to view detailed information including customer details, items, and fulfillment status."
   },
   {
     title: "Why am I not receiving real-time notification for my Orders list?",
@@ -138,6 +134,14 @@ const FAQ_ITEMS = [
   {
     title: "How do I export order data?",
     content: "For now, only the Packing list can be exported. Go to the original Wix Orders list page for more actions."
+  },
+  {
+    title: "What to use the Highlight Order filter for?",
+    content: "You can use the Highlight Order filter to visually highlight orders that have a specific product for easy identification. It is merely a visual indicator and does not affect the functionality of the order."
+  },
+  {
+    title: "What order batch size should I use?",
+    content: "The order batch size is the number of orders that are processed at once. It is set to 30 by default and can be adjusted in the settings. You can increase the batch size up to 100 orders if you need to execute bulk actions on a regular basis. Note that it may affect the performance."
   },
   {
     title: "What happens if I encounter an error?",
@@ -153,15 +157,15 @@ const FAQ_ITEMS = [
   },
   {
     title: "Is there a way to export my Packing List data?",
-    content: "Yes, you can print or download your Packing List by clicking the buttons to the right of the Packing tab."
+    content: "Yes, you can download your Packing List by clicking the button to the top right corner of the Packing tab."
   },
   {
     title: "How do I set up a sound notification for new orders?",
-    content: "Go to the Settings page and navigate to the 'Notifications' tab. From the sound notification section, you can configure sound alerts for various order events."
+    content: "Go to the Settings page and navigate to the 'Notifications' tab. From the sound notification section, you can configure if you want to activate sound notifications for new orders. It is not possible to change the sound of the alert."
   },
   {
-    title: "Can I view the original order details from Wix?",
-    content: "Yes, click on any order row to expand and view the complete order details, including customer information, products, and click on the open window button to view the original order details from Wix."
+    title: "How can I request a new feature?",
+    content: "You can request a new feature by using our feature request form in the Support page. Include as much detail as possible and we'll see if we can accommodate your request."
   },
   {
     title: "How do I handle a refund through the dashboard?",
@@ -672,11 +676,11 @@ Please describe your feature request in detail here...`
                       </form>
                     </div>
                   </Box>
-                  <Divider />
+                  {/* <Divider />
                   <Box direction="vertical" gap="12px">
                     <Text weight="bold" size="medium">Contact Support</Text>
                     <Text>Email: info@karpo.studio</Text>
-                  </Box>
+                  </Box> */}
                 </FlexBox>
               </Card.Content>
             </Card>

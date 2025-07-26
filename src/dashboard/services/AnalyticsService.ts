@@ -271,6 +271,9 @@ export class AnalyticsService {
                 yesterday.setDate(yesterday.getDate() - 1);
                 const dayBefore = new Date(today);
                 dayBefore.setDate(dayBefore.getDate() - 2);
+
+                console.log(`[getComparisonDateRanges] TODAY: current=${today.toISOString().split('T')[0]}, previous=${yesterday.toISOString().split('T')[0]}`);
+
                 return {
                     current: {
                         startDate: today.toISOString().split('T')[0],
@@ -287,6 +290,9 @@ export class AnalyticsService {
                 yesterdayStart.setDate(yesterdayStart.getDate() - 1);
                 const twoDaysAgo = new Date(today);
                 twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+                console.log(`[getComparisonDateRanges] YESTERDAY: current=${yesterdayStart.toISOString().split('T')[0]}, previous=${twoDaysAgo.toISOString().split('T')[0]}`);
+
                 return {
                     current: {
                         startDate: yesterdayStart.toISOString().split('T')[0],
@@ -297,7 +303,6 @@ export class AnalyticsService {
                         endDate: twoDaysAgo.toISOString().split('T')[0]
                     }
                 };
-
             case '7days':
                 const sevenDaysAgo = new Date(today);
                 sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
