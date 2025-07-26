@@ -112,11 +112,9 @@ export const CompactAnalytics: React.FC = observer(() => {
                 throw new Error('Site ID not found');
             }
 
-            console.log(`[loadAnalyticsFromAPI] Fetching analytics for period: ${period}`);
 
             // Get analytics data with comparison to previous period
             const result = await analyticsService.getAnalyticsWithComparison(period);
-            console.log(`[loadAnalyticsFromAPI] Received analytics data:`, result);
 
             if (result.success && result.data) {
                 // Cast the data to our AnalyticsData type and extract values

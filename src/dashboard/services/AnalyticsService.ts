@@ -7,8 +7,6 @@ export class AnalyticsService {
     async getAnalyticsData(measurementTypes: string[], startDate: string, endDate?: string) {
         const endDateToUse = endDate || new Date().toISOString().split('T')[0];
 
-        console.log(`Fetching analytics for ${measurementTypes.join(', ')} from ${startDate} to ${endDateToUse}`);
-
         try {
             const response = await analyticsData.getAnalyticsData(
                 measurementTypes as any[],
@@ -20,13 +18,6 @@ export class AnalyticsService {
                 }
             );
 
-            console.log(`Analytics API response for ${measurementTypes.join(', ')} (${startDate} - ${endDateToUse}):`, {
-                responseData: response.data,
-                measurementTypes,
-                startDate,
-                endDate: endDateToUse
-            });
-
             return {
                 success: true,
                 data: response.data,
@@ -34,7 +25,6 @@ export class AnalyticsService {
             };
 
         } catch (error: any) {
-            console.error(`Error fetching analytics for ${measurementTypes.join(', ')} (${startDate} - ${endDateToUse}):`, error);
             return {
                 success: false,
                 error: error.message,
@@ -46,18 +36,14 @@ export class AnalyticsService {
     // Get analytics with comparison to previous period
     async getAnalyticsWithComparison(period: 'today' | 'yesterday' | '7days' | '30days' | 'thisweek' | 'thismonth' | '365days' | 'thisyear') {
         const measurementTypes = ['TOTAL_SALES', 'TOTAL_ORDERS', 'TOTAL_UNIQUE_VISITORS'];
-        console.log(`[getAnalyticsWithComparison] Starting for period: ${period}`);
 
         try {
             const { current, previous } = this.getComparisonDateRanges(period);
-            console.log(`[getAnalyticsWithComparison] Date ranges - Current: ${current.startDate} to ${current.endDate}, Previous: ${previous.startDate} to ${previous.endDate}`);
 
             // First, get the main analytics data
             const currentResult = await this.getAnalyticsData(measurementTypes, current.startDate, current.endDate);
-            console.log(`[getAnalyticsWithComparison] Current period result:`, currentResult);
 
             const previousResult = await this.getAnalyticsData(measurementTypes, previous.startDate, previous.endDate);
-            console.log(`[getAnalyticsWithComparison] Previous period result:`, previousResult);
 
             // Get today's and yesterday's dates
             const today = new Date();
@@ -89,8 +75,6 @@ export class AnalyticsService {
                 }
             }
 
-            console.log(`[getAnalyticsWithComparison] Extracted visitor data - Today (${todayStr}): ${todayVisitors}, Yesterday (${yesterdayStr}): ${yesterdayVisitors}`);
-
             if (currentResult.success && previousResult.success) {
                 const analytics = this.formatAnalyticsWithComparison(
                     currentResult.data || [],
@@ -103,8 +87,6 @@ export class AnalyticsService {
                     }
                 );
 
-                console.log(`[getAnalyticsWithComparison] Formatted analytics:`, analytics);
-
                 return {
                     success: true,
                     data: {
@@ -116,12 +98,10 @@ export class AnalyticsService {
                 };
             } else {
                 const errorMsg = 'Failed to get analytics data for comparison';
-                console.error(`[getAnalyticsWithComparison] ${errorMsg}`, { currentResult, previousResult });
                 throw new Error(errorMsg);
             }
 
         } catch (error: any) {
-            console.error(`[getAnalyticsWithComparison] Error for period ${period}:`, error);
             return {
                 success: false,
                 error: error.message,

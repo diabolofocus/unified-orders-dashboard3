@@ -1,7 +1,7 @@
 // Enhanced SidePanel.tsx with real SKU extraction and filtering
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { SidePanel as WixSidePanel, Text, Box, Button, Search, Checkbox, IconButton, DatePicker, FormField, FieldSet, Radio, TagList } from '@wix/design-system';
+import { SidePanel as WixSidePanel, Text, Box, Button, Search, Checkbox, IconButton, DatePicker, FormField, FieldSet, Radio, TagList, Tooltip } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import type { Order } from '../../types/Order';
 import { ProductsApiService, ProductSearchResult } from '../../services/ProductsApiService';
@@ -97,7 +97,7 @@ interface SidePanelProps {
   selectedDate?: string | null;
   customDateRange?: { from: Date | null; to: Date | null };
   onCustomDateRangeChange?: (range: { from: Date | null; to: Date | null }) => void;
-  onProductsApiFilterChange?: (productIds: string[]) => void;
+  onProductsApiFilterChange?: (productIds: string[], selectedProducts?: Array<{ id: string, name: string }>) => void;
   selectedProductsApiFilter?: string[];
 }
 
@@ -287,57 +287,37 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       });
     }
 
-    // Add selected SKUs as tags (show first few product names)
+    // Add selected SKUs as tags (show SKUs instead of product names)
     selectedSkus.slice(0, 3).forEach(sku => {
-      const skuInfo = availableSkus.find(s => s.sku === sku);
       tags.push({
         id: `sku-${sku}`,
-        children: skuInfo?.productName || sku,
+        children: `SKU: ${sku}`,
         filterType: 'sku',
         filterValue: sku
       });
     });
 
-    // If more SKUs are selected, add a summary tag
-    if (selectedSkus.length > 3) {
-      tags.push({
-        id: 'sku-more',
-        children: `+${selectedSkus.length - 3} more products`,
-        filterType: 'sku-summary',
-        filterValue: undefined
-      });
-    }
-
     // Add Products API filter tags
-    Array.from(selectedProductsApiSet).slice(0, 3).forEach(productId => {
+    Array.from(selectedProductsApiSet).forEach(productId => {
       const product = productsApiResults.find(p => p.id === productId);
       tags.push({
         id: `products-api-${productId}`,
         children: product?.name || `Product ${productId}`,
         filterType: 'products-api',
-        filterValue: productId
+        filterValue: productId,
+        maxWidth: 150
       });
     });
 
-    // If more Products API items are selected, add a summary tag
-    if (selectedProductsApiSet.size > 3) {
-      tags.push({
-        id: 'products-api-more',
-        children: `+${selectedProductsApiSet.size - 3} more API products`,
-        filterType: 'products-api-summary',
-        filterValue: undefined
-      });
-    }
-
-    // If more SKUs are selected, add a summary tag
-    if (selectedSkus.length > 3) {
-      tags.push({
-        id: 'sku-more',
-        children: `+${selectedSkus.length - 3} more products`,
-        filterType: 'sku-summary',
-        filterValue: undefined
-      });
-    }
+    // // If more Products API items are selected, add a summary tag
+    // if (selectedProductsApiSet.size > 3) {
+    //   tags.push({
+    //     id: 'products-api-more',
+    //     children: `+${selectedProductsApiSet.size - 3} more API products`,
+    //     filterType: 'products-api-summary',
+    //     filterValue: undefined
+    //   });
+    // }
 
     // Add fulfillment status tags
     Array.from(selectedFulfillmentStatusSet).forEach(status => {
@@ -373,8 +353,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     });
 
     return tags;
-  }, [selectedSkus, selectedFulfillmentStatusSet, selectedPaymentStatusSet, selectedArchiveStatusSet, selectedDate, availableSkus]);
-  // Handle tag removal
+  }, [selectedSkus, selectedFulfillmentStatusSet, selectedPaymentStatusSet, selectedArchiveStatusSet, selectedDate, availableSkus, selectedProductsApiSet, productsApiResults]);  // Handle tag removal
   const handleTagRemove = (tagId: string) => {
     const tag = selectedFilterTags.find(t => t.id === tagId);
     if (!tag) return;
@@ -490,7 +469,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     }, 300);
   };
 
-  // Handle Products API selection
   const handleProductsApiToggle = (productId: string) => {
     const newSelectedProducts = new Set(selectedProductsApiSet);
 
@@ -503,15 +481,17 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     setSelectedProductsApiSet(newSelectedProducts);
 
     if (onProductsApiFilterChange) {
-      onProductsApiFilterChange(Array.from(newSelectedProducts));
+      // Pass both the IDs and the product names
+      const selectedProductsWithNames = Array.from(newSelectedProducts).map(id => {
+        const product = productsApiResults.find(p => p.id === id);
+        return {
+          id,
+          name: product?.name || `Product ${id}`
+        };
+      });
+      onProductsApiFilterChange(Array.from(newSelectedProducts), selectedProductsWithNames);
     }
   };
-
-  // Toggle more button configuration
-  const toggleMoreButton = (amountOfHiddenTags: number, isExpanded: boolean) => ({
-    label: isExpanded ? 'Show Less' : `+${amountOfHiddenTags} More`,
-    tooltipContent: !isExpanded ? 'Show More Filters' : undefined,
-  });
 
   // Handle checkbox changes
   const handleSkuToggle = (sku: string) => {
@@ -876,9 +856,11 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                         padding="16px 0px 16px 0px"
                         borderTop="1px solid #e5e7eb"
                       >
-                        <Text size="medium" weight="normal">
-                          Product or SKU
-                        </Text>
+                        <Box direction="horizontal" gap="4px" align="center">
+                          <Text size="medium" weight="normal">
+                            SKU (Local)
+                          </Text>
+                        </Box>
                         <IconButton
                           size="medium"
                           skin="dark"
@@ -905,7 +887,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                       {/* Search Bar */}
                       <div
                         style={{
-                          padding: '0 12px 12px 12px',
+                          paddingRight: '12px',
                           paddingBottom: '12px',
                           flexShrink: 0
                         }}
@@ -919,11 +901,17 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                           size="small"
                         />
                       </div>
+                      <Box direction="horizontal" paddingBottom="16px" gap="4px" align="left" style={{ marginLeft: '4px', marginRight: '4px' }}>
+                        <Text size="tiny" secondary>
+                          Filter applies only to loaded orders
+                        </Text>
+                      </Box>
 
                       {/* SKU List */}
                       <Box
                         direction="vertical"
                         gap="12px"
+                        maxHeight="320px"
                         style={{
                           minHeight: '150px',
                           maxHeight: '320px',
@@ -978,10 +966,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                                   </div>
                                   <Box direction="vertical" gap="2px" style={{ flex: 1, minWidth: 0 }}>
                                     <Text size="small" weight="normal" ellipsis>
-                                      {skuInfo.productName}
-                                    </Text>
-                                    <Text size="tiny" secondary ellipsis>
                                       {skuInfo.sku}
+                                    </Text>
+                                    <Text size="tiny" ellipsis>
+                                      {skuInfo.productName}
                                     </Text>
                                     <Text size="tiny" secondary>
                                       {skuInfo.orderCount} order{skuInfo.orderCount !== 1 ? 's' : ''} • {skuInfo.totalQuantity} item{skuInfo.totalQuantity !== 1 ? 's' : ''}
@@ -1044,7 +1032,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                         borderTop="1px solid #e5e7eb"
                       >
                         <Text size="medium" weight="normal">
-                          Products API {selectedProductsApiSet.size > 0 ? `(${selectedProductsApiSet.size} selected)` : ''}
+                          Products {selectedProductsApiSet.size > 0 ? `(${selectedProductsApiSet.size} selected)` : ''}
                         </Text>
                         <IconButton
                           size="medium"
@@ -1072,7 +1060,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                       {/* Search Bar */}
                       <div
                         style={{
-                          padding: '0 12px 12px 12px',
+                          paddingRight: '12px',
                           paddingBottom: '12px',
                           flexShrink: 0
                         }}
@@ -1087,7 +1075,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                             setProductsApiError(null);
                             setIsProductsApiLoading(false);
                           }}
-                          placeholder="Search products by name (min 2 chars)..."
+                          placeholder="Search products by name.."
                           size="small"
                         />
                       </div>
@@ -1096,6 +1084,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                       <Box
                         direction="vertical"
                         gap="12px"
+                        maxHeight="320px"
                         style={{
                           minHeight: '150px',
                           maxHeight: '320px',
@@ -1106,11 +1095,11 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                         }}
                       >
                         {isProductsApiLoading ? (
-                          <Box padding="20px" align="center">
-                            <Text size="small" secondary>Searching products...</Text>
+                          <Box padding="20px" align="left">
+                            <Text size="small" secondary>Searching products..</Text>
                           </Box>
                         ) : productsApiError ? (
-                          <Box padding="20px" align="center">
+                          <Box padding="20px" align="left">
                             <Text size="small" secondary>{productsApiError}</Text>
                           </Box>
                         ) : productsApiResults.length > 0 ? (
@@ -1121,31 +1110,76 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                                 onChange={() => handleProductsApiToggle(product.id)}
                                 size="small"
                               >
-                                <Box direction="vertical" gap="2px" style={{ flex: 1, minWidth: 0 }}>
-                                  <Text size="small" weight="normal" ellipsis>
-                                    {product.name}
-                                  </Text>
-                                  <Text size="tiny" secondary ellipsis>
-                                    ID: {product.productId}
-                                  </Text>
-                                  {product.variants && product.variants.length > 0 && (
-                                    <Text size="tiny" secondary>
-                                      {product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}
+                                <Box direction="horizontal" align="center" gap="8px" WebkitAlignItems="center">
+                                  <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    backgroundColor: '#f0f0f0',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    overflow: 'hidden',
+                                    flexShrink: 0
+                                  }}>
+                                    {(() => {
+                                      // Get image URL from media - use thumbnail for 50x50 size
+                                      let imageUrl = '';
+
+                                      if (product.media?.items && product.media.items.length > 0) {
+                                        const firstItem = product.media.items[0];
+                                        // Use thumbnail.url for 50x50 size, or image.url as fallback
+                                        imageUrl = firstItem.thumbnail?.url || firstItem.image?.url || '';
+                                      } else if (product.media?.mainMedia) {
+                                        // Fallback to main media
+                                        imageUrl = product.media.mainMedia.thumbnail?.url || product.media.mainMedia.image?.url || '';
+                                      }
+
+                                      const accessibleUrl = convertWixImageUrl(imageUrl);
+
+                                      return accessibleUrl ? (
+                                        <img
+                                          src={accessibleUrl}
+                                          alt={product.name}
+                                          style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover'
+                                          }}
+                                          onError={(e) => {
+                                            e.currentTarget.style.display = 'none';
+                                            e.currentTarget.parentElement!.innerHTML = '<span style="font-size: 10px; color: #999;">No Image</span>';
+                                          }}
+                                        />
+                                      ) : (
+                                        <span style={{ fontSize: '10px', color: '#999' }}>No Image</span>
+                                      );
+                                    })()}
+                                  </div>
+                                  <Box direction="vertical" gap="2px" style={{ flex: 1, minWidth: 0 }}>
+                                    <Text size="small" weight="normal" ellipsis>
+                                      {product.name}
                                     </Text>
-                                  )}
+                                    {product.variants && product.variants.length > 0 && (
+                                      <Text size="tiny" secondary>
+                                        {product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}
+                                      </Text>
+                                    )}
+                                  </Box>
                                 </Box>
                               </Checkbox>
                             </Box>
                           ))
                         ) : productsApiSearchValue.trim().length >= 2 ? (
-                          <Box padding="20px" align="center">
+                          <Box align="left">
                             <Text size="small" secondary>
                               No products found matching "{productsApiSearchValue}"
                             </Text>
                           </Box>
                         ) : (
-                          <Box padding="20px" align="center">
-                            <Text size="small" secondary>
+                          <Box align="left">
+                            <Text size="tiny" secondary>
                               Enter at least 2 characters to search products
                             </Text>
                           </Box>
@@ -1405,11 +1439,19 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                 <Box direction="vertical" gap="8px">
                   <Text size="small" weight="normal">Selected Filters:</Text>
                   <TagList
-                    tags={selectedFilterTags}
+                    tags={selectedFilterTags.map(tag => ({
+                      ...tag,
+                      maxWidth: 150
+                    }))}
                     size="small"
                     maxVisibleTags={3}
                     initiallyExpanded={false}
-                    toggleMoreButton={toggleMoreButton}
+                    toggleMoreButton={(amountOfHiddenTags, isExpanded) => ({
+                      label: isExpanded ? 'Show Less' : `+${amountOfHiddenTags} More`,
+                      tooltipContent: !isExpanded ? 'Show More Filters' : undefined,
+                      skin: 'standard',
+                      priority: 'secondary',
+                    })}
                     onTagRemove={handleTagRemove}
                     dataHook="selected-filters-taglist"
                   />

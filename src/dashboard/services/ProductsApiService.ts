@@ -1,11 +1,44 @@
 import { orders } from '@wix/ecom';
 import { products } from '@wix/stores';
+import { productsV3 } from '@wix/stores';
 
 export interface ProductSearchResult {
     id: string;
     name: string;
     productId: string;
     catalogItemId: string;
+    media?: {
+        items?: Array<{
+            id: string;
+            mediaType: string;
+            title: string;
+            image?: {
+                url: string;
+                width: number;
+                height: number;
+            };
+            thumbnail?: {
+                url: string;
+                width: number;
+                height: number;
+            };
+        }>;
+        mainMedia?: {
+            id: string;
+            mediaType: string;
+            title: string;
+            image?: {
+                url: string;
+                width: number;
+                height: number;
+            };
+            thumbnail?: {
+                url: string;
+                width: number;
+                height: number;
+            };
+        };
+    };
     variants?: Array<{
         id: string;
         sku?: string;
@@ -42,6 +75,7 @@ export class ProductsApiService {
                 name: item.name || 'Unknown Product',
                 productId: item._id || '',
                 catalogItemId: item._id || '',
+                media: item.media || undefined, // This might already include media data
                 variants: item.variants?.map((variant: any) => ({
                     id: variant._id || '',
                     sku: variant.stock?.sku,
@@ -69,6 +103,7 @@ export class ProductsApiService {
                         name: item.name || 'Unknown Product',
                         productId: item._id || '',
                         catalogItemId: item._id || '',
+                        media: item.media || undefined, // This might already include media data
                         variants: item.variants?.map((variant: any) => ({
                             id: variant._id || '',
                             sku: variant.stock?.sku,
@@ -105,7 +140,6 @@ export class ProductsApiService {
             throw new Error('Failed to search products');
         }
     }
-
     /**
      * Search orders by product using catalog item ID
      */

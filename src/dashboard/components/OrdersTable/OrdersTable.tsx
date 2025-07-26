@@ -118,6 +118,7 @@ const OrdersTable: React.FC = observer(() => {
     const [isFulfillmentStatusLoading, setIsFulfillmentStatusLoading] = useState(false);
     const [isPaymentStatusLoading, setIsPaymentStatusLoading] = useState(false);
     const [productsApiFilter, setProductsApiFilter] = useState<string[]>([]);
+    const [selectedProductsWithNames, setSelectedProductsWithNames] = useState<Array<{ id: string, name: string }>>([]);
     const [isProductsApiFiltering, setIsProductsApiFiltering] = useState(false);
     const [orderSeenCache, setOrderSeenCache] = useState<Record<string, boolean>>({});
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -233,9 +234,6 @@ const OrdersTable: React.FC = observer(() => {
             // Use the Wix eCommerce Orders API to get the actual seenByAHuman status
             const orderResponse = await orders.getOrder(orderId);
             const seenByAHuman = orderResponse.seenByAHuman;
-
-            // Log for debugging
-            console.log(`Order ${orderId} seenByAHuman status:`, seenByAHuman);
 
             // If seenByAHuman is undefined or null, treat as NOT seen (new order)
             const isSeenByHuman = seenByAHuman === true;
@@ -877,7 +875,8 @@ const OrdersTable: React.FC = observer(() => {
         console.log(`Archive status filter changed to: ${status}`);
     };
 
-    const handleProductsApiFilterChange = async (productIds: string[]) => {
+    const handleProductsApiFilterChange = async (productIds: string[], selectedProducts: Array<{ id: string, name: string }> = []) => {
+        setSelectedProductsWithNames(selectedProducts);
         setProductsApiFilter(productIds);
 
         if (productIds.length > 0) {
@@ -1503,15 +1502,6 @@ const OrdersTable: React.FC = observer(() => {
 
             for (const order of ordersToCheck) {
                 if (orderSeenCache[order._id] === undefined) {
-                    // For very recent orders (less than 1 hour old), assume they might be new
-                    const orderAge = Date.now() - new Date(order._createdDate).getTime();
-                    const isVeryRecent = orderAge < (60 * 60 * 1000); // 1 hour
-
-                    if (isVeryRecent) {
-                        console.log(`Checking recent order ${order._id} (${Math.round(orderAge / 1000 / 60)} minutes old)`);
-                    }
-
-                    // Don't await to avoid blocking, but check in background
                     checkOrderSeenStatus(order._id);
                 }
             }
@@ -1689,42 +1679,44 @@ const OrdersTable: React.FC = observer(() => {
                                     ...(dateFilter && dateFilter !== 'all' ? [{
                                         id: `date-${dateFilter}`,
                                         children: `Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter}`,
+                                        maxWidth: 150,
                                     }] : []),
 
-                                    // SKU tags (show first 2, then summary)
-                                    ...skuFilter.slice(0, 2).map(sku => ({
+                                    // SKU tags (show all, let TagList handle the "more" display)
+                                    ...skuFilter.map(sku => ({
                                         id: `sku-${sku}`,
                                         children: sku,
+                                        maxWidth: 150,
                                     })),
 
-                                    // Products API tags
-                                    ...productsApiFilter.slice(0, 2).map(productId => ({
-                                        id: `products-api-${productId}`,
-                                        children: `API Product: ${productId}`,
-                                    })),
-
-                                    // Show summary if more than 2 Products API filters
-                                    ...(productsApiFilter.length > 2 ? [{
-                                        id: 'products-api-more',
-                                        children: `+${productsApiFilter.length - 2} more API products`,
-                                    }] : []),
-
+                                    // Products API tags (show all, let TagList handle the "more" display)
+                                    ...productsApiFilter.map(productId => {
+                                        const productInfo = selectedProductsWithNames.find(p => p.id === productId);
+                                        return {
+                                            id: `products-api-${productId}`,
+                                            children: productInfo?.name || `Product ${productId}`,
+                                            maxWidth: 150,
+                                        };
+                                    }),
                                     // Fulfillment status tag
                                     ...(selectedFulfillmentStatusFilter ? [{
                                         id: `fulfillment-${selectedFulfillmentStatusFilter}`,
                                         children: `Fulfillment: ${selectedFulfillmentStatusFilter}`,
+                                        maxWidth: 150,
                                     }] : []),
 
                                     // Payment status tag
                                     ...(selectedPaymentStatusFilter ? [{
                                         id: `payment-${selectedPaymentStatusFilter}`,
                                         children: `Payment: ${selectedPaymentStatusFilter}`,
+                                        maxWidth: 150,
                                     }] : []),
 
                                     // Archive status tag
                                     ...(archiveStatusFilter ? [{
                                         id: `archive-${archiveStatusFilter}`,
                                         children: `Archive: ${archiveStatusFilter}`,
+                                        maxWidth: 150,
                                     }] : []),
                                 ]}
                                 size="small"
@@ -1733,6 +1725,8 @@ const OrdersTable: React.FC = observer(() => {
                                 toggleMoreButton={(amountOfHiddenTags, isExpanded) => ({
                                     label: isExpanded ? 'Show Less' : `+${amountOfHiddenTags} More`,
                                     tooltipContent: !isExpanded ? 'Show More Filters' : undefined,
+                                    skin: 'standard',
+                                    priority: 'secondary',
                                 })}
                                 onTagRemove={(tagId) => {
                                     // Handle tag removal based on tag ID
@@ -1946,7 +1940,7 @@ const OrdersTable: React.FC = observer(() => {
                     isFulfillmentStatusLoading={isFulfillmentStatusLoading}
                     isPaymentStatusLoading={isPaymentStatusLoading}
                     selectedProductsApiFilter={productsApiFilter}
-                    onProductsApiFilterChange={handleProductsApiFilterChange}
+                    onProductsApiFilterChange={(productIds, selectedProducts) => handleProductsApiFilterChange(productIds, selectedProducts)}
                 />
             )}
 
