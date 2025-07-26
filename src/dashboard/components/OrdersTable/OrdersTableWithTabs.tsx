@@ -1,7 +1,7 @@
 // components/OrdersTable/OrdersTableWithTabs.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Box, Tabs, Text, Table, TableToolbar, Heading, Tag, Button, Tooltip } from '@wix/design-system';
+import { Box, Tabs, Text, Table, TableToolbar, Heading, Tag, Button, Tooltip, Loader } from '@wix/design-system';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { settingsStore } from '../../stores/SettingsStore';
@@ -27,7 +27,6 @@ const extractImageUrl = (item: any, raw = false): string => {
     return processWixImageUrl(imageUrl);
 };
 
-// Define the structure for a preparation item
 interface PreparationItem {
     id: string;
     productId?: string;
@@ -42,6 +41,8 @@ interface PreparationItem {
         quantity: number;
         customerName: string;
         orderTimestamp: number; // For sorting
+        originalQuantity?: number; // Track original quantity for reference
+        fulfilledQuantity?: number; // Track how much was already fulfilled
     }>;
     optionsDisplay: any; // For display purposes
     mostRecentOrderDate: number; // For sorting by most recent order
@@ -101,25 +102,56 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         }
     };
 
-    // Function to check if an item has any tracking info
-    const hasItemTracking = (item: any): boolean => {
-        // First check if the utility function exists
-        if (typeof hasItemTrackingUtil === 'function') {
-            return hasItemTrackingUtil(item);
-        }
+    // Function to check if an item has any tracking info using LIVE fulfillment data
+    const hasItemTracking = async (itemId: string, orderId: string): Promise<boolean> => {
+        try {
+            const { orderFulfillments } = await import('@wix/ecom');
+            const response = await orderFulfillments.listFulfillmentsForSingleOrder(orderId);
+            const fulfillments = response.orderWithFulfillments?.fulfillments || [];
 
-        if (item.fulfillmentDetails?.trackingInfo?.length > 0) {
-            return true;
-        }
+            // Check if this specific item has tracking in any fulfillment
+            return fulfillments.some(fulfillment => {
+                if (!fulfillment.trackingInfo?.trackingNumber) return false;
 
-        // Check lineItemFulfillment array
-        if (item.fulfillmentDetails?.lineItemFulfillment?.some(
-            (fulfillment: any) => fulfillment.trackingNumber?.trim()
-        )) {
-            return true;
-        }
+                // Check if this fulfillment contains our specific item
+                const itemLineItem = fulfillment.lineItems?.find((li: any) => {
+                    const lineItemId = li.lineItemId || li.id || li._id;
+                    return lineItemId === itemId || li._id === itemId;
+                });
 
-        return false;
+                return !!itemLineItem;
+            });
+        } catch (error) {
+            console.error('Error checking item tracking:', error);
+            return false;
+        }
+    };
+
+    // Function to get fulfilled quantity using LIVE fulfillment data
+    const getActualFulfilledQuantity = async (itemId: string, orderId: string): Promise<number> => {
+        try {
+            const { orderFulfillments } = await import('@wix/ecom');
+            const response = await orderFulfillments.listFulfillmentsForSingleOrder(orderId);
+            const fulfillments = response.orderWithFulfillments?.fulfillments || [];
+
+            let totalFulfilled = 0;
+
+            fulfillments.forEach(fulfillment => {
+                const itemLineItem = fulfillment.lineItems?.find((li: any) => {
+                    const lineItemId = li.lineItemId || li.id || li._id;
+                    return lineItemId === itemId || li._id === itemId;
+                });
+
+                if (itemLineItem) {
+                    totalFulfilled += itemLineItem.quantity || 0;
+                }
+            });
+
+            return totalFulfilled;
+        } catch (error) {
+            console.error('Error getting fulfilled quantity:', error);
+            return 0;
+        }
     };
 
     // Function to get remaining quantity for an item
@@ -135,8 +167,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         return Math.max(0, quantity - fulfilled);
     };
 
-    // Function to extract preparation items from unfulfilled orders
-    const getPreparationItems = (): PreparationItem[] => {
+    const getPreparationItems = async (): Promise<PreparationItem[]> => {
         if (!isMounted.current) return [];
 
         try {
@@ -155,42 +186,63 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
             const productMap = new Map<string, PreparationItem>();
 
-            unfulfilledOrders.forEach(order => {
+            // Process orders sequentially to properly check fulfillment status
+            const processedProductMap = new Map<string, PreparationItem>();
+
+            for (const order of unfulfilledOrders) {
                 const items = order.rawOrder?.lineItems || [];
                 const orderTimestamp = new Date(order._createdDate).getTime();
 
-                items.forEach((item: any) => {
+                for (const item of items) {
                     const productName = item.productName?.original || 'Unknown Product';
                     const totalQuantity = item.quantity || 1;
-                    const remainingQty = getRemainingQuantity(item);
-                    const hasTracking = hasItemTracking(item);
+                    const itemId = item._id || item.id || '';
 
-                    // Skip items with tracking or no remaining quantity
-                    if (hasTracking || remainingQty <= 0) {
-                        console.log(`⏭️ Skipping item: ${productName} - ` +
-                            `Has tracking: ${hasTracking}, ` +
-                            `Remaining: ${remainingQty}/${totalQuantity}`);
-                        return;
+                    // Get LIVE fulfillment data for this item
+                    const actualFulfilledQuantity = await getActualFulfilledQuantity(itemId, order._id);
+                    const remainingQty = Math.max(0, totalQuantity - actualFulfilledQuantity);
+                    const hasTracking = await hasItemTracking(itemId, order._id);
+
+                    console.log(`🔍 Debug ${productName}:`, {
+                        itemId,
+                        orderId: order._id,
+                        totalQuantity,
+                        actualFulfilledQuantity,
+                        remainingQty,
+                        hasTracking
+                    });
+
+                    // Skip items that are fully fulfilled
+                    if (remainingQty <= 0) {
+                        console.log(`⏭️ Skipping fully fulfilled item: ${productName} - ` +
+                            `Fulfilled: ${actualFulfilledQuantity}/${totalQuantity}`);
+                        continue;
                     }
 
-                    const optionsKey = getProductOptionsKey(item);
-                    const mapKey = `${item.catalogReference?.catalogItemId || 'unknown'}-${optionsKey}`;
+                    console.log(`📦 Including item: ${productName} - ` +
+                        `Remaining: ${remainingQty}/${totalQuantity}, ` +
+                        `Has tracking: ${hasTracking}`);
 
                     // Get customer name
                     const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
                     const billingContact = order.rawOrder?.billingInfo?.contactDetails;
                     const customerName = `${recipientContact?.firstName || billingContact?.firstName || ''} ${recipientContact?.lastName || billingContact?.lastName || ''}`.trim() || 'Unknown Customer';
 
-                    if (productMap.has(mapKey)) {
+                    const optionsKey = getProductOptionsKey(item);
+                    const mapKey = `${item.catalogReference?.catalogItemId || 'unknown'}-${optionsKey}`;
+
+                    if (processedProductMap.has(mapKey)) {
                         // Add to existing product
-                        const existing = productMap.get(mapKey)!;
+                        const existing = processedProductMap.get(mapKey)!;
                         existing.totalQuantity += remainingQty;
                         existing.orders.push({
                             orderNumber: order.number,
                             orderId: order._id,
                             quantity: remainingQty,
                             customerName,
-                            orderTimestamp
+                            orderTimestamp,
+                            originalQuantity: totalQuantity,
+                            fulfilledQuantity: actualFulfilledQuantity
                         });
                         // Update most recent order date if this order is newer
                         if (orderTimestamp > existing.mostRecentOrderDate) {
@@ -198,7 +250,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         }
                     } else {
                         // Create new product entry
-                        productMap.set(mapKey, {
+                        processedProductMap.set(mapKey, {
                             id: mapKey,
                             productId: item.catalogReference?.catalogItemId,
                             productName,
@@ -211,18 +263,20 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                                 orderId: order._id,
                                 quantity: remainingQty,
                                 customerName,
-                                orderTimestamp
+                                orderTimestamp,
+                                originalQuantity: totalQuantity,
+                                fulfilledQuantity: actualFulfilledQuantity
                             }],
                             optionsDisplay: optionsKey ? JSON.parse(optionsKey) : {},
                             descriptionLines: item.descriptionLines || [],
                             mostRecentOrderDate: orderTimestamp
                         });
                     }
-                });
-            });
+                }
+            }
 
             // Convert map to array and sort by most recent order date
-            const result = Array.from(productMap.values()).sort((a, b) =>
+            const result = Array.from(processedProductMap.values()).sort((a, b) =>
                 b.mostRecentOrderDate - a.mostRecentOrderDate
             );
             return result;
@@ -233,10 +287,31 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         }
     };
 
-    // Use React.useMemo to make the calculation reactive and add debugging
-    const preparationItems = React.useMemo(() => {
-        const items = getPreparationItems();
-        return items;
+    // Use React.useState and useEffect for async data fetching
+    const [preparationItems, setPreparationItems] = React.useState<PreparationItem[]>([]);
+    const [isLoadingPreparationItems, setIsLoadingPreparationItems] = React.useState(false);
+
+    React.useEffect(() => {
+        const loadPreparationItems = async () => {
+            setIsLoadingPreparationItems(true);
+            try {
+                const items = await getPreparationItems();
+                if (isMounted.current) {
+                    setPreparationItems(items);
+                }
+            } catch (error) {
+                console.error('Error loading preparation items:', error);
+                if (isMounted.current) {
+                    setPreparationItems([]);
+                }
+            } finally {
+                if (isMounted.current) {
+                    setIsLoadingPreparationItems(false);
+                }
+            }
+        };
+
+        loadPreparationItems();
     }, [orderStore.orders.length, orderStore.orders]);
 
     // Add effect to monitor order changes
@@ -984,7 +1059,23 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
             {/* Table Content */}
             <div style={{ width: '100%', overflowX: 'auto' }}>
-                {preparationItems.length === 0 ? (
+                {isLoadingPreparationItems ? (
+                    <Box
+                        align="center"
+                        paddingTop="40px"
+                        paddingBottom="40px"
+                        gap="8px"
+                        direction="vertical"
+                        style={{
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #e5e7eb',
+                            borderBottom: 'none'
+                        }}
+                    >
+                        <Loader size="medium" />
+                        <Text size="medium" weight="normal">Loading preparation items...</Text>
+                    </Box>
+                ) : preparationItems.length === 0 ? (
                     <Box
                         align="center"
                         paddingTop="40px"
