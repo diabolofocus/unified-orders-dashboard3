@@ -64,72 +64,73 @@ export class ProductsApiService {
                 return [];
             }
 
-            // First try: search by products that start with the query
-            let response = await products.queryProducts()
+            // Get ALL products first, then filter by contains logic
+            let allResults: any[] = [];
+
+            // Search with startsWith for the full query
+            const response = await products.queryProducts()
                 .startsWith('name', query.trim())
-                .limit(limit)
+                .limit(100) // Get more results to filter from
                 .find();
 
-            let results = response.items?.map((item: any) => ({
-                id: item._id || '',
-                name: item.name || 'Unknown Product',
-                productId: item._id || '',
-                catalogItemId: item._id || '',
-                media: item.media || undefined, // This might already include media data
-                variants: item.variants?.map((variant: any) => ({
-                    id: variant._id || '',
-                    sku: variant.stock?.sku,
-                    choices: variant.choices
-                })) || []
-            })) || [];
+            allResults.push(...(response.items || []));
 
-            // If we have enough results from startsWith, return them
-            if (results.length >= 5) {
-                return results;
-            }
-
-            // If not enough results, also try searching by individual words
+            // Search by individual words using startsWith
             const searchWords = query.trim().toLowerCase().split(' ').filter(word => word.length > 1);
 
             for (const word of searchWords) {
                 try {
                     const wordResponse = await products.queryProducts()
                         .startsWith('name', word)
-                        .limit(limit)
+                        .limit(100)
                         .find();
 
-                    const wordResults = wordResponse.items?.map((item: any) => ({
-                        id: item._id || '',
-                        name: item.name || 'Unknown Product',
-                        productId: item._id || '',
-                        catalogItemId: item._id || '',
-                        media: item.media || undefined, // This might already include media data
-                        variants: item.variants?.map((variant: any) => ({
-                            id: variant._id || '',
-                            sku: variant.stock?.sku,
-                            choices: variant.choices
-                        })) || []
-                    })) || [];
-
-                    // Add unique results
-                    wordResults.forEach(newResult => {
-                        if (!results.some(existing => existing.id === newResult.id)) {
-                            results.push(newResult);
-                        }
-                    });
-
-                    // Stop if we have enough results
-                    if (results.length >= limit) {
-                        break;
-                    }
+                    allResults.push(...(wordResponse.items || []));
                 } catch (wordError) {
                     console.warn(`Error searching for word "${word}":`, wordError);
-                    continue;
                 }
             }
 
-            // Filter results to only include items that actually contain the search query
-            const filteredResults = results.filter(item =>
+            // Also try searching where each letter of each word could start a word in the product name
+            for (const word of searchWords) {
+                // Get all products and we'll filter them
+                try {
+                    const allProductsResponse = await products.queryProducts()
+                        .limit(100)
+                        .find();
+
+                    const matchingProducts = (allProductsResponse.items || []).filter((item: any) => {
+                        const productName = (item.name || '').toLowerCase();
+                        return productName.includes(word.toLowerCase());
+                    });
+
+                    allResults.push(...matchingProducts);
+                } catch (error) {
+                    console.warn(`Error in contains search for word "${word}":`, error);
+                }
+            }
+
+            // Remove duplicates
+            const uniqueResults = allResults.filter((item, index, self) =>
+                index === self.findIndex(i => i._id === item._id)
+            );
+
+            // Convert to our result format
+            const formattedResults = uniqueResults.map((item: any) => ({
+                id: item._id || '',
+                name: item.name || 'Unknown Product',
+                productId: item._id || '',
+                catalogItemId: item._id || '',
+                media: item.media || undefined,
+                variants: item.variants?.map((variant: any) => ({
+                    id: variant._id || '',
+                    sku: variant.stock?.sku,
+                    choices: variant.choices
+                })) || []
+            }));
+
+            // Filter results to only include items that actually contain the search query anywhere
+            const filteredResults = formattedResults.filter(item =>
                 item.name.toLowerCase().includes(query.toLowerCase())
             );
 
