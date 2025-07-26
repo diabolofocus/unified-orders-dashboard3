@@ -38,7 +38,7 @@ const BrandingContainer = styled.div`
 `;
 
 const BrandText = styled.div`
-  font-size: 20px;
+  font-size: 19px;
   font-weight: bold;
   font-family: 'HelveticaNeueW01-65Medi', 'HelveticaNeueW02-65Medi', 'HelveticaNeueW10-65Medi', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   letter-spacing: 1px;

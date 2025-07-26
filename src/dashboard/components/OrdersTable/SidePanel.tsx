@@ -281,17 +281,17 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       const dateOption = dateFilterOptions.find(opt => opt.id === selectedDate);
       tags.push({
         id: `date-${selectedDate}`,
-        children: `Date: ${dateOption?.value || selectedDate}`,
+        children: dateOption?.value || selectedDate,
         filterType: 'date',
         filterValue: selectedDate
       });
     }
 
-    // Add selected SKUs as tags (show SKUs instead of product names)
+    // Add selected SKUs as tags (show SKUs only)
     selectedSkus.slice(0, 3).forEach(sku => {
       tags.push({
         id: `sku-${sku}`,
-        children: `SKU: ${sku}`,
+        children: sku,
         filterType: 'sku',
         filterValue: sku
       });
@@ -324,7 +324,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       const statusOption = fulfillmentStatusOptions.find(opt => opt.id === status);
       tags.push({
         id: `fulfillment-${status}`,
-        children: `Fulfillment: ${statusOption?.value || status}`,
+        children: statusOption?.value || (status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ')),
         filterType: 'fulfillment',
         filterValue: status
       });
@@ -335,7 +335,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       const statusOption = paymentStatusOptions.find(opt => opt.id === status);
       tags.push({
         id: `payment-${status}`,
-        children: `Payment: ${statusOption?.value || status}`,
+        children: statusOption?.value || (status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ')),
         filterType: 'payment',
         filterValue: status
       });
@@ -346,7 +346,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
       const statusOption = archiveStatusOptions.find(opt => opt.id === status);
       tags.push({
         id: `archive-${status}`,
-        children: `Archive: ${statusOption?.value || status}`,
+        children: statusOption?.value || (status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ')),
         filterType: 'archive',
         filterValue: status
       });

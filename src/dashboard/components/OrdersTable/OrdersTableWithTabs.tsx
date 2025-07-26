@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Box, Tabs, Text, Table, TableToolbar, Heading, Tag, Button, Tooltip, Loader } from '@wix/design-system';
+import type { Order } from '../../types/Order';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { settingsStore } from '../../stores/SettingsStore';
@@ -9,7 +10,7 @@ import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
 import { OrdersTable } from './OrdersTable';
 import { processWixImageUrl } from '../../utils/image-processor';
-import { canItemBeFulfilled, getItemName, getItemQuantity, getRemainingQuantity as getRemainingQty, hasItemTracking as hasItemTrackingUtil } from '../../types/Order';
+import { dashboard } from '@wix/dashboard';
 
 // Helper function to extract image URL from item
 const extractImageUrl = (item: any, raw = false): string => {
@@ -102,15 +103,38 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         }
     };
 
-    // Function to check if an item has any tracking info using LIVE fulfillment data
-    const hasItemTracking = async (itemId: string, orderId: string): Promise<boolean> => {
+    // Cache to store fulfillment data to avoid repeated API calls
+    const fulfillmentCache = new Map<string, any>();
+
+    // Function to get fulfillment data for an order (with caching)
+    const getOrderFulfillmentData = async (orderId: string) => {
+        if (fulfillmentCache.has(orderId)) {
+            return fulfillmentCache.get(orderId);
+        }
+
         try {
             const { orderFulfillments } = await import('@wix/ecom');
             const response = await orderFulfillments.listFulfillmentsForSingleOrder(orderId);
             const fulfillments = response.orderWithFulfillments?.fulfillments || [];
 
+            // Cache the result
+            fulfillmentCache.set(orderId, fulfillments);
+            return fulfillments;
+        } catch (error) {
+            console.error(`Error fetching fulfillment data for order ${orderId}:`, error);
+            // Cache empty result to avoid repeated failed calls
+            fulfillmentCache.set(orderId, []);
+            return [];
+        }
+    };
+
+    // Function to check if an item has any tracking info using CACHED fulfillment data
+    const hasItemTracking = async (itemId: string, orderId: string): Promise<boolean> => {
+        try {
+            const fulfillments = await getOrderFulfillmentData(orderId);
+
             // Check if this specific item has tracking in any fulfillment
-            return fulfillments.some(fulfillment => {
+            return fulfillments.some((fulfillment: any) => {
                 if (!fulfillment.trackingInfo?.trackingNumber) return false;
 
                 // Check if this fulfillment contains our specific item
@@ -127,16 +151,14 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         }
     };
 
-    // Function to get fulfilled quantity using LIVE fulfillment data
+    // Function to get fulfilled quantity using CACHED fulfillment data
     const getActualFulfilledQuantity = async (itemId: string, orderId: string): Promise<number> => {
         try {
-            const { orderFulfillments } = await import('@wix/ecom');
-            const response = await orderFulfillments.listFulfillmentsForSingleOrder(orderId);
-            const fulfillments = response.orderWithFulfillments?.fulfillments || [];
+            const fulfillments = await getOrderFulfillmentData(orderId);
 
             let totalFulfilled = 0;
 
-            fulfillments.forEach(fulfillment => {
+            fulfillments.forEach((fulfillment: any) => {
                 const itemLineItem = fulfillment.lineItems?.find((li: any) => {
                     const lineItemId = li.lineItemId || li.id || li._id;
                     return lineItemId === itemId || li._id === itemId;
@@ -154,58 +176,223 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         }
     };
 
-    // Function to get remaining quantity for an item
-    const getRemainingQuantity = (item: any): number => {
-        // First check if the utility function exists
-        if (typeof getRemainingQty === 'function') {
-            return getRemainingQty(item);
+    // Function to handle order tag clicks
+    const handleOrderTagClick = async (orderId: string) => {
+        try {
+            console.log('🔍 Order tag clicked, fetching order:', orderId);
+
+            // Find the order in the current store first
+            let orderToSelect = orderStore.orders.find(order => order._id === orderId);
+
+            if (!orderToSelect) {
+                // If not found in store, fetch it from the API
+                console.log('📡 Order not found in store, fetching from API...');
+
+                const { orders: ordersApi } = await import('@wix/ecom');
+                const response = await ordersApi.getOrder(orderId);
+
+                if (response && response._id) {
+                    // Convert the API response to our Order format with proper type handling
+                    orderToSelect = {
+                        _id: response._id || '',
+                        number: response.number || '',
+                        _createdDate: response._createdDate ?
+                            (typeof response._createdDate === 'string' ? response._createdDate : response._createdDate.toISOString())
+                            : new Date().toISOString(),
+                        status: (response.fulfillmentStatus as any) || 'NOT_FULFILLED',
+                        paymentStatus: (response.paymentStatus as any) || 'UNPAID',
+                        customer: {
+                            email: response.buyerInfo?.email || '',
+                            firstName: (response.buyerInfo as any)?.firstName || '',
+                            lastName: (response.buyerInfo as any)?.lastName || '',
+                            phone: (response.buyerInfo as any)?.phone || ''
+                        },
+                        rawOrder: response as any,
+                        total: response.priceSummary?.total?.formattedAmount || '€0.00',
+                        buyerInfo: {
+                            identityType: (response.buyerInfo as any)?.identityType,
+                            email: response.buyerInfo?.email || undefined,
+                            phone: (response.buyerInfo as any)?.phone || undefined,
+                            firstName: (response.buyerInfo as any)?.firstName || undefined,
+                            lastName: (response.buyerInfo as any)?.lastName || undefined
+                        },
+                        // Convert lineItems with proper type handling
+                        lineItems: (response.lineItems || []).map((item: any) => ({
+                            _id: item._id || item.id || '',
+                            name: item.productName?.original || item.productName || 'Unknown Product',
+                            quantity: item.quantity || 1,
+                            price: item.price?.amount || '0',
+                            sku: item.physicalProperties?.sku || '',
+                            image: item.image || '',
+                            productId: item.catalogReference?.catalogItemId || '',
+                            options: item.options || [],
+                            weight: item.physicalProperties?.weight || 0
+                        })),
+                        // Add missing required properties with safe defaults
+                        totalWeight: 0,
+                        shippingInfo: {
+                            carrierId: '',
+                            title: response.shippingInfo?.title || '',
+                            logistics: response.shippingInfo?.logistics,
+                            cost: (response.shippingInfo?.cost as any)?.formattedAmount ||
+                                (response.shippingInfo?.cost as any)?.amount ||
+                                '€0.00'
+                        },
+                        weightUnit: 'kg'
+                    } as Order; // Type assertion to ensure it matches Order type
+
+                    // Add it to the store
+                    orderStore.addOrder(orderToSelect);
+                    console.log('✅ Order fetched and added to store');
+                } else {
+                    throw new Error('Order not found');
+                }
+            }
+
+            // Make sure orderToSelect is defined before using it
+            if (orderToSelect) {
+                // Select the order in the store
+                orderStore.selectOrder(orderToSelect);
+
+                // Switch to the Order List tab (tab id 1)
+                setActiveTabId(1);
+
+            } else {
+                throw new Error('Unable to load order');
+            }
+
+        } catch (error) {
+            console.error('❌ Error handling order tag click:', error);
+            dashboard.showToast({
+                message: 'Failed to load order details',
+                type: 'error'
+            });
         }
-
-        // Fallback implementation if utility function is not available
-        const quantity = item.quantity || 0;
-        const fulfilled = item.fulfilledQuantity || 0;
-        return Math.max(0, quantity - fulfilled);
     };
-
     const getPreparationItems = async (): Promise<PreparationItem[]> => {
         if (!isMounted.current) return [];
 
+        // Clear fulfillment cache for fresh data
+        fulfillmentCache.clear();
+
         try {
+            console.log('🔍 Fetching ALL unfulfilled and partially fulfilled orders from API...');
 
-            // Log all order statuses to debug
-            const orderStatusBreakdown = orderStore.orders.reduce((acc, order) => {
-                const status = order.status || 'UNKNOWN';
-                acc[status] = (acc[status] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
+            // Make a direct API call to get ALL unfulfilled and partially fulfilled orders
+            const { orders } = await import('@wix/ecom');
 
-            // Filter only unfulfilled or partially fulfilled orders
-            const unfulfilledOrders = orderStore.orders.filter(order => {
-                return order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED';
-            });
+            // Helper function to fetch ALL orders with pagination
+            // Make a direct API call to get ALL unfulfilled and partially fulfilled orders
+            const { orders: ordersApi } = await import('@wix/ecom');
+
+            // Helper function to fetch ALL orders with pagination
+            const fetchAllOrdersWithStatus = async (fulfillmentStatus: "NOT_FULFILLED" | "PARTIALLY_FULFILLED") => {
+                const allOrders: any[] = [];
+                let paginationCursor: string | undefined = undefined;
+                let hasMore = true;
+
+                while (hasMore) {
+                    try {
+                        const response = await ordersApi.searchOrders({
+                            filter: {
+                                fulfillmentStatus: { $eq: fulfillmentStatus as any },
+                                status: { $ne: "INITIALIZED" },
+                                archived: { $ne: true }
+                            },
+                            cursorPaging: {
+                                limit: 100, // Maximum allowed limit
+                                cursor: paginationCursor || undefined
+                            },
+                            sort: [{ fieldName: '_createdDate' as const, order: 'DESC' as const }]
+                        });
+
+                        const fetchedOrders = response.orders || [];
+                        allOrders.push(...fetchedOrders);
+
+                        console.log(`📦 Fetched ${fetchedOrders.length} orders with status ${fulfillmentStatus}, total so far: ${allOrders.length}`);
+
+                        // Check if there are more pages
+                        hasMore = response.metadata?.hasNext || false;
+                        paginationCursor = response.metadata?.cursors?.next || undefined;
+
+                        // Safety check to prevent infinite loops
+                        if (allOrders.length > 2000) {
+                            console.warn('⚠️ Stopping pagination at 2000 orders for safety');
+                            break;
+                        }
+
+                    } catch (error) {
+                        console.error(`❌ Error fetching ${fulfillmentStatus} orders:`, error);
+                        break;
+                    }
+                }
+
+                return allOrders;
+            };
+
+            console.log('🔍 Fetching unfulfilled orders...');
+            const unfulfilledOrdersFromApi = await fetchAllOrdersWithStatus("NOT_FULFILLED");
+
+            console.log('🔍 Fetching partially fulfilled orders...');
+            const partiallyFulfilledOrdersFromApi = await fetchAllOrdersWithStatus("PARTIALLY_FULFILLED");
+
+            // Combine and deduplicate orders
+            const allUnfulfilledOrders = [...unfulfilledOrdersFromApi, ...partiallyFulfilledOrdersFromApi];
+
+            // Remove duplicates by order ID
+            const uniqueUnfulfilledOrders = allUnfulfilledOrders.filter((order, index, self) =>
+                index === self.findIndex(o => o._id === order._id)
+            );
+
+            console.log(`📦 Found ${uniqueUnfulfilledOrders.length} total unfulfilled/partially fulfilled orders from API (${unfulfilledOrdersFromApi.length} unfulfilled + ${partiallyFulfilledOrdersFromApi.length} partially fulfilled)`);
 
             const productMap = new Map<string, PreparationItem>();
 
             // Process orders sequentially to properly check fulfillment status
             const processedProductMap = new Map<string, PreparationItem>();
 
-            for (const order of unfulfilledOrders) {
-                const items = order.rawOrder?.lineItems || [];
-                const orderTimestamp = new Date(order._createdDate).getTime();
+            for (const order of uniqueUnfulfilledOrders) {                // Handle both API response format and local order format
+                const items = (order as any).lineItems || [];
+                const orderNumber = order.number || '';
+                const orderId = order._id || '';
+                const createdDate = order._createdDate;
+
+                // Safe date handling
+                let orderTimestamp: number;
+                try {
+                    if (typeof createdDate === 'string') {
+                        orderTimestamp = new Date(createdDate).getTime();
+                    } else if (createdDate instanceof Date) {
+                        orderTimestamp = createdDate.getTime();
+                    } else {
+                        orderTimestamp = Date.now(); // fallback to current time
+                    }
+                } catch (error) {
+                    console.warn('Invalid date for order:', orderNumber);
+                    orderTimestamp = Date.now();
+                }
 
                 for (const item of items) {
-                    const productName = item.productName?.original || 'Unknown Product';
+                    const productName = (typeof item.productName === 'object' && item.productName?.original)
+                        ? item.productName.original
+                        : (typeof item.productName === 'string' ? item.productName : 'Unknown Product');
                     const totalQuantity = item.quantity || 1;
                     const itemId = item._id || item.id || '';
 
+                    // Skip if we don't have a valid item ID or order ID
+                    if (!itemId || !orderId) {
+                        console.warn('Skipping item due to missing ID:', { itemId, orderId, productName });
+                        continue;
+                    }
+
                     // Get LIVE fulfillment data for this item
-                    const actualFulfilledQuantity = await getActualFulfilledQuantity(itemId, order._id);
+                    const actualFulfilledQuantity = await getActualFulfilledQuantity(itemId, orderId);
                     const remainingQty = Math.max(0, totalQuantity - actualFulfilledQuantity);
-                    const hasTracking = await hasItemTracking(itemId, order._id);
+                    const hasTracking = await hasItemTracking(itemId, orderId);
 
                     console.log(`🔍 Debug ${productName}:`, {
                         itemId,
-                        orderId: order._id,
+                        orderId,
                         totalQuantity,
                         actualFulfilledQuantity,
                         remainingQty,
@@ -223,10 +410,14 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         `Remaining: ${remainingQty}/${totalQuantity}, ` +
                         `Has tracking: ${hasTracking}`);
 
-                    // Get customer name
-                    const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
-                    const billingContact = order.rawOrder?.billingInfo?.contactDetails;
-                    const customerName = `${recipientContact?.firstName || billingContact?.firstName || ''} ${recipientContact?.lastName || billingContact?.lastName || ''}`.trim() || 'Unknown Customer';
+                    // Get customer name - handle both API and local order formats
+                    const recipientContact = (order as any).recipientInfo?.contactDetails;
+                    const billingContact = (order as any).billingInfo?.contactDetails;
+                    const buyerInfo = (order as any).buyerInfo;
+
+                    const firstName = recipientContact?.firstName || billingContact?.firstName || buyerInfo?.firstName || '';
+                    const lastName = recipientContact?.lastName || billingContact?.lastName || buyerInfo?.lastName || '';
+                    const customerName = `${firstName} ${lastName}`.trim() || 'Unknown Customer';
 
                     const optionsKey = getProductOptionsKey(item);
                     const mapKey = `${item.catalogReference?.catalogItemId || 'unknown'}-${optionsKey}`;
@@ -236,8 +427,8 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         const existing = processedProductMap.get(mapKey)!;
                         existing.totalQuantity += remainingQty;
                         existing.orders.push({
-                            orderNumber: order.number,
-                            orderId: order._id,
+                            orderNumber,
+                            orderId,
                             quantity: remainingQty,
                             customerName,
                             orderTimestamp,
@@ -259,8 +450,8 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                             rawImageUrl: extractImageUrl(item, true),
                             totalQuantity: remainingQty,
                             orders: [{
-                                orderNumber: order.number,
-                                orderId: order._id,
+                                orderNumber,
+                                orderId,
                                 quantity: remainingQty,
                                 customerName,
                                 orderTimestamp,
@@ -283,7 +474,86 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
         } catch (error) {
             console.error('❌ Error in getPreparationItems:', error);
-            return [];
+
+            // Fallback to using local orders if API call fails
+            console.log('🔄 Falling back to local orders...');
+            try {
+                const localUnfulfilledOrders = orderStore.orders.filter(order => {
+                    return order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED';
+                });
+
+                console.log(`📦 Fallback: Found ${localUnfulfilledOrders.length} unfulfilled orders from local store`);
+
+                // Process local orders the same way but without the async fulfillment checks
+                const productMap = new Map<string, PreparationItem>();
+
+                localUnfulfilledOrders.forEach(order => {
+                    const items = order.rawOrder?.lineItems || [];
+                    const orderTimestamp = order._createdDate ? new Date(order._createdDate).getTime() : Date.now();
+
+                    items.forEach((item: any) => {
+                        const productName = item.productName?.original || 'Unknown Product';
+                        const totalQuantity = item.quantity || 1;
+                        const fulfilledQuantity = item.fulfilledQuantity || 0;
+                        const remainingQty = Math.max(0, totalQuantity - fulfilledQuantity);
+
+                        if (remainingQty <= 0) return;
+
+                        const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
+                        const billingContact = order.rawOrder?.billingInfo?.contactDetails;
+                        const customerName = `${recipientContact?.firstName || billingContact?.firstName || ''} ${recipientContact?.lastName || billingContact?.lastName || ''}`.trim() || 'Unknown Customer';
+
+                        const optionsKey = getProductOptionsKey(item);
+                        const mapKey = `${item.catalogReference?.catalogItemId || 'unknown'}-${optionsKey}`;
+
+                        if (productMap.has(mapKey)) {
+                            const existing = productMap.get(mapKey)!;
+                            existing.totalQuantity += remainingQty;
+                            existing.orders.push({
+                                orderNumber: order.number || '',
+                                orderId: order._id || '',
+                                quantity: remainingQty,
+                                customerName,
+                                orderTimestamp,
+                                originalQuantity: totalQuantity,
+                                fulfilledQuantity: fulfilledQuantity
+                            });
+                            if (orderTimestamp > existing.mostRecentOrderDate) {
+                                existing.mostRecentOrderDate = orderTimestamp;
+                            }
+                        } else {
+                            productMap.set(mapKey, {
+                                id: mapKey,
+                                productId: item.catalogReference?.catalogItemId,
+                                productName,
+                                productOptions: optionsKey,
+                                imageUrl: extractImageUrl(item),
+                                rawImageUrl: extractImageUrl(item, true),
+                                totalQuantity: remainingQty,
+                                orders: [{
+                                    orderNumber: order.number || '',
+                                    orderId: order._id || '',
+                                    quantity: remainingQty,
+                                    customerName,
+                                    orderTimestamp,
+                                    originalQuantity: totalQuantity,
+                                    fulfilledQuantity: fulfilledQuantity
+                                }],
+                                optionsDisplay: optionsKey ? JSON.parse(optionsKey) : {},
+                                descriptionLines: item.descriptionLines || [],
+                                mostRecentOrderDate: orderTimestamp
+                            });
+                        }
+                    });
+                });
+
+                return Array.from(productMap.values()).sort((a, b) =>
+                    b.mostRecentOrderDate - a.mostRecentOrderDate
+                );
+            } catch (fallbackError) {
+                console.error('❌ Fallback also failed:', fallbackError);
+                return [];
+            }
         }
     };
 
@@ -965,9 +1235,22 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         .sort((a, b) => b.orderTimestamp - a.orderTimestamp)
                         .map((order, index) => (
                             <Box key={index} direction="horizontal" gap="8px" align="center" style={{ justifyContent: 'flex-start' }}>
-                                <Tag id={`order-tag-${order.orderId}-${order.orderNumber}`} removable={false} size="tiny" theme="standard">
-                                    #{order.orderNumber}
-                                </Tag>
+                                <div
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOrderTagClick(order.orderId);
+                                    }}
+                                >
+                                    <Tag
+                                        id={`order-tag-${order.orderId}-${order.orderNumber}`}
+                                        removable={false}
+                                        size="tiny"
+                                        theme="standard"
+                                    >
+                                        #{order.orderNumber}
+                                    </Tag>
+                                </div>
                                 <Box style={{ display: 'flex', alignItems: 'center' }}>
                                     <Text size="tiny" secondary>
                                         Qty: {order.quantity}
@@ -1004,7 +1287,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     );
 
     const renderPreparationTab = () => (
-        <Box direction="vertical" gap="0" paddingBottom="10px" style={{ backgroundColor: '#ffffff', borderRadius: '8px' }}>
+        <Box direction="vertical" gap="0" style={{ backgroundColor: '#ffffff', borderRadius: '8px' }}>
             {/* TableToolbar */}
             <TableToolbar>
                 <TableToolbar.ItemGroup position="start">
@@ -1058,7 +1341,13 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
             </TableToolbar>
 
             {/* Table Content */}
-            <div style={{ width: '100%', overflowX: 'auto' }}>
+            <div style={{
+                width: '100%',
+                borderBottomLeftRadius: '8px',
+                borderBottomRightRadius: '8px',
+                overflowX: 'auto',
+                minHeight: 'calc(100vh - 276px)'
+            }}>
                 {isLoadingPreparationItems ? (
                     <Box
                         align="center"
@@ -1072,8 +1361,8 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                             borderBottom: 'none'
                         }}
                     >
-                        <Loader size="medium" />
-                        <Text size="medium" weight="normal">Loading preparation items...</Text>
+                        <Loader size="small" />
+                        <Text size="small">Loading preparation items...</Text>
                     </Box>
                 ) : preparationItems.length === 0 ? (
                     <Box
@@ -1084,6 +1373,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         direction="vertical"
                         style={{
                             backgroundColor: '#ffffff',
+                            minHeight: 'calc(100vh - 328px)',
                             border: '1px solid #e5e7eb',
                             borderBottom: 'none'
                         }}
@@ -1105,7 +1395,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         <div
                             className="preparation-table-container"
                             style={{
-                                maxHeight: 'calc(100vh - 328px)',
+                                maxHeight: 'calc(100vh - 318px)',
                                 overflowY: 'auto',
                                 overflowX: 'hidden'
                             }}

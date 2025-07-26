@@ -175,6 +175,18 @@ export class OrderStore {
         }
     }
 
+    addOrder(order: Order): void {
+        // Check if order already exists
+        const existingIndex = this.orders.findIndex(o => o._id === order._id);
+        if (existingIndex >= 0) {
+            // Update existing order
+            this.orders[existingIndex] = order;
+        } else {
+            // Add new order to the beginning of the list
+            this.orders.unshift(order);
+        }
+    }
+
     addNewOrder(order: Order) {
         // Check if order already exists to prevent duplicates
         const orderExists = this.orders.some(o => o._id === order._id);

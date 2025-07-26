@@ -367,11 +367,11 @@ export const OrderDetails: React.FC = observer(() => {
     ];
 
     const renderOrderDetailsTab = () => (
-        <Box gap="16px" direction="vertical" minHeight="calc(100vh - 216px)" width="100%" overflowY="auto">
+        <Box gap="16px" direction="vertical" minHeight="calc(100vh - 216px)" width="100%" overflowY="auto" borderRadius="8px">
             {(!selectedOrder && orderStore.orders.length === 0) ? (
                 <Card stretchVertically>
                     <Card.Content>
-                        <Box height="100%" verticalAlign="middle" align="center">
+                        <Box height="100%" verticalAlign="middle" align="center" borderRadius="8px">
                             <EmptyState
                                 theme="section"
                                 title={
@@ -404,12 +404,12 @@ export const OrderDetails: React.FC = observer(() => {
                                         alignItems: 'center',
                                     }}
                                 >
-                                    <Box gap="16px" direction="horizontal">
+                                    <Box gap="8px" direction="horizontal">
                                         Order #{selectedOrder?.number}
 
                                         <Tooltip content="View Order" placement="top">
-                                            <Icons.ExternalLink
-                                                size="22px"
+                                            <Icons.ExternalLinkSmall
+                                                size="18px"
                                                 style={{ color: '#3b82f6', cursor: 'pointer' }}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -462,7 +462,7 @@ export const OrderDetails: React.FC = observer(() => {
                         <Card.Divider />
 
                         <Card.Content>
-                            <Box gap="24px" direction="vertical">
+                            <Box gap="24px" direction="vertical" borderRadius="8px">
                                 {/* Customer Information */}
                                 {/* <CustomerInfo order={selectedOrder} /> */}
                                 <CustomerInfo order={selectedOrder} />
@@ -619,7 +619,7 @@ export const OrderDetails: React.FC = observer(() => {
     );
 
     return (
-        <Box width="100%" height="100%" direction="vertical">
+        <Box width="100%" height="100%" direction="vertical" borderRadius="8px">
             {/* Tabs Navigation */}
             <Box marginBottom="16px">
                 <Tabs
@@ -628,10 +628,21 @@ export const OrderDetails: React.FC = observer(() => {
                     activeId={activeTabId}
                     onClick={(tab) => setActiveTabId(tab.id as number)}
                 />
+                {/* Hide scrollbar for Chrome, Safari and Opera */}
+                <style>
+                    {`
+                        ::-webkit-scrollbar {
+                            display: none;
+                        }
+                    `}
+                </style>
             </Box>
 
             {/* Tab Content */}
-            <Box width="100%" height="100%" maxHeight="calc(100vh - 216px)" overflowY="auto">
+            <Box width="100%" height="100%" maxHeight="calc(100vh - 216px)" overflowY="auto" borderRadius="8px" style={{
+                scrollbarWidth: 'none',  /* Firefox */
+                msOverflowStyle: 'none',  /* IE and Edge */
+            }}>
                 {activeTabId === 1 && (
                     <Box width="100%">
                         {renderOrderDetailsTab()}
@@ -652,12 +663,12 @@ export const OrderDetails: React.FC = observer(() => {
 
 
                                 {isLoadingOrders ? (
-                                    <Box paddingTop="24px" align="left" direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
+                                    <Box paddingTop="24px" align="left" direction="horizontal" borderRadius="8px" gap="8px" style={{ alignItems: 'center' }}>
                                         <Loader size="tiny" />
                                         <Text size="small">Loading Order History...</Text>
                                     </Box>
                                 ) : !isLoadingOrders && (
-                                    <Box paddingTop="16px" direction="vertical" gap="8px" paddingBottom="24px">
+                                    <Box paddingTop="16px" direction="vertical" borderRadius="8px" gap="8px" paddingBottom="24px">
                                         <Text size="medium" weight="normal">
                                             Order History ({customerOrders.length} order{customerOrders.length !== 1 ? 's' : ''})
                                         </Text>

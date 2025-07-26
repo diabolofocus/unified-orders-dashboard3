@@ -94,6 +94,17 @@ const OrdersTable: React.FC = observer(() => {
     .orders-table-container::-webkit-scrollbar {
         display: none; /* Chrome, Safari, Opera */
     }
+        .orders-table-titlebar {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 5;
+    
+}
+
+.orders-table-container {
+    position: relative;
+}
     .highlighted-row {
         background-image: linear-gradient(to right, ${highlightColor} 0px, ${highlightColor} 4px, transparent 4px) !important;
     }
@@ -1678,7 +1689,7 @@ const OrdersTable: React.FC = observer(() => {
                                     // Date filter tag
                                     ...(dateFilter && dateFilter !== 'all' ? [{
                                         id: `date-${dateFilter}`,
-                                        children: `Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter}`,
+                                        children: dateFilter === 'custom' ? 'Custom Range' : dateFilter,
                                         maxWidth: 150,
                                     }] : []),
 
@@ -1701,21 +1712,21 @@ const OrdersTable: React.FC = observer(() => {
                                     // Fulfillment status tag
                                     ...(selectedFulfillmentStatusFilter ? [{
                                         id: `fulfillment-${selectedFulfillmentStatusFilter}`,
-                                        children: `Fulfillment: ${selectedFulfillmentStatusFilter}`,
+                                        children: selectedFulfillmentStatusFilter.charAt(0).toUpperCase() + selectedFulfillmentStatusFilter.slice(1).replace(/_/g, ' '),
                                         maxWidth: 150,
                                     }] : []),
 
                                     // Payment status tag
                                     ...(selectedPaymentStatusFilter ? [{
                                         id: `payment-${selectedPaymentStatusFilter}`,
-                                        children: `Payment: ${selectedPaymentStatusFilter}`,
+                                        children: selectedPaymentStatusFilter.charAt(0).toUpperCase() + selectedPaymentStatusFilter.slice(1).replace(/_/g, ' '),
                                         maxWidth: 150,
                                     }] : []),
 
                                     // Archive status tag
                                     ...(archiveStatusFilter ? [{
                                         id: `archive-${archiveStatusFilter}`,
-                                        children: `Archive: ${archiveStatusFilter}`,
+                                        children: archiveStatusFilter.charAt(0).toUpperCase() + archiveStatusFilter.slice(1).replace(/_/g, ' '),
                                         maxWidth: 150,
                                     }] : []),
                                 ]}
@@ -1777,7 +1788,10 @@ const OrdersTable: React.FC = observer(() => {
                 </Box>
             )}
 
-            <div style={{ maxHeight: 'calc(100vh - 276px)', overflowY: 'scroll' }} ref={containerRef}>
+            <div style={{
+                maxHeight: 'calc(100vh - 276px)', borderBottomLeftRadius: '8px',
+                borderBottomRightRadius: '8px', overflowY: 'scroll'
+            }} ref={containerRef}>
                 <Table
                     data={tableData}
                     columns={columns}
@@ -1793,12 +1807,15 @@ const OrdersTable: React.FC = observer(() => {
                     infiniteScroll
                     loadMore={loadMoreOrders}
                 >
-                    <Table.Titlebar />
+                    <div className="orders-table-titlebar">
+                        <Table.Titlebar />
+                    </div>
                     <div
                         ref={containerRef}
                         className="orders-table-container"
                         style={{
                             height: 'auto',
+                            maxHeight: 'calc(100vh - 280px)', // Adjust this value based on your layout
                             overflowY: 'auto',
                             overflowX: 'hidden'
                         }}
@@ -1942,18 +1959,6 @@ const OrdersTable: React.FC = observer(() => {
                     selectedProductsApiFilter={productsApiFilter}
                     onProductsApiFilterChange={(productIds, selectedProducts) => handleProductsApiFilterChange(productIds, selectedProducts)}
                 />
-            )}
-
-            {/* Customer Badge Loading Progress - RE-ENABLED */}
-            {badgeLoadingProgress.isLoading && settingsStore.settings.showCustomerBadges && (
-                <Box
-                    style={{
-                        position: 'fixed',
-                        // ... entire floating box
-                    }}
-                >
-                    {/* ... progress content */}
-                </Box>
             )}
         </Card>
     );

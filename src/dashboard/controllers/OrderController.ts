@@ -685,7 +685,7 @@ export class OrderController {
 
         try {
             this.orderStore.setIsLoadingMore(true);
-            this.orderStore.setLoadingStatus('Loading more orders...');
+            // this.orderStore.setLoadingStatus('Loading more orders...');
 
             if (this.isFilterMode && this.currentStatusFilter && this.currentFilterType) {
 
