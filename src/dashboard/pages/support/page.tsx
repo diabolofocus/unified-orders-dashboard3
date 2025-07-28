@@ -748,7 +748,7 @@ Please describe your feature request in detail here...`
                           data={[
                             {
                               id: 1,
-                              feature: "Add tracking info to custom items (made via Invoice, SPI Catalogue..)",
+                              feature: "Add tracking info to custom items (SPI Catalog..)",
                               ourApp: true,
                               wixApp: false
                             },

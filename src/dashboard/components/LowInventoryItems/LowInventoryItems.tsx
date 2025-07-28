@@ -631,8 +631,8 @@ const LowInventoryItems: React.FC = observer(() => {
                         ))}
                     </div>
                 ) : (
-                    <Box padding="18px" align="center" minHeight="100px" verticalAlign="middle">
-                        <Text secondary>No low inventory items found</Text>
+                    <Box padding="18px" align="center" minHeight="200px" verticalAlign="middle">
+                        <Text size="small">No low inventory items found</Text>
                     </Box>
                 )}
             </Box>

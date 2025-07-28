@@ -20,6 +20,7 @@ import {
 import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
 import { SHIPPING_CARRIERS } from '../../utils/constants';
+import { dashboard } from '@wix/dashboard';
 
 export const AdvancedSettings: React.FC = observer(() => {
   const { settingsStore, orderStore } = useStores();
@@ -311,22 +312,16 @@ export const AdvancedSettings: React.FC = observer(() => {
                         }
 
                         // Show success toast
-                        if (typeof window !== 'undefined' && (window as any).dashboard) {
-                          (window as any).dashboard.showToast({
-                            message: 'Badge cache cleared successfully! Badges will recalculate on next load.',
-                            type: 'success',
-                            duration: 3000
-                          });
-                        }
+                        dashboard.showToast({
+                          message: 'Cache cleared. Badges will recalculate on next load.',
+                          type: 'success'
+                        });
                       } catch (error) {
                         console.error('Error clearing badge cache:', error);
-                        if (typeof window !== 'undefined' && (window as any).dashboard) {
-                          (window as any).dashboard.showToast({
-                            message: 'Failed to clear badge cache. Please try again.',
-                            type: 'error',
-                            duration: 3000
-                          });
-                        }
+                        dashboard.showToast({
+                          message: 'Failed to clear badge cache. Please try again.',
+                          type: 'error'
+                        });
                       }
                     }}
                   >
