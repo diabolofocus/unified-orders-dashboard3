@@ -1,5 +1,5 @@
 // components/OrdersTable/OrdersTable.tsx - UPDATED with Advanced Search + Print & Archive
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
 import styled, { keyframes } from 'styled-components';
 import {
@@ -75,7 +75,7 @@ const TableContainer = styled.div`
   position: relative;
 `;
 
-const OrdersTable: React.FC = observer(() => {
+const OrdersTable = observer(() => {
     const [showSidePanel, setShowSidePanel] = useState(false);
     const { orderStore, uiStore, settingsStore } = useStores();
     const { refreshing } = uiStore;
@@ -1006,17 +1006,16 @@ const OrdersTable: React.FC = observer(() => {
 
     const statusFilteredOrders = orderStore.filteredOrders;
 
-    const getFilteredOrders = () => {
+    // Memoized filtering function for better performance
+    const getFilteredOrders = useCallback(() => {
         let orders = statusFilteredOrders;
 
         // Handle archive status filter
         if (archiveStatusFilter === 'archived') {
-            // Show only archived orders
             orders = orders.filter(order => {
                 return order.rawOrder?.archived === true || order.archived === true;
             });
         } else {
-            // Show only non-archived orders (default behavior)
             orders = orders.filter(order => {
                 return !order.rawOrder?.archived && !order.archived;
             });
@@ -1079,20 +1078,15 @@ const OrdersTable: React.FC = observer(() => {
                 switch (fulfillmentStatusFilter) {
                     case 'unfulfilled':
                         return fulfillmentStatus === 'NOT_FULFILLED';
-
                     case 'fulfilled':
                         return fulfillmentStatus === 'FULFILLED';
-
                     case 'partially_fulfilled':
                         return fulfillmentStatus === 'PARTIALLY_FULFILLED';
-
                     case 'canceled':
                         return fulfillmentStatus === 'CANCELED' ||
                             order.rawOrder?.status === 'CANCELED';
-
                     case 'archived':
                         return order.rawOrder?.archived === true || order.archived === true;
-
                     default:
                         return true;
                 }
@@ -1109,41 +1103,33 @@ const OrdersTable: React.FC = observer(() => {
                 switch (paymentStatusFilter) {
                     case 'paid':
                         return paymentStatus === 'PAID';
-
                     case 'unpaid':
                         return paymentStatus === 'UNPAID';
-
                     case 'refunded':
                         return paymentStatus === 'FULLY_REFUNDED';
-
                     case 'partially_refunded':
                         return paymentStatus === 'PARTIALLY_REFUNDED';
-
                     case 'partially_paid':
                         return paymentStatus === 'PARTIALLY_PAID';
-
                     case 'authorized':
                         return paymentStatus === 'AUTHORIZED';
-
                     case 'pending':
                         return paymentStatus === 'PENDING';
-
                     case 'declined':
                         return paymentStatus === 'DECLINED';
-
                     case 'canceled':
                         return paymentStatus === 'CANCELED';
-
                     case 'pending_refund':
                         return paymentStatus === 'PENDING_REFUND';
-
                     default:
                         return true;
                 }
             });
         }
 
+        // Optimize SKU filtering with Set for O(1) lookups
         if (skuFilter.length > 0) {
+            const skuSet = new Set(skuFilter);
             orders = orders.filter(order => {
                 const lineItems = order.rawOrder?.lineItems || order.lineItems || order.items || [];
 
@@ -1153,19 +1139,43 @@ const OrdersTable: React.FC = observer(() => {
                         item.sku ||
                         item.productId;
 
-                    return itemSku && skuFilter.includes(itemSku);
+                    return itemSku && skuSet.has(itemSku);
                 });
             });
         }
 
         return orders;
-    };
+    }, [statusFilteredOrders, archiveStatusFilter, dateFilter, customDateRange, fulfillmentStatusFilter, paymentStatusFilter, skuFilter]);
 
-    const finalFilteredOrders = getFilteredOrders();
-    const tableData = finalFilteredOrders.map(order => ({
-        id: order._id,
-        ...order
-    }));
+    // Memoized filtered orders computation
+    const finalFilteredOrders = useMemo(() => getFilteredOrders(), [
+        getFilteredOrders
+    ]);
+
+    // Memoized table data transformation
+    const tableData = useMemo(() =>
+        finalFilteredOrders.map(order => ({
+            id: order._id,
+            ...order
+        })),
+        [finalFilteredOrders]
+    );
+
+    // Memoized customer emails extraction
+    const visibleCustomerEmails = useMemo(() => {
+        if (!settingsStore.settings.showCustomerBadges || finalFilteredOrders.length === 0) {
+            return [];
+        }
+
+        return Array.from(new Set(
+            finalFilteredOrders.slice(0, 50).map(order => {
+                const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
+                const billingContact = order.rawOrder?.billingInfo?.contactDetails;
+                const buyerEmail = order.rawOrder?.buyerInfo?.email;
+                return recipientContact?.email || billingContact?.email || buyerEmail || order.customer.email;
+            }).filter(email => email && email.trim() !== '')
+        ));
+    }, [finalFilteredOrders, settingsStore.settings.showCustomerBadges]);
 
     // Customer badge loading logic - RE-ENABLED with safer implementation
     useEffect(() => {
@@ -1174,20 +1184,10 @@ const OrdersTable: React.FC = observer(() => {
             return;
         }
 
-        // Only process if we have orders and badges are enabled
-        if (finalFilteredOrders.length === 0) {
+        // Only process if we have customer emails
+        if (visibleCustomerEmails.length === 0) {
             return;
         }
-
-        // Extract unique customer emails from visible orders (your approach)
-        const visibleCustomerEmails = Array.from(new Set(
-            finalFilteredOrders.slice(0, 50).map(order => {
-                const recipientContact = order.rawOrder?.recipientInfo?.contactDetails;
-                const billingContact = order.rawOrder?.billingInfo?.contactDetails;
-                const buyerEmail = order.rawOrder?.buyerInfo?.email;
-                return recipientContact?.email || billingContact?.email || buyerEmail || order.customer.email;
-            }).filter(email => email && email.trim() !== '')
-        ));
 
         // Only process customers we haven't processed AND don't have cached counts
         const newCustomers = visibleCustomerEmails.filter(email => {

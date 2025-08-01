@@ -132,13 +132,43 @@ export class OrderService {
         let cursor = '';
         let totalFetched = 0;
         const batchSize = 100;
+        const maxRetries = 3;
+        let lastError: any;
 
         try {
             while (totalFetched < initialLimit) {
-                const result = await testOrdersConnection({
-                    limit: Math.min(batchSize, initialLimit - totalFetched),
-                    cursor: cursor
-                });
+                let attempt = 1;
+                let success = false;
+                let result: any;
+
+                // Retry logic for each batch
+                while (attempt <= maxRetries && !success) {
+                    try {
+                        console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders chunk (attempt ${attempt}/${maxRetries})`);
+                        
+                        // Call testOrdersConnection with the required parameters
+                        result = await testOrdersConnection(
+                            { 
+                                limit: Math.min(batchSize, initialLimit - totalFetched),
+                                cursor: cursor 
+                            },
+                            { request: { method: 'POST' } } // Add context parameter
+                        );
+                        success = true;
+                    } catch (error) {
+                        lastError = error;
+                        console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Attempt ${attempt} failed:`, error);
+                        if (attempt < maxRetries) {
+                            const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+                            await new Promise(resolve => setTimeout(resolve, waitTime));
+                        }
+                        attempt++;
+                    }
+                }
+
+                if (!success) {
+                    throw lastError || new Error('Failed to fetch orders after multiple attempts');
+                }
 
                 if (result.success && result.orders) {
                     const transformedOrders = result.orders.map(this.transformOrderFromBackend);
@@ -191,27 +221,56 @@ export class OrderService {
         cursor: string,
         limit: number = 100
     ): Promise<{ success: boolean; orders: Order[]; hasMore: boolean; nextCursor?: string; error?: string }> {
+        const isProd = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
         let allOrders: Order[] = [];
         let currentCursor = cursor;
         let totalFetched = 0;
         const batchSize = 100;
+        const maxRetries = 3;
+        let lastError: any;
 
         try {
             while (totalFetched < limit && currentCursor) {
-                const result = await testOrdersConnection({
-                    limit: Math.min(batchSize, limit - totalFetched),
-                    cursor: currentCursor
-                });
+                let attempt = 1;
+                let success = false;
+                let result: any;
+
+                // Retry logic for each batch
+                while (attempt <= maxRetries && !success) {
+                    try {
+                        console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching more orders (attempt ${attempt}/${maxRetries})`);
+                        
+                        // Call testOrdersConnection with the required parameters
+                        result = await testOrdersConnection(
+                            { 
+                                limit: Math.min(batchSize, limit - totalFetched),
+                                cursor: currentCursor 
+                            },
+                            { request: { method: 'POST' } } // Add context parameter
+                        );
+                        success = true;
+                    } catch (error) {
+                        lastError = error;
+                        console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Attempt ${attempt} failed:`, error);
+                        if (attempt < maxRetries) {
+                            const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+                            await new Promise(resolve => setTimeout(resolve, waitTime));
+                        }
+                        attempt++;
+                    }
+                }
+
+                if (!success) {
+                    throw lastError || new Error('Failed to fetch more orders after multiple attempts');
+                }
 
                 if (result.success && result.orders) {
                     const transformedOrders = result.orders.map(this.transformOrderFromBackend);
                     allOrders = [...allOrders, ...transformedOrders];
                     totalFetched += transformedOrders.length;
-
-                    const hasMore = result.pagination?.hasNext || false;
                     currentCursor = result.pagination?.nextCursor || '';
 
-                    if (!hasMore || totalFetched >= limit) {
+                    if (!currentCursor || totalFetched >= limit) {
                         break;
                     }
 
@@ -245,49 +304,49 @@ export class OrderService {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Frontend: Fetch orders attempt ${attempt}/${maxRetries}`);
+                console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders (attempt ${attempt}/${maxRetries})`);
+                
+                // Call testOrdersConnection with the required parameters
+                const result = await testOrdersConnection(
+                    { limit, cursor },
+                    { request: { method: 'POST' } } // Add context parameter
+                );
 
-                const result = await testOrdersConnection({ limit, cursor });
-
-                console.log(`📊 [${isProd ? 'PROD' : 'DEV'}] Frontend: Orders fetch attempt ${attempt} result:`, {
-                    success: result.success,
-                    orderCount: result.orders?.length || 0,
-                    method: result.method,
-                    hasOrders: !!result.orders,
-                    hasPagination: !!result.pagination,
-                    errorPresent: !!result.error
-                });
-
-                const transformedResult: OrdersResponse = {
-                    success: result.success,
-                    method: result.method,
-                    orders: result.orders ? result.orders.map(this.transformOrderFromBackend) : [],
-                    orderCount: result.orderCount || 0,
-                    pagination: result.pagination ? {
-                        hasNext: result.pagination.hasNext || false,
-                        nextCursor: result.pagination.nextCursor || '',
-                        prevCursor: result.pagination.prevCursor || ''
-                    } : {
-                        hasNext: false,
-                        nextCursor: '',
-                        prevCursor: ''
-                    },
-                    message: result.message || 'Success',
-                    error: result.error,
-                    ecomError: result.ecomError
-                };
-
-                return transformedResult;
-
-            } catch (currentError: any) {
-                lastError = currentError;
-                if (attempt < maxRetries) {
-                    const waitTime = Math.pow(2, attempt) * 1000;
-                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                if (result.success) {
+                    console.log(`✅ [${isProd ? 'PROD' : 'DEV'}] Successfully fetched ${result.orders?.length || 0} orders`);
+                    
+                    // Transform the orders using the mapping function
+                    const transformedOrders = result.orders?.map(this.transformOrderFromBackend) || [];
+                    
+                    return {
+                        success: true,
+                        orders: transformedOrders,
+                        orderCount: result.orderCount || 0,
+                        pagination: result.pagination || {
+                            hasNext: false,
+                            nextCursor: '',
+                            prevCursor: ''
+                        },
+                        method: result.method,
+                        message: result.message
+                    };
+                } else {
+                    lastError = result.error || 'Unknown error';
+                    console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Error fetching orders:`, lastError);
                 }
+            } catch (error: any) {
+                lastError = error instanceof Error ? error.message : String(error);
+                console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Exception fetching orders:`, lastError);
+            }
+
+            // Only retry if not the last attempt
+            if (attempt < maxRetries) {
+                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+                await new Promise(resolve => setTimeout(resolve, waitTime));
             }
         }
 
+        // If we get here, all retries failed
         return {
             success: false,
             message: `Failed to fetch orders after ${maxRetries} attempts: ${lastError}`,

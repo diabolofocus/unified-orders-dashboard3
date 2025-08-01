@@ -1,5 +1,5 @@
 // Final OrderAnalytics.tsx - Clean implementation with enhanced features
-import React from 'react';
+import React, { useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Box, Text, Card, Loader } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
@@ -189,7 +189,13 @@ export const OrderAnalytics: React.FC = observer(() => {
         };
     };
 
-    const analytics = calculateAnalytics();
+    // Memoized analytics to prevent recalculation on every render
+    const analytics = useMemo(() => calculateAnalytics(), [
+        orderStore.formattedAnalytics,
+        orderStore.analyticsError,
+        orderStore.analyticsLoading,
+        orderStore.orders
+    ]);
 
     const formatCurrency = (amount: number, currency: string): string => {
         return `${currency}${amount.toLocaleString('en-US', {

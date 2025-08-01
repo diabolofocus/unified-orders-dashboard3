@@ -48,6 +48,118 @@ const safeGetProductName = (item: any): string => {
   return 'Unknown Product';
 };
 
+// Optimized helper functions for backend processing
+const processImageUrl = (image: string | undefined): string => {
+  if (!image || typeof image !== 'string') return '';
+  
+  if (image.startsWith('wix:image://v1/')) {
+    const imageId = image.replace('wix:image://v1/', '').split('#')[0].split('~')[0];
+    return `https://static.wixstatic.com/media/${imageId}`;
+  }
+  if (image.startsWith('wix:image://')) {
+    const imageId = image.replace(/^wix:image:\/\/[^\/]*\//, '').split('#')[0].split('~')[0];
+    return `https://static.wixstatic.com/media/${imageId}`;
+  }
+  if (image.startsWith('http')) {
+    return image;
+  }
+  return `https://static.wixstatic.com/media/${image}`;
+};
+
+const extractContactInfo = (order: any) => {
+  const recipientContact = order.recipientInfo?.contactDetails;
+  const billingContact = order.billingInfo?.contactDetails;
+  const buyerInfo = order.buyerInfo;
+
+  return {
+    firstName: recipientContact?.firstName || billingContact?.firstName || 'Unknown',
+    lastName: recipientContact?.lastName || billingContact?.lastName || 'Customer',
+    phone: recipientContact?.phone || billingContact?.phone || '',
+    company: recipientContact?.company || billingContact?.company || '',
+    email: buyerInfo?.email || recipientContact?.email || billingContact?.email || 'no-email@example.com'
+  };
+};
+
+const extractShippingAddress = (order: any) => {
+  const processAddress = (addr: any) => ({
+    streetAddress: addr.streetAddress ? {
+      name: addr.streetAddress.name || '',
+      number: addr.streetAddress.number || '',
+      apt: addr.streetAddress.apt || ''
+    } : null,
+    city: addr.city || '',
+    postalCode: addr.postalCode || '',
+    country: addr.country || '',
+    countryFullname: addr.countryFullname || addr.country || '',
+    subdivision: addr.subdivision || '',
+    subdivisionFullname: addr.subdivisionFullname || '',
+    addressLine1: addr.addressLine1 || (addr.streetAddress ? `${addr.streetAddress.name || ''} ${addr.streetAddress.number || ''}`.trim() : ''),
+    addressLine2: addr.addressLine2 || (addr.streetAddress?.apt || '')
+  });
+
+  if (order.recipientInfo?.address) {
+    return processAddress(order.recipientInfo.address);
+  }
+  if (order.billingInfo?.address) {
+    return processAddress(order.billingInfo.address);
+  }
+  return null;
+};
+
+const processFulfillmentDetails = (fulfillments: any[], lineItemId: string) => {
+  const lineItemFulfillments: any[] = [];
+  const trackingMap = new Map<string, {
+    quantity: number;
+    trackingUrl?: string;
+    carrier?: string;
+    fulfillmentId?: string;
+    fulfillmentDate?: string;
+  }>();
+
+  fulfillments.forEach((fulfillment: any) => {
+    const lineItem = fulfillment.lineItems?.find((li: any) =>
+      (li.lineItemId === lineItemId) || (li._id === lineItemId)
+    );
+
+    if (lineItem) {
+      lineItemFulfillments.push({
+        quantity: lineItem.quantity,
+        fulfillmentId: fulfillment._id,
+        trackingNumber: fulfillment.trackingInfo?.trackingNumber,
+        trackingUrl: fulfillment.trackingInfo?.trackingLink,
+        carrier: fulfillment.trackingInfo?.shippingProvider,
+        fulfillmentDate: fulfillment._createdDate
+      });
+
+      const trackingNumber = fulfillment.trackingInfo?.trackingNumber;
+      if (trackingNumber) {
+        const existing = trackingMap.get(trackingNumber) || { quantity: 0 };
+        trackingMap.set(trackingNumber, {
+          quantity: existing.quantity + lineItem.quantity,
+          trackingUrl: fulfillment.trackingInfo?.trackingLink,
+          carrier: fulfillment.trackingInfo?.shippingProvider,
+          fulfillmentId: fulfillment._id,
+          fulfillmentDate: fulfillment._createdDate
+        });
+      }
+    }
+  });
+
+  const trackingInfoArray: any[] = [];
+  trackingMap.forEach((value, trackingNumber) => {
+    trackingInfoArray.push({
+      trackingNumber,
+      trackingUrl: value.trackingUrl,
+      carrier: value.carrier,
+      quantity: value.quantity,
+      fulfillmentId: value.fulfillmentId,
+      fulfillmentDate: value.fulfillmentDate
+    });
+  });
+
+  return { lineItemFulfillments, trackingInfoArray };
+};
+
 interface ItemFulfillment {
   id: string;
   quantity: number;
@@ -526,9 +638,25 @@ export const fulfillOrderInWix = webMethod(
   }
 );
 
+// CORS headers configuration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 export const testOrdersConnection = webMethod(
   Permissions.Anyone,
-  async ({ limit = 3, cursor = '' }: { limit?: number; cursor?: string } = {}) => {
+  async ({ limit = 3, cursor = '' }: { limit?: number; cursor?: string } = {}, context) => {
+    // Handle OPTIONS method for CORS preflight
+    if (context.request?.method === 'OPTIONS') {
+      // For Wix web methods, we'll handle CORS through the response headers
+      return {
+        success: true,
+        headers: corsHeaders,
+        statusCode: 204
+      };
+    }
     const maxRetries = 3;
     let lastError: any;
 
@@ -774,6 +902,7 @@ export const testOrdersConnection = webMethod(
           };
         }) || [];
 
+        // Return response with CORS headers in a format that Wix can handle
         return {
           success: true,
           method: '@wix/ecom',
@@ -784,7 +913,9 @@ export const testOrdersConnection = webMethod(
             nextCursor: result.metadata?.cursors?.next || '',
             prevCursor: result.metadata?.cursors?.prev || ''
           },
-          message: `Successfully parsed ${parsedOrders.length} orders from your store with enhanced fulfillment details! (Limit: ${limit})`
+          message: `Successfully parsed ${parsedOrders.length} orders from your store with enhanced fulfillment details! (Limit: ${limit})`,
+          // Include CORS headers in the response
+          headers: corsHeaders
         };
 
       } catch (currentError: unknown) {
@@ -803,6 +934,7 @@ export const testOrdersConnection = webMethod(
 
     const finalErrorMsg = lastError instanceof Error ? lastError.message : String(lastError);
 
+    // Return error response with CORS headers in a format that Wix can handle
     return {
       success: false,
       error: 'eCommerce API not accessible',
@@ -814,7 +946,9 @@ export const testOrdersConnection = webMethod(
         nextCursor: '',
         prevCursor: ''
       },
-      message: `Could not access @wix/ecom orders API after ${maxRetries} attempts. Check permissions and app setup. Last error: ${finalErrorMsg}`
+      message: `Could not access @wix/ecom orders API after ${maxRetries} attempts. Check permissions and app setup. Last error: ${finalErrorMsg}`,
+      // Include CORS headers in the response
+      headers: corsHeaders
     };
   }
 );

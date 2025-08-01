@@ -97,6 +97,7 @@ export class OrderStore {
 
     clearOrders() {
         this.orders = [];
+        this.orderIdSet.clear(); // Also clear the Set
         this.selectedOrder = null;
         this.searchResults = null;
     }
@@ -123,6 +124,7 @@ export class OrderStore {
                 ...this.orders[orderIndex],
                 status
             };
+            this.clearMemoizedComputed();
         }
 
         // Also update in search results if they exist
@@ -176,28 +178,37 @@ export class OrderStore {
     }
 
     addOrder(order: Order): void {
-        // Check if order already exists
-        const existingIndex = this.orders.findIndex(o => o._id === order._id);
-        if (existingIndex >= 0) {
+        // Check if order already exists using Set for O(1) lookup
+        if (this.orderIdSet.has(order._id)) {
             // Update existing order
-            this.orders[existingIndex] = order;
+            const existingIndex = this.orders.findIndex(o => o._id === order._id);
+            if (existingIndex >= 0) {
+                this.orders[existingIndex] = order;
+                this.clearMemoizedComputed();
+            }
         } else {
             // Add new order to the beginning of the list
+            this.orderIdSet.add(order._id);
             this.orders.unshift(order);
+            this.clearMemoizedComputed();
         }
     }
 
     addNewOrder(order: Order) {
-        // Check if order already exists to prevent duplicates
-        const orderExists = this.orders.some(o => o._id === order._id);
-        if (orderExists) return;
+        // Check if order already exists using Set for O(1) lookup
+        if (this.orderIdSet.has(order._id)) return;
 
         // Add to the beginning of the array (most recent first)
+        this.orderIdSet.add(order._id);
         this.orders.unshift(order);
+        this.clearMemoizedComputed();
 
         // If we have more than 100 orders, remove the oldest one
         if (this.orders.length > 100) {
-            this.orders.pop();
+            const removedOrder = this.orders.pop();
+            if (removedOrder) {
+                this.orderIdSet.delete(removedOrder._id);
+            }
         }
 
         // If we have a search active, update search results too
@@ -222,33 +233,40 @@ export class OrderStore {
     }
 
     setOrders(orders: Order[]) {
-        // Simple duplicate removal - keep first occurrence
-        const seen = new Set();
+        // Optimized duplicate removal using persistent Set
+        this.orderIdSet.clear();
         const uniqueOrders = orders.filter(order => {
-            if (seen.has(order._id)) {
+            if (this.orderIdSet.has(order._id)) {
                 return false;
             }
-            seen.add(order._id);
+            this.orderIdSet.add(order._id);
             return true;
         });
 
         this.orders = uniqueOrders;
+        this.clearMemoizedComputed();
     }
 
     appendOrders(newOrders: Order[]) {
-        // Get existing IDs
-        const existingIds = new Set(this.orders.map(order => order._id));
-
-        // Filter out orders that already exist
-        const uniqueNewOrders = newOrders.filter(order => !existingIds.has(order._id));
+        // Use existing orderIdSet for efficient deduplication
+        const uniqueNewOrders = newOrders.filter(order => {
+            if (this.orderIdSet.has(order._id)) {
+                return false;
+            }
+            this.orderIdSet.add(order._id);
+            return true;
+        });
 
         if (uniqueNewOrders.length > 0) {
             this.orders = [...this.orders, ...uniqueNewOrders];
+            this.clearMemoizedComputed();
         }
     }
 
     removeOrder(orderId: string) {
         this.orders = this.orders.filter(o => o._id !== orderId);
+        this.orderIdSet.delete(orderId); // Also remove from Set
+        this.clearMemoizedComputed();
 
         // Also remove from search results if they exist
         if (this.searchResults) {
@@ -269,6 +287,10 @@ export class OrderStore {
         this.searchQuery = '';
         this.searchResults = null;
         this.isSearching = false;
+        // Clear search optimization cache
+        this.searchCache.clear();
+        this.lastSearchTerm = '';
+        this.lastSearchResults = [];
     }
 
     setSearchResults(results: SearchResult | null) {
@@ -454,22 +476,54 @@ export class OrderStore {
 
     get fulfilledOrders() {
         const ordersToCheck = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
-        return ordersToCheck.filter(order => order.status === 'FULFILLED');
+        const orderHash = this.getOrdersHash(ordersToCheck);
+
+        if (this.memoizedComputed.fulfilledOrders.orderHash === orderHash && this.memoizedComputed.fulfilledOrders.value) {
+            return this.memoizedComputed.fulfilledOrders.value;
+        }
+
+        const result = ordersToCheck.filter(order => order.status === 'FULFILLED');
+        this.memoizedComputed.fulfilledOrders = { value: result, orderHash };
+        return result;
     }
 
     get pendingOrders() {
         const ordersToCheck = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
-        return ordersToCheck.filter(order => order.status === 'NOT_FULFILLED');
+        const orderHash = this.getOrdersHash(ordersToCheck);
+
+        if (this.memoizedComputed.pendingOrders.orderHash === orderHash && this.memoizedComputed.pendingOrders.value) {
+            return this.memoizedComputed.pendingOrders.value;
+        }
+
+        const result = ordersToCheck.filter(order => order.status === 'NOT_FULFILLED');
+        this.memoizedComputed.pendingOrders = { value: result, orderHash };
+        return result;
     }
 
     get partiallyFulfilledOrders() {
         const ordersToCheck = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
-        return ordersToCheck.filter(order => order.status === 'PARTIALLY_FULFILLED');
+        const orderHash = this.getOrdersHash(ordersToCheck);
+
+        if (this.memoizedComputed.partiallyFulfilledOrders.orderHash === orderHash && this.memoizedComputed.partiallyFulfilledOrders.value) {
+            return this.memoizedComputed.partiallyFulfilledOrders.value;
+        }
+
+        const result = ordersToCheck.filter(order => order.status === 'PARTIALLY_FULFILLED');
+        this.memoizedComputed.partiallyFulfilledOrders = { value: result, orderHash };
+        return result;
     }
 
     get canceledOrders() {
         const ordersToCheck = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
-        return ordersToCheck.filter(order => order.status === 'CANCELED');
+        const orderHash = this.getOrdersHash(ordersToCheck);
+
+        if (this.memoizedComputed.canceledOrders.orderHash === orderHash && this.memoizedComputed.canceledOrders.value) {
+            return this.memoizedComputed.canceledOrders.value;
+        }
+
+        const result = ordersToCheck.filter(order => order.status === 'CANCELED');
+        this.memoizedComputed.canceledOrders = { value: result, orderHash };
+        return result;
     }
 
     get hasSelectedOrder() {
@@ -482,22 +536,40 @@ export class OrderStore {
 
     get oldestUnfulfilledOrder() {
         const ordersToCheck = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
+        const orderHash = this.getOrdersHash(ordersToCheck);
+
+        if (this.memoizedComputed.oldestUnfulfilledOrder.orderHash === orderHash &&
+            this.memoizedComputed.oldestUnfulfilledOrder.value !== undefined) {
+            return this.memoizedComputed.oldestUnfulfilledOrder.value;
+        }
+
         const unfulfilledOrders = ordersToCheck.filter(order =>
             order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED'
         );
 
-        if (unfulfilledOrders.length === 0) return null;
+        const result = unfulfilledOrders.length === 0 ? null :
+            unfulfilledOrders.sort((a, b) =>
+                new Date(a._createdDate).getTime() - new Date(b._createdDate).getTime()
+            )[0];
 
-        return unfulfilledOrders.sort((a, b) =>
-            new Date(a._createdDate).getTime() - new Date(b._createdDate).getTime()
-        )[0];
+        this.memoizedComputed.oldestUnfulfilledOrder = { value: result, orderHash };
+        return result;
     }
 
     get unfulfilledOrdersCount() {
         const ordersToCheck = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
-        return ordersToCheck.filter(order =>
+        const orderHash = this.getOrdersHash(ordersToCheck);
+
+        if (this.memoizedComputed.unfulfilledOrdersCount.orderHash === orderHash) {
+            return this.memoizedComputed.unfulfilledOrdersCount.value;
+        }
+
+        const result = ordersToCheck.filter(order =>
             order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED'
         ).length;
+
+        this.memoizedComputed.unfulfilledOrdersCount = { value: result, orderHash };
+        return result;
     }
 
     get last30DaysAnalytics() {
@@ -533,6 +605,26 @@ export class OrderStore {
     private customerOrderCounts: Map<string, { count: number; timestamp: number; calculating: boolean }> = new Map();
     private readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days cache (weekly reset)
     private readonly CACHE_STORAGE_KEY = 'wix_customer_order_counts_cache';
+    private readonly MAX_CACHE_SIZE = 1000; // Limit cache size to prevent memory bloat
+
+    // Order deduplication optimization
+    private orderIdSet = new Set<string>();
+
+    // Search optimization with memoization
+    private searchCache = new Map<string, Order[]>();
+    private readonly MAX_SEARCH_CACHE_SIZE = 50;
+    private lastSearchTerm = '';
+    private lastSearchResults: Order[] = [];
+
+    // Computed properties memoization
+    private memoizedComputed = {
+        fulfilledOrders: { value: null as Order[] | null, orderHash: '' },
+        pendingOrders: { value: null as Order[] | null, orderHash: '' },
+        partiallyFulfilledOrders: { value: null as Order[] | null, orderHash: '' },
+        canceledOrders: { value: null as Order[] | null, orderHash: '' },
+        oldestUnfulfilledOrder: { value: null as Order | null, orderHash: '' },
+        unfulfilledOrdersCount: { value: 0, orderHash: '' }
+    };
     /**
      * Get customer order count using Wix API with smart caching
      * This gives the TRUE total order count for proper badge calculation
@@ -607,12 +699,8 @@ export class OrderStore {
                 }
             }
 
-            // Cache the result
-            this.customerOrderCounts.set(customerEmail, {
-                count: totalCount,
-                timestamp: now,
-                calculating: false
-            });
+            // Cache the result with size management
+            this.setCachedCustomerCount(customerEmail, totalCount, now);
 
             // Save to localStorage for persistence
             this.saveCustomerCountsToStorage();
@@ -623,11 +711,7 @@ export class OrderStore {
 
             // Keep old cached value if available, otherwise return 0
             const fallbackCount = cached?.count || 0;
-            this.customerOrderCounts.set(customerEmail, {
-                count: fallbackCount,
-                timestamp: now,
-                calculating: false
-            });
+            this.setCachedCustomerCount(customerEmail, fallbackCount, now);
 
             return fallbackCount;
         }
@@ -653,14 +737,14 @@ export class OrderStore {
             const now = Date.now();
 
             // Filter out expired entries (older than 7 days)
-            const validEntries = Object.entries(parsed).filter(([email, data]: [string, any]) => {
+            const validEntries = Object.entries(parsed).filter(([_, data]: [string, any]) => {
                 return data && (now - data.timestamp) < this.CACHE_DURATION;
             });
 
             // Restore valid entries to the cache
             this.customerOrderCounts.clear();
-            validEntries.forEach(([email, data]: [string, any]) => {
-                this.customerOrderCounts.set(email, {
+            validEntries.forEach(([customerEmail, data]: [string, any]) => {
+                this.customerOrderCounts.set(customerEmail, {
                     count: data.count,
                     timestamp: data.timestamp,
                     calculating: false // Reset calculating flag on load
@@ -702,10 +786,34 @@ export class OrderStore {
     }
 
     /**
+     * Set cached customer count with size management
+     */
+    private setCachedCustomerCount(customerEmail: string, count: number, timestamp: number): void {
+        // If cache is at max size, remove oldest entries
+        if (this.customerOrderCounts.size >= this.MAX_CACHE_SIZE) {
+            const entries = Array.from(this.customerOrderCounts.entries());
+            // Sort by timestamp and remove oldest 20% of entries
+            entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+            const toRemove = Math.floor(this.MAX_CACHE_SIZE * 0.2);
+
+            for (let i = 0; i < toRemove; i++) {
+                this.customerOrderCounts.delete(entries[i][0]);
+            }
+        }
+
+        this.customerOrderCounts.set(customerEmail, {
+            count,
+            timestamp,
+            calculating: false
+        });
+    }
+
+    /**
      * Clear customer counts cache from both memory and localStorage
      */
     clearCustomerOrderCountCache(): void {
         this.customerOrderCounts.clear();
+        this.orderIdSet.clear();
         localStorage.removeItem(this.CACHE_STORAGE_KEY);
     }
 
@@ -754,26 +862,6 @@ export class OrderStore {
             null;
     }
 
-    private parseOrderTotal(totalString: string): number {
-        // Extract numeric value from formatted total (e.g., "€25.50" -> 25.50 or "161,00 €" -> 161.00)
-        const match = totalString.match(/[\d,\.]+/);
-        if (match) {
-            let numberStr = match[0];
-
-            // Handle European format where comma is decimal separator
-            // If there's a comma but no dot, or comma comes after dot, it's likely decimal separator
-            if (numberStr.includes(',') && (!numberStr.includes('.') || numberStr.lastIndexOf(',') > numberStr.lastIndexOf('.'))) {
-                // Replace comma with dot for decimal separator
-                numberStr = numberStr.replace(/\./g, '').replace(',', '.');
-            } else {
-                // Handle US format where comma is thousands separator
-                numberStr = numberStr.replace(/,/g, '');
-            }
-
-            return parseFloat(numberStr);
-        }
-        return 0;
-    }
 
 
     // Helper methods
@@ -865,19 +953,84 @@ export class OrderStore {
         }
 
         const term = searchTerm.toLowerCase();
-        const ordersToSearch = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
 
-        return ordersToSearch.filter(order =>
-            order.number.toLowerCase().includes(term) ||
-            order.customer.firstName.toLowerCase().includes(term) ||
-            order.customer.lastName.toLowerCase().includes(term) ||
-            order.customer.email.toLowerCase().includes(term) ||
-            order.customer.phone?.toLowerCase().includes(term) ||
-            (order.items || []).some(item =>
+        // Check cache first for exact matches
+        if (this.searchCache.has(term)) {
+            return this.searchCache.get(term)!;
+        }
+
+        // Check if this is a refinement of the previous search
+        if (term.startsWith(this.lastSearchTerm) && this.lastSearchTerm.length > 0) {
+            // Search within previous results for better performance
+            const results = this.performSearchOnOrders(this.lastSearchResults, term);
+            this.cacheSearchResults(term, results);
+            this.updateLastSearch(term, results);
+            return results;
+        }
+
+        // Full search
+        const ordersToSearch = this.isDisplayingSearchResults ? this.searchResults!.orders : this.orders;
+        const results = this.performSearchOnOrders(ordersToSearch, term);
+
+        this.cacheSearchResults(term, results);
+        this.updateLastSearch(term, results);
+        return results;
+    }
+
+    private performSearchOnOrders(orders: Order[], term: string): Order[] {
+        return orders.filter(order => {
+            // Optimized search with early returns
+            if (order.number.toLowerCase().includes(term)) return true;
+            if (order.customer.firstName.toLowerCase().includes(term)) return true;
+            if (order.customer.lastName.toLowerCase().includes(term)) return true;
+            if (order.customer.email.toLowerCase().includes(term)) return true;
+            if (order.customer.phone?.toLowerCase().includes(term)) return true;
+
+            // Search items only if customer info doesn't match
+            return (order.items || []).some(item =>
                 item.name.toLowerCase().includes(term) ||
                 item.sku?.toLowerCase().includes(term)
-            )
-        );
+            );
+        });
+    }
+
+    private cacheSearchResults(term: string, results: Order[]): void {
+        // Manage cache size
+        if (this.searchCache.size >= this.MAX_SEARCH_CACHE_SIZE) {
+            // Remove oldest entries (first 10)
+            const keys = Array.from(this.searchCache.keys());
+            for (let i = 0; i < 10; i++) {
+                this.searchCache.delete(keys[i]);
+            }
+        }
+
+        this.searchCache.set(term, results);
+    }
+
+    private updateLastSearch(term: string, results: Order[]): void {
+        this.lastSearchTerm = term;
+        this.lastSearchResults = results;
+    }
+
+    /**
+     * Generate a hash for orders array to detect changes for memoization
+     */
+    private getOrdersHash(orders: Order[]): string {
+        // Create a lightweight hash based on order count, IDs, and statuses
+        const hashData = orders.map(o => `${o._id}:${o.status}`).join('|');
+        return `${orders.length}:${hashData.length}:${hashData.slice(0, 50)}`;
+    }
+
+    /**
+     * Clear memoized computed properties when orders change
+     */
+    private clearMemoizedComputed(): void {
+        this.memoizedComputed.fulfilledOrders = { value: null, orderHash: '' };
+        this.memoizedComputed.pendingOrders = { value: null, orderHash: '' };
+        this.memoizedComputed.partiallyFulfilledOrders = { value: null, orderHash: '' };
+        this.memoizedComputed.canceledOrders = { value: null, orderHash: '' };
+        this.memoizedComputed.oldestUnfulfilledOrder = { value: null, orderHash: '' };
+        this.memoizedComputed.unfulfilledOrdersCount = { value: 0, orderHash: '' };
     }
 
     getOrdersByStatus(status: OrderStatus): Order[] {

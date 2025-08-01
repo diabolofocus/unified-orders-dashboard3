@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Text, Box, Tooltip } from '@wix/design-system';
 import type { TableColumn } from '@wix/design-system';
 import { observer } from 'mobx-react-lite';
@@ -33,7 +33,8 @@ const LowInventoryItems: React.FC = observer(() => {
     const showLowInventoryItems = settingsStore.settings.showLowInventoryItems;
     const LOW_STOCK_THRESHOLD = 10; // Items with quantity below this will be considered low stock
 
-    const handleProductImageClick = (item: InventoryItem) => {
+    // Memoized click handler to prevent unnecessary re-renders
+    const handleProductImageClick = useCallback((item: InventoryItem) => {
         try {
             const productId = item.productId || item.id;
 
@@ -50,7 +51,7 @@ const LowInventoryItems: React.FC = observer(() => {
         } catch (error) {
             console.error('Failed to navigate to product page:', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (!showLowInventoryItems) return;

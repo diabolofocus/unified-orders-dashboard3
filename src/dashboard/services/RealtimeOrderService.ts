@@ -8,6 +8,9 @@ export class RealtimeOrderService {
     private pollingInterval: any = null;
     private onNewOrderCallbacks: Array<(order: Order) => void> = [];
     private _initialLoad: boolean = true;
+    private visibilityChangeHandler: (() => void) | null = null;
+    private lastFetchTime: number = 0;
+    private readonly MIN_FETCH_INTERVAL = 30000; // Minimum 30 seconds between fetches
 
     /**
      * Check if the service is still in the initial load phase
@@ -17,6 +20,9 @@ export class RealtimeOrderService {
     }
 
     constructor() {
+        // Setup visibility change detection
+        this.setupVisibilityHandling();
+        
         // Start polling but don't process initial orders
         this.startPolling().then(() => {
             // After the first poll, mark that initial load is complete
@@ -49,7 +55,12 @@ export class RealtimeOrderService {
         this.isPolling = true;
         this.pollingInterval = setInterval(async () => {
             if (settingsStore.automaticDetection && !document.hidden) {
-                await this.checkForNewOrders();
+                // Throttle requests to prevent excessive API calls
+                const now = Date.now();
+                if (now - this.lastFetchTime >= this.MIN_FETCH_INTERVAL) {
+                    this.lastFetchTime = now;
+                    await this.checkForNewOrders();
+                }
             }
         }, 60000);
 
@@ -210,8 +221,37 @@ export class RealtimeOrderService {
         }
     }
 
+    private setupVisibilityHandling(): void {
+        if (typeof document !== 'undefined') {
+            this.visibilityChangeHandler = () => {
+                if (document.hidden) {
+                    // Pause polling when tab is hidden
+                    if (this.isPolling) {
+                        this.stopPolling();
+                        // Store that we were polling so we can resume
+                        (this as any)._wasPollingSuspended = true;
+                    }
+                } else {
+                    // Resume polling when tab becomes visible
+                    if ((this as any)._wasPollingSuspended && settingsStore.automaticDetection) {
+                        this.startPolling();
+                        (this as any)._wasPollingSuspended = false;
+                    }
+                }
+            };
+            
+            document.addEventListener('visibilitychange', this.visibilityChangeHandler);
+        }
+    }
+
     public destroy() {
         this.stopPolling();
         this.onNewOrderCallbacks = [];
+        
+        // Clean up event listeners
+        if (this.visibilityChangeHandler && typeof document !== 'undefined') {
+            document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+            this.visibilityChangeHandler = null;
+        }
     }
 }
