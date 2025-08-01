@@ -7,7 +7,6 @@ import { ordersSettings } from '@wix/ecom';
 type InventoryUpdateTrigger = 'ON_ORDER_PAID' | 'ON_ORDER_PLACED' | 'UNKNOWN_INVENTORY_UPDATE_TRIGGER';
 
 interface OrdersSettings {
-  createInvoice?: boolean;
   inventoryUpdateTrigger?: InventoryUpdateTrigger;
   _createdDate?: Date;
   _updatedDate?: Date;
@@ -17,7 +16,6 @@ interface OrdersSettings {
 
 interface OrdersSettingsResponse {
   ordersSettings: {
-    createInvoice?: boolean;
     inventoryUpdateTrigger?: string;
     _createdDate?: string;
     _updatedDate?: string;
@@ -42,7 +40,6 @@ type Settings = {
   productHighlightFilter: string;
   productHighlightColor: string;
   initialOrderLimit: number;
-  autoCreateInvoice: boolean;
   enableClickToCopy: boolean;
   showCustomerRankings: boolean;
   customerTiers: {
@@ -70,7 +67,6 @@ const DEFAULT_SETTINGS: Settings = {
   productHighlightFilter: '',
   productHighlightColor: '#ff0000',
   initialOrderLimit: 30,
-  autoCreateInvoice: true,
   enableClickToCopy: true,
   showCustomerBadges: true,
   showCustomerRankings: true,
@@ -104,9 +100,6 @@ export class SettingsStore {
     try {
       this.isLoading = true;
       await this.loadSettings();
-
-      // FORCE auto-invoice creation to be enabled
-      await this.forceEnableAutoInvoice();
 
     } catch (error) {
       console.error('Failed to initialize settings:', error);
@@ -145,31 +138,6 @@ export class SettingsStore {
     });
   }
 
-  /**
- * Force enable auto-invoice creation and set local state to true
- */
-  private async forceEnableAutoInvoice() {
-    try {
-
-      // Force the Wix setting to true
-      await this.updateOrderSettings(true);
-
-      // Force local state to true
-      runInAction(() => {
-        this.settings.autoCreateInvoice = true;
-        this.saveSettings(); // Save to localStorage
-      });
-
-    } catch (error) {
-      console.error('❌ Failed to force enable auto-invoice:', error);
-
-      // Still set local state to true even if API fails
-      runInAction(() => {
-        this.settings.autoCreateInvoice = true;
-        this.saveSettings();
-      });
-    }
-  }
 
   setAutomaticDetection(enabled: boolean) {
     runInAction(() => {
@@ -375,60 +343,7 @@ export class SettingsStore {
     });
   }
 
-  get autoCreateInvoice() {
-    // ALWAYS return true for testing
-    return true;
-  }
 
-  async setAutoCreateInvoice(enabled: boolean) {
-    // FORCE enabled to always be true
-    const forcedEnabled = true;
-
-
-    runInAction(() => {
-      this.isLoading = true;
-    });
-
-    try {
-      // Always send true to Wix API
-      const result = await this.updateOrderSettings(forcedEnabled);
-      console.log('✅ Forced update result:', result);
-
-      runInAction(() => {
-        this.settings.autoCreateInvoice = forcedEnabled; // Always true
-        this.saveSettings();
-      });
-
-      if (typeof window !== 'undefined' && (window as any).dashboard) {
-        (window as any).dashboard.showToast({
-          message: 'Auto-create invoices is ALWAYS ENABLED (testing mode)',
-          type: 'success',
-          duration: 3000
-        });
-      }
-
-      return true;
-    } catch (error) {
-      console.error('❌ Error forcing auto-invoice:', error);
-
-      // Even on error, keep it enabled locally
-      runInAction(() => {
-        this.settings.autoCreateInvoice = true;
-        this.saveSettings();
-      });
-
-      throw error;
-    } finally {
-      runInAction(() => {
-        this.isLoading = false;
-      });
-    }
-  }
-
-  // This method is kept for backward compatibility but is no longer used
-  updateOrderSettings(createInvoice: boolean) {
-    // No-op, kept for backward compatibility
-  }
 
   // Enable/disable click-to-copy functionality
   setEnableClickToCopy = (enabled: boolean) => {
@@ -495,21 +410,11 @@ export class SettingsStore {
 
       // Extract the settings
       const settings = actualSettings?.ordersSettings || actualSettings;
-      const shouldCreateInvoice = settings?.createInvoice ?? false;
-
-      runInAction(() => {
-        this.settings.autoCreateInvoice = shouldCreateInvoice;
-        console.log('Updated autoCreateInvoice to:', this.settings.autoCreateInvoice);
-      });
 
       return settings;
     } catch (error) {
       console.error('Failed to fetch order settings:', error);
 
-      // Set to false on error
-      runInAction(() => {
-        this.settings.autoCreateInvoice = false;
-      });
 
       throw error;
     }

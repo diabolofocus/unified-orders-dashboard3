@@ -738,7 +738,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         ? Object.entries(item.optionsDisplay)
                             .map(([key, value]) => `<div style="color: #666; font-size: 10px; margin-top: 4px; line-height: 1.3;">${key}: ${typeof value === 'object' ? JSON.stringify(value) : String(value)}</div>`)
                             .join('')
-                        : '<div style="color: #666; font-size: 10px; margin-top: 4px; line-height: 1.3;">Standard item</div>';
+                        : '<div style="color: #666; font-size: 10px; margin-top: 4px; line-height: 1.3;"></div>';
 
                     const imageHTML = item.base64Image
                         ? `<div style="width: 60px; height: 45px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; border: 1px solid #ddd; background: white;">
@@ -969,7 +969,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                     ? Object.entries(item.optionsDisplay)
                         .map(([key, value]) => `<div style="color: #666; font-size: 9px; margin-top: 2px;">${key}: ${typeof value === 'object' ? JSON.stringify(value) : String(value)}</div>`)
                         .join('')
-                    : '<div style="color: #666; font-size: 9px; margin-top: 2px;">Standard item</div>';
+                    : '<div style="color: #666; font-size: 9px; margin-top: 2px;"></div>';
 
                 const imageHTML = item.processedImageUrl
                     ? `<div style="width: 60px; height: 45px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border: 1px solid #eee; overflow: hidden;">

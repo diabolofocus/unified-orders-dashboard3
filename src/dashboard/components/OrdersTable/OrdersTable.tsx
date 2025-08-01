@@ -451,6 +451,102 @@ const OrdersTable = observer(() => {
     };
 
     /**
+     * Helper function to get proper discount display text (matching ProductImages logic)
+     */
+    const getDiscountDisplayText = (order: Order): string => {
+        const appliedDiscounts = order.rawOrder?.appliedDiscounts || [];
+        if (appliedDiscounts.length === 0) return 'Discount:';
+
+        // Try to get coupon names first
+        const couponNames = appliedDiscounts
+            .filter((discount: any) => discount.coupon?.name)
+            .map((discount: any) => discount.coupon?.name);
+
+        if (couponNames.length > 0) {
+            return `Coupon: ${[...new Set(couponNames)].join(', ')}`;
+        }
+
+        // Fall back to other discount properties
+        const discountNames = appliedDiscounts
+            .map((discount: any) => discount.discountName || discount.name || null)
+            .filter((name: any): name is string => !!name && name !== 'Discount');
+
+        if (discountNames.length > 0) {
+            return `Discount: ${[...new Set(discountNames)].join(', ')}`;
+        }
+
+        return 'Discount:';
+    };
+
+    /**
+     * Helper function to get shipping address (matching ShippingAddress component logic)
+     */
+    const getShippingAddress = (order: Order) => {
+        if (order.shippingAddress) return order.shippingAddress;
+        if (order.rawOrder?.shippingInfo?.shipmentDetails?.address) return order.rawOrder.shippingInfo.shipmentDetails.address;
+        if (order.rawOrder?.recipientInfo?.contactDetails?.address) return order.rawOrder.recipientInfo.contactDetails.address;
+        if (order.billingInfo?.address) return order.billingInfo.address;
+        return null;
+    };
+
+    /**
+     * Helper function to get billing info (matching BillingAddress component logic)
+     */
+    const getBillingInfo = (order: Order) => {
+        if (order.billingInfo) return order.billingInfo;
+        if (order.rawOrder?.billingInfo) return order.rawOrder.billingInfo;
+        return null;
+    };
+
+    /**
+     * Helper function to compare addresses for "Same as shipping" logic
+     */
+    const compareAddresses = (billingAddress: any, shippingAddress: any): boolean => {
+        if (!billingAddress || !shippingAddress) return false;
+
+        const normalize = (str: string | undefined | null): string => {
+            return (str || '').toLowerCase().trim().replace(/\s+/g, ' ');
+        };
+
+        const getStreetString = (address: any): string => {
+            if (address.streetAddress?.name || address.streetAddress?.number) {
+                return normalize(`${address.streetAddress?.name || ''} ${address.streetAddress?.number || ''}`);
+            }
+            return normalize(address.addressLine1 || '');
+        };
+
+        const getApartmentString = (address: any): string => {
+            if (address.streetAddress?.apt) {
+                return normalize(address.streetAddress.apt);
+            }
+            return normalize(address.addressLine2 || '');
+        };
+
+        const billingStreet = getStreetString(billingAddress);
+        const shippingStreet = getStreetString(shippingAddress);
+
+        const billingApartment = getApartmentString(billingAddress);
+        const shippingApartment = getApartmentString(shippingAddress);
+
+        const billingCity = normalize(billingAddress.city);
+        const shippingCity = normalize(shippingAddress.city);
+
+        const billingPostal = normalize(billingAddress.postalCode);
+        const shippingPostal = normalize(shippingAddress.postalCode);
+
+        const billingCountry = normalize(billingAddress.country);
+        const shippingCountry = normalize(shippingAddress.country);
+
+        const streetsMatch = billingStreet === shippingStreet && billingStreet !== '';
+        const apartmentsMatch = billingApartment === shippingApartment;
+        const citiesMatch = billingCity === shippingCity && billingCity !== '';
+        const postalMatch = billingPostal === shippingPostal && billingPostal !== '';
+        const countriesMatch = billingCountry === shippingCountry && billingCountry !== '';
+
+        return streetsMatch && apartmentsMatch && citiesMatch && postalMatch && countriesMatch;
+    };
+
+    /**
      * Handles the print order functionality with loading state in the title
      * Shows "Getting ready to Print..." in the browser tab while preparing the order for printing
      */
@@ -467,12 +563,8 @@ const OrdersTable = observer(() => {
             const customerEmail = recipientContact?.email || billingContact?.email || order.customer.email || '';
             const customerPhone = recipientContact?.phone || billingContact?.phone || order.customer.phone || '';
 
-            // Get shipping info
-            const shippingAddress = order.rawOrder?.shippingInfo?.shipmentDetails?.address;
+            // Shipping method for display (keeping this as it's still used)
             const shippingMethod = order.rawOrder?.shippingInfo?.title || 'Standard Shipping';
-
-            // Get billing info
-            const billingAddress = order.rawOrder?.billingInfo?.address;
 
             // Fetch payment method from order transactions
             let paymentMethod = 'Credit Card'; // Default fallback
@@ -587,7 +679,7 @@ const OrdersTable = observer(() => {
                     </div>
                     <div style="flex: 1;">
                         <div style="font-weight: bold; margin-bottom: 3px; font-size: 10px;">${productName}</div>
-                        ${optionsHTML || '<div style="color: #666; font-size: 8px;">Standard item</div>'}
+                        ${optionsHTML || '<div style="color: #666; font-size: 8px;"></div>'}
                     </div>
                 </div>
             </td>
@@ -656,10 +748,10 @@ const OrdersTable = observer(() => {
                         ${order.rawOrder?.priceSummary?.discount?.amount && order.rawOrder.priceSummary.discount.amount > 0 ? `
                         <tr>
                             <td style="text-align: left; padding: 1px 4px 1px 0;">
-                                <span style="font-size: 11px;">Discount${order.rawOrder?.appliedDiscounts && order.rawOrder.appliedDiscounts.length > 0 ? ` (${order.rawOrder.appliedDiscounts.map((discount: any) => discount.discountName || discount.name || 'Discount').join(', ')})` : ''}</span>
+                                <span style="font-size: 11px;">${getDiscountDisplayText(order)}</span>
                             </td>
                             <td style="text-align: right; padding: 1px 0;">
-                                <span style="font-size: 11px;">${order.rawOrder.priceSummary.discount.formattedAmount || `${order.rawOrder.priceSummary.discount.amount} ${order.rawOrder.priceSummary.discount.currency || ''}`}</span>
+                                <span style="font-size: 11px;">-${order.rawOrder.priceSummary.discount.formattedAmount || `${order.rawOrder.priceSummary.discount.amount} ${order.rawOrder.priceSummary.discount.currency || ''}`}</span>
                             </td>
                         </tr>
                         ` : ''}
@@ -683,29 +775,137 @@ const OrdersTable = observer(() => {
             <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
                 <!-- Shipping Address -->
                 <div style="width: 45%;">
-                    <h3 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">Shipping Address</h3>
-                    <div style="line-height: 1.2; font-size: 9px;">
-                        <div>${customerFirstName} ${customerLastName}</div>
-                        ${shippingAddress?.company ? `<div>${shippingAddress.company}</div>` : ''}
-                        ${shippingAddress?.addressLine1 ? `<div>${shippingAddress.addressLine1}</div>` : ''}
-                        ${shippingAddress?.addressLine2 ? `<div>${shippingAddress.addressLine2}</div>` : ''}
-                        ${shippingAddress?.city && shippingAddress?.subdivision ?
-                    `<div>${shippingAddress.city}, ${shippingAddress.subdivision} ${shippingAddress.postalCode || ''}, ${shippingAddress.country || ''}</div>` : ''}
-                        <div style="margin-top: 4px; font-weight: bold;">${shippingMethod}</div>
+                    <h3 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">Shipping Address:</h3>
+                    <div style="line-height: 1.4; font-size: 9px;">
+                        ${(() => {
+                    const shipAddr = getShippingAddress(order);
+                    const recipientInfo = order.rawOrder?.recipientInfo?.contactDetails;
+                    const billingInfo = order.rawOrder?.billingInfo?.contactDetails;
+
+                    let html = '';
+
+                    // Recipient Name
+                    const firstName = recipientInfo?.firstName || billingInfo?.firstName || customerFirstName || '';
+                    const lastName = recipientInfo?.lastName || billingInfo?.lastName || customerLastName || '';
+                    if (firstName || lastName) {
+                        html += `<div>${firstName} ${lastName}</div>`;
+                    }
+
+                    // Company Name (ONLY from shipping/recipient info, NOT from billing)
+                    if (recipientInfo?.company) {
+                        html += `<div>${recipientInfo.company}</div>`;
+                    }
+
+                    if (shipAddr) {
+                        // Street Address (streetAddress.name + number OR addressLine1)
+                        if (shipAddr.streetAddress?.name || shipAddr.streetAddress?.number) {
+                            const street = `${shipAddr.streetAddress?.name || ''} ${shipAddr.streetAddress?.number || ''}`.trim();
+                            if (street) html += `<div>${street}</div>`;
+                        } else if (shipAddr.addressLine1) {
+                            html += `<div>${shipAddr.addressLine1}</div>`;
+                        }
+
+                        // Apartment/Unit (streetAddress.apt OR addressLine2)
+                        if (shipAddr.streetAddress?.apt) {
+                            html += `<div>${shipAddr.streetAddress.apt}</div>`;
+                        } else if (shipAddr.addressLine2) {
+                            html += `<div>${shipAddr.addressLine2}</div>`;
+                        }
+
+                        // Postal Code
+                        if (shipAddr.postalCode) {
+                            html += `<div>${shipAddr.postalCode}</div>`;
+                        }
+
+                        // City
+                        if (shipAddr.city) {
+                            html += `<div>${shipAddr.city}</div>`;
+                        }
+
+                        // State/Province
+                        if (shipAddr.subdivisionFullname || shipAddr.subdivision) {
+                            html += `<div>${shipAddr.subdivisionFullname || shipAddr.subdivision}</div>`;
+                        }
+
+                        // Country
+                        if (shipAddr.country) {
+                            html += `<div>${shipAddr.countryFullname || shipAddr.country}</div>`;
+                        }
+                    }
+
+                    // Add shipping method at the end
+                    html += `<div style="margin-top: 6px; font-weight: bold; color: #333;">${shippingMethod}</div>`;
+
+                    return html;
+                })()}
                     </div>
                 </div>
 
                 <!-- Billing Address -->
                 <div style="width: 45%;">
-                    <h3 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">Billing Address</h3>
-                    <div style="line-height: 1.2; font-size: 9px;">
-                        <div>${customerFirstName} ${customerLastName}</div>
-                        ${billingAddress?.company ? `<div>${billingAddress.company}</div>` : ''}
-                        ${billingAddress?.addressLine1 ? `<div>${billingAddress.addressLine1}</div>` : ''}
-                        ${billingAddress?.addressLine2 ? `<div>${billingAddress.addressLine2}</div>` : ''}
-                        ${billingAddress?.city && billingAddress?.subdivision ?
-                    `<div>${billingAddress.city}, ${billingAddress.subdivision} ${billingAddress.postalCode || ''}, ${billingAddress.country || ''}</div>` : ''}
-                        <div style="margin-top: 4px; font-weight: bold;">Paid with ${paymentMethod}</div>
+                    <h3 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">Billing Address:</h3>
+                    <div style="line-height: 1.4; font-size: 9px;">
+                        ${(() => {
+                    const billingInfo = getBillingInfo(order);
+                    const shipAddr = getShippingAddress(order);
+
+                    if (!billingInfo || !billingInfo.address) {
+                        return '<div style="font-style: italic; color: #666;">No billing address available</div>';
+                    }
+
+                    const billingAddr = billingInfo.address;
+                    const isSameAsShipping = compareAddresses(billingAddr, shipAddr);
+
+                    if (isSameAsShipping) {
+                        return '<div style="font-style: italic; color: #666;">Same as shipping</div>';
+                    }
+
+                    let html = '';
+                    const contactDetails = billingInfo.contactDetails;
+
+                    // Contact Name
+                    if (contactDetails?.firstName || contactDetails?.lastName) {
+                        html += `<div>${contactDetails.firstName || ''} ${contactDetails.lastName || ''}</div>`;
+                    }
+
+                    // Street Address (streetAddress.name + number OR addressLine1)
+                    if (billingAddr.streetAddress?.name || billingAddr.streetAddress?.number) {
+                        const street = `${billingAddr.streetAddress?.name || ''} ${billingAddr.streetAddress?.number || ''}`.trim();
+                        if (street) html += `<div>${street}</div>`;
+                    } else if (billingAddr.addressLine1) {
+                        html += `<div>${billingAddr.addressLine1}</div>`;
+                    }
+
+                    // Apartment/Unit (streetAddress.apt OR addressLine2)
+                    if (billingAddr.streetAddress?.apt) {
+                        html += `<div>${billingAddr.streetAddress.apt}</div>`;
+                    } else if (billingAddr.addressLine2) {
+                        html += `<div>${billingAddr.addressLine2}</div>`;
+                    }
+
+                    // Postal Code
+                    if (billingAddr.postalCode) {
+                        html += `<div>${billingAddr.postalCode}</div>`;
+                    }
+
+                    // City
+                    if (billingAddr.city) {
+                        html += `<div>${billingAddr.city}</div>`;
+                    }
+
+                    // State/Province
+                    if (billingAddr.subdivisionFullname || billingAddr.subdivision) {
+                        html += `<div>${billingAddr.subdivisionFullname || billingAddr.subdivision}</div>`;
+                    }
+
+                    // Country
+                    if (billingAddr.country) {
+                        html += `<div>${billingAddr.countryFullname || billingAddr.country}</div>`;
+                    }
+
+                    return html;
+                })()}
+                        <div style="margin-top: 6px; font-weight: bold; color: #333;">Paid with ${paymentMethod}</div>
                     </div>
                 </div>
             </div>
@@ -716,8 +916,8 @@ const OrdersTable = observer(() => {
                     <h3 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">Additional Info</h3>
                     <div style="line-height: 1.2; font-size: 9px;">
                         ${order.rawOrder.customFields.map((field: any) =>
-                        `<div>${field.translatedTitle || field.title}: ${field.value}</div>`
-                    ).join('')}
+                    `<div>${field.translatedTitle || field.title}: ${field.value}</div>`
+                ).join('')}
                     </div>
                 </div>
             ` : ''}

@@ -206,40 +206,18 @@ export const AdvancedSettings: React.FC = observer(() => {
 
           <Divider />
 
-          <Box direction="vertical" gap="16px">
-            <Box direction="horizontal" align="space-between" verticalAlign="middle" paddingBottom="8px">
-              <Box direction="vertical" gap="4px" flex="1">
-                <Text weight="normal" size="medium">Auto-Create Invoices</Text>
-                <Text secondary size="small">
-                  Automatically generate invoices for new orders (NOT YET SUPPORTED BY WIX)
-                </Text>
-              </Box>
-              <ToggleSwitch
-                checked={false}
-                onChange={() => {
-                  console.log('Toggle is disabled - auto-invoice is always enabled');
-                }}
-                disabled={true}
-                size="large"
-              />
+          <Box direction="horizontal" align="space-between" paddingTop="8px" verticalAlign="middle">
+            <Box direction="vertical" gap="4px" flex="1">
+              <Text weight="normal" size="medium">Click to Copy</Text>
+              <Text secondary size="small">
+                Enable click-to-copy functionality for order details
+              </Text>
             </Box>
-
-            <Divider />
-
-            <Box direction="horizontal" align="space-between" paddingTop="8px" verticalAlign="middle">
-              <Box direction="vertical" gap="4px" flex="1">
-                <Text weight="normal" size="medium">Click to Copy</Text>
-                <Text secondary size="small">
-                  Enable click-to-copy functionality for order details
-                </Text>
-              </Box>
-              <ToggleSwitch
-                checked={settingsStore.clickToCopyEnabled}
-                onChange={(e) => settingsStore.setEnableClickToCopy(e.target.checked)}
-                size="large"
-              />
-            </Box>
-
+            <ToggleSwitch
+              checked={settingsStore.clickToCopyEnabled}
+              onChange={(e) => settingsStore.setEnableClickToCopy(e.target.checked)}
+              size="large"
+            />
           </Box>
 
           <Divider />

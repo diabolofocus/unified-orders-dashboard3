@@ -56,6 +56,24 @@ export const ShippingAddress: React.FC<ShippingAddressProps> = ({ order }) => {
         </Text>
       )}
 
+      {/* Company Name (ONLY from shipping/recipient info) */}
+      {order.rawOrder?.recipientInfo?.contactDetails?.company && (
+        <Text
+          size="small"
+          className={settingsStore.clickToCopyEnabled ? 'clickable-info' : ''}
+          style={{
+            cursor: settingsStore.clickToCopyEnabled ? 'pointer' : 'default',
+            color: settingsStore.clickToCopyEnabled ? 'inherit' : 'var(--text-color, #2B2B2B)'
+          }}
+          onClick={() => {
+            if (!settingsStore.clickToCopyEnabled) return;
+            orderController.copyToClipboard(order.rawOrder.recipientInfo.contactDetails.company!, 'Company Name', false);
+          }}
+        >
+          {order.rawOrder.recipientInfo.contactDetails.company}
+        </Text>
+      )}
+
       {/* Street Name and Number */}
       {(shippingAddress.streetAddress?.name || shippingAddress.streetAddress?.number) && (
         <Text
