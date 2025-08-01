@@ -1,7 +1,7 @@
 // components/OrdersTable/OrdersTableWithTabs.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Box, Tabs, Text, Table, TableToolbar, Heading, Tag, Button, Tooltip, Loader } from '@wix/design-system';
+import { Box, Tabs, Text, Table, TableToolbar, Heading, Tag, Button, Tooltip, Loader, Search, IconButton } from '@wix/design-system';
 import type { Order } from '../../types/Order';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -560,6 +560,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Use React.useState and useEffect for async data fetching
     const [preparationItems, setPreparationItems] = React.useState<PreparationItem[]>([]);
     const [isLoadingPreparationItems, setIsLoadingPreparationItems] = React.useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     React.useEffect(() => {
         const loadPreparationItems = async () => {
@@ -587,6 +588,57 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Add effect to monitor order changes
     useEffect(() => {
     }, [orderStore.orders.length, orderStore.orders]);
+
+    // Filter preparation items based on search query
+    const filteredPreparationItems = React.useMemo(() => {
+        if (!searchQuery.trim()) {
+            return preparationItems;
+        }
+
+        const query = searchQuery.toLowerCase().trim();
+        return preparationItems.filter(item => {
+            // Search in product name
+            if (item.productName.toLowerCase().includes(query)) {
+                return true;
+            }
+
+            // Search in product ID/SKU
+            if (item.productId && item.productId.toLowerCase().includes(query)) {
+                return true;
+            }
+
+            // Search in order numbers
+            if (item.orders.some(order => order.orderNumber.toLowerCase().includes(query))) {
+                return true;
+            }
+
+            // Search in customer names
+            if (item.orders.some(order => order.customerName.toLowerCase().includes(query))) {
+                return true;
+            }
+
+            // Search in product options
+            if (item.descriptionLines && item.descriptionLines.some(line => {
+                const nameMatch = line.name?.original?.toLowerCase().includes(query);
+                const colorMatch = line.color?.toLowerCase().includes(query);
+                const textMatch = line.plainText?.original?.toLowerCase().includes(query);
+                return nameMatch || colorMatch || textMatch;
+            })) {
+                return true;
+            }
+
+            return false;
+        });
+    }, [preparationItems, searchQuery]);
+
+    // Search handlers
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value);
+    };
+
+    const handleSearchClear = () => {
+        setSearchQuery('');
+    };
 
     // Function to download packing list as PDF
     const handleDownloadPackingList = async () => {
@@ -1295,7 +1347,8 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         <Box direction="horizontal" gap="8px" align="center" verticalAlign="middle">
                             <Box>
                                 <Text weight="normal" size="medium">
-                                    Products to Pack ({preparationItems.reduce((total, item) => total + item.totalQuantity, 0)})
+                                    Products to Pack ({filteredPreparationItems.reduce((total, item) => total + item.totalQuantity, 0)})
+                                    {searchQuery && ` of ${preparationItems.reduce((total, item) => total + item.totalQuantity, 0)}`}
                                 </Text>
                             </Box>
                             <Box>
@@ -1315,27 +1368,29 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                     </TableToolbar.Item>
                 </TableToolbar.ItemGroup>
                 <TableToolbar.ItemGroup position="end">
-                    {/* <TableToolbar.Item>
-                        <Button
-                            size="small"
-                            priority="secondary"
-                            prefixIcon={<Icons.Print />}
-                            onClick={handlePrintPackingList}
-                            disabled={preparationItems.length === 0}
-                        >
-                            Print
-                        </Button>
-                    </TableToolbar.Item> */}
                     <TableToolbar.Item>
-                        <Button
-                            size="small"
-                            priority="secondary"
-                            prefixIcon={<Icons.Download />}
-                            onClick={handleDownloadPackingList}
-                            disabled={preparationItems.length === 0}
-                        >
-                            Download PDF
-                        </Button>
+                        <Tooltip content="Download PDF">
+                            <IconButton
+                                size="small"
+                                priority="secondary"
+                                onClick={handleDownloadPackingList}
+                                disabled={preparationItems.length === 0}
+                            >
+                                <Icons.Download />
+                            </IconButton>
+                        </Tooltip>
+                    </TableToolbar.Item>
+                    <TableToolbar.Item>
+                        <div style={{ width: '280px' }}>
+                            <Search
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                onClear={handleSearchClear}
+                                placeholder="Search products, orders, customers..."
+                                expandable={false}
+                                size="small"
+                            />
+                        </div>
                     </TableToolbar.Item>
                 </TableToolbar.ItemGroup>
             </TableToolbar>
@@ -1364,7 +1419,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         <Loader size="small" />
                         <Text size="small">Loading preparation items...</Text>
                     </Box>
-                ) : preparationItems.length === 0 ? (
+                ) : filteredPreparationItems.length === 0 && preparationItems.length === 0 ? (
                     <Box
                         align="center"
                         paddingTop="40px"
@@ -1384,9 +1439,29 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                             No products need preparation at this time
                         </Text>
                     </Box>
+                ) : filteredPreparationItems.length === 0 && searchQuery ? (
+                    <Box
+                        align="center"
+                        paddingTop="40px"
+                        paddingBottom="40px"
+                        gap="8px"
+                        direction="vertical"
+                        style={{
+                            backgroundColor: '#ffffff',
+                            minHeight: 'calc(100vh - 328px)',
+                            border: '1px solid #e5e7eb',
+                            borderBottom: 'none'
+                        }}
+                    >
+                        <Icons.Search size="48px" style={{ color: '#999' }} />
+                        <Text size="medium" weight="normal">No products found</Text>
+                        <Text secondary size="small" align="center">
+                            Try adjusting your search query or clear the search to see all products
+                        </Text>
+                    </Box>
                 ) : (
                     <Table
-                        data={preparationItems}
+                        data={filteredPreparationItems}
                         columns={preparationColumns}
                         rowVerticalPadding="medium"
                         horizontalScroll
