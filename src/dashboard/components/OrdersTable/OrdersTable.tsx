@@ -794,13 +794,6 @@ const OrdersTable = observer(() => {
 
     const handleArchiveOrder = async (order: Order) => {
         try {
-
-            const confirmed = window.confirm(`Are you sure you want to archive order #${order.number}?`);
-
-            if (!confirmed) {
-                return;
-            }
-
             const ordersToUpdate = [
                 {
                     order: {
@@ -816,13 +809,21 @@ const OrdersTable = observer(() => {
 
             const response = await orders.bulkUpdateOrders(ordersToUpdate, options);
 
-            alert(`Order #${order.number} has been archived successfully!`);
+            // Show success toast
+            dashboard.showToast({
+                message: `Order #${order.number} has been archived successfully!`,
+                type: 'success'
+            });
 
-            await orderController.loadOrders();
+            // Remove the archived order from the current list instead of reloading all orders
+            orderStore.removeOrder(order._id);
 
         } catch (error) {
             console.error("Error archiving order:", error);
-            alert(`Failed to archive order #${order.number}. Please try again.`);
+            dashboard.showToast({
+                message: `Failed to archive order #${order.number}. Please try again.`,
+                type: 'error'
+            });
         }
     };
 

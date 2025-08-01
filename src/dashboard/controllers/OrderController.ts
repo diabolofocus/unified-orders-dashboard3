@@ -1132,7 +1132,6 @@ export class OrderController {
                 };
 
             case '30days':
-            default:
                 const thirtyDaysAgo = new Date(today);
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                 const sixtyDaysAgo = new Date(today);
@@ -1140,6 +1139,63 @@ export class OrderController {
                 return {
                     current: { start: thirtyDaysAgo, end: today },
                     previous: { start: sixtyDaysAgo, end: thirtyDaysAgo }
+                };
+
+            case 'thisweek':
+                // Monday-based weeks (Monday = start, Sunday = end)
+                const startOfWeek = new Date(today);
+                const dayOfWeek = startOfWeek.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday=6 days back, others=dayOfWeek-1
+                startOfWeek.setDate(startOfWeek.getDate() - daysFromMonday);
+
+                // Previous week: 7 days before current week start
+                const startOfLastWeek = new Date(startOfWeek);
+                startOfLastWeek.setDate(startOfWeek.getDate() - 7);
+                const endOfLastWeek = new Date(startOfWeek);
+                endOfLastWeek.setDate(startOfWeek.getDate() - 1); // Day before current week starts (Sunday)
+
+                return {
+                    current: { start: startOfWeek, end: today },
+                    previous: { start: startOfLastWeek, end: endOfLastWeek }
+                };
+
+            case 'thismonth':
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+                return {
+                    current: { start: startOfMonth, end: today },
+                    previous: { start: startOfLastMonth, end: endOfLastMonth }
+                };
+
+            case 'thisyear':
+                const startOfThisYear = new Date(now.getFullYear(), 0, 1);
+                const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1);
+                const endOfLastYear = new Date(now.getFullYear() - 1, 11, 31);
+                return {
+                    current: { start: startOfThisYear, end: today },
+                    previous: { start: startOfLastYear, end: endOfLastYear }
+                };
+
+            case '365days':
+                const oneYearAgo = new Date(today);
+                oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+                const twoYearsAgo = new Date(today);
+                twoYearsAgo.setDate(twoYearsAgo.getDate() - 730);
+                return {
+                    current: { start: oneYearAgo, end: today },
+                    previous: { start: twoYearsAgo, end: oneYearAgo }
+                };
+
+            default:
+                // Default to 30 days
+                const defaultThirtyDaysAgo = new Date(today);
+                defaultThirtyDaysAgo.setDate(defaultThirtyDaysAgo.getDate() - 30);
+                const defaultSixtyDaysAgo = new Date(today);
+                defaultSixtyDaysAgo.setDate(defaultSixtyDaysAgo.getDate() - 60);
+                return {
+                    current: { start: defaultThirtyDaysAgo, end: today },
+                    previous: { start: defaultSixtyDaysAgo, end: defaultThirtyDaysAgo }
                 };
         }
     }
