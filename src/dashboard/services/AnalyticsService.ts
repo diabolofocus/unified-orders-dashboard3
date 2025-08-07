@@ -172,15 +172,7 @@ export class AnalyticsService {
             }
         }
 
-        console.log('Visitor data in formatAnalyticsWithComparison:', {
-            today: today,
-            yesterday: yesterdayStr,
-            todayUniqueVisitors,
-            yesterdayUniqueVisitors,
-            hasCurrentData: !!current.TOTAL_UNIQUE_VISITORS,
-            hasCurrentValues: current.TOTAL_UNIQUE_VISITORS?.values?.length > 0,
-            additionalData
-        });
+        // Processing visitor analytics data
 
         return {
             totalSales: current.TOTAL_SALES?.total || 0,

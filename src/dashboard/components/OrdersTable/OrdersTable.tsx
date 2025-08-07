@@ -1624,6 +1624,7 @@ const OrdersTable = observer(() => {
                 const secondaryActions = [];
 
                 secondaryActions.push({
+                    key: `view-${order._id}`,
                     text: "View Order",
                     icon: <Icons.Order />,
                     onClick: () => handleViewOrder(order)
@@ -1632,6 +1633,7 @@ const OrdersTable = observer(() => {
                 // Add Print Order action with loading state
                 const isPrinting = printingOrders[order._id] || false;
                 secondaryActions.push({
+                    key: `print-${order._id}`,
                     text: isPrinting ? "Loading..." : "Print Order",
                     icon: <Icons.Print />,
                     disabled: isPrinting,
@@ -1650,9 +1652,10 @@ const OrdersTable = observer(() => {
                 });
 
                 // Add divider
-                secondaryActions.push({ divider: true } as any);
+                secondaryActions.push({ key: `divider-${order._id}`, divider: true } as any);
                 // Add Archive Order action
                 secondaryActions.push({
+                    key: `archive-${order._id}`,
                     text: "Archive Order",
                     icon: <Icons.Archive />,
                     onClick: () => handleArchiveOrder(order)

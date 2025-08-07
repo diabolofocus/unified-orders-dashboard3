@@ -204,10 +204,7 @@ export class OrderService {
                 // Retry logic for each batch
                 while (attempt <= maxRetries && !success) {
                     try {
-                        // Only log in development or first attempt in production
-                        if (!isProd || attempt === 1) {
-                            console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders chunk (attempt ${attempt}/${maxRetries})`);
-                        }
+                        // Fetching orders chunk
                         
                         // Call testOrdersConnection with the required parameters
                         result = await testOrdersConnection(
@@ -327,7 +324,7 @@ export class OrderService {
                     try {
                         // Only log in development or first attempt in production
                         if (!isProd || attempt === 1) {
-                            console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching more orders (attempt ${attempt}/${maxRetries})`);
+                            // Fetching more orders
                         }
                         
                         // Call testOrdersConnection with the required parameters
@@ -418,10 +415,7 @@ export class OrderService {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                // Only log in development or first attempt in production
-                if (!isProd || attempt === 1) {
-                    console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders (attempt ${attempt}/${maxRetries})`);
-                }
+                // Fetching orders
                 
                 // Call testOrdersConnection with the required parameters
                 const result = await testOrdersConnection(
@@ -536,21 +530,7 @@ export class OrderService {
     async fulfillOrder(params: ExtendedFulfillOrderParams): Promise<FulfillmentResponse> {
         const isProd = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
 
-        // Debug logging only in development
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('🚀 OrderService.fulfillOrder called with params:', {
-                orderId: params.orderId,
-                orderNumber: params.orderNumber,
-                trackingNumber: params.trackingNumber,
-                carrier: params.shippingProvider,
-                hasSelectedItems: !!(params.selectedItems?.length || params.lineItems?.length),
-                selectedItemsCount: (params.selectedItems?.length || params.lineItems?.length || 0),
-                editMode: params.editMode,
-                sendShippingEmail: params.sendShippingEmail,
-                trackingUrl: params.trackingUrl,
-                customCarrierName: params.customCarrierName
-            });
-        }
+        // Fulfilling order
 
         try {
             const startTime = Date.now();
@@ -830,11 +810,7 @@ export class OrderService {
         }>;
         message: string;
     }> {
-        console.log('🚀 OrderService.bulkMarkOrdersAsFulfilled called with:', {
-            orderCount: params.orderIds.length,
-            hasTracking: !!params.trackingNumber,
-            carrier: params.shippingProvider
-        });
+        // Bulk marking orders as fulfilled
 
         try {
             const { orderFulfillments, orders } = await import('@wix/ecom');

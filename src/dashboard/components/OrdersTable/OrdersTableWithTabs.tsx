@@ -103,29 +103,112 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         }
     };
 
-    // Cache to store fulfillment data to avoid repeated API calls
+    // Rate limiting and caching for API calls
     const fulfillmentCache = new Map<string, any>();
+    const rateLimiter = useRef({
+        queue: [] as Array<{ orderId: string; resolve: Function; reject: Function }>,
+        processing: false,
+        lastRequest: 0,
+        minInterval: 100, // Minimum 100ms between requests
+        maxConcurrent: 3, // Maximum 3 concurrent requests
+        activeRequests: 0
+    });
 
-    // Function to get fulfillment data for an order (with caching)
-    const getOrderFulfillmentData = async (orderId: string) => {
+    // Function to get fulfillment data for an order (with rate limiting and caching)
+    const getOrderFulfillmentData = async (orderId: string): Promise<any[]> => {
+        // Check cache first
         if (fulfillmentCache.has(orderId)) {
             return fulfillmentCache.get(orderId);
         }
 
-        try {
-            const { orderFulfillments } = await import('@wix/ecom');
-            const response = await orderFulfillments.listFulfillmentsForSingleOrder(orderId);
-            const fulfillments = response.orderWithFulfillments?.fulfillments || [];
+        // Return a promise that will be resolved by the rate limiter
+        return new Promise((resolve, reject) => {
+            rateLimiter.current.queue.push({ orderId, resolve, reject });
+            processQueue();
+        });
+    };
 
-            // Cache the result
-            fulfillmentCache.set(orderId, fulfillments);
-            return fulfillments;
-        } catch (error) {
-            console.error(`Error fetching fulfillment data for order ${orderId}:`, error);
-            // Cache empty result to avoid repeated failed calls
-            fulfillmentCache.set(orderId, []);
-            return [];
+    // Process the rate-limited queue
+    const processQueue = async () => {
+        if (rateLimiter.current.processing || rateLimiter.current.queue.length === 0) {
+            return;
         }
+
+        if (rateLimiter.current.activeRequests >= rateLimiter.current.maxConcurrent) {
+            return;
+        }
+
+        rateLimiter.current.processing = true;
+
+        while (rateLimiter.current.queue.length > 0 && 
+               rateLimiter.current.activeRequests < rateLimiter.current.maxConcurrent) {
+            
+            const now = Date.now();
+            const timeSinceLastRequest = now - rateLimiter.current.lastRequest;
+            
+            if (timeSinceLastRequest < rateLimiter.current.minInterval) {
+                await new Promise(resolve => setTimeout(resolve, rateLimiter.current.minInterval - timeSinceLastRequest));
+            }
+
+            const { orderId, resolve, reject } = rateLimiter.current.queue.shift()!;
+            rateLimiter.current.activeRequests++;
+            rateLimiter.current.lastRequest = Date.now();
+
+            // Process the request with exponential backoff retry
+            (async () => {
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                const attemptRequest = async (): Promise<any[]> => {
+                    try {
+                        // Check cache again in case another request cached it
+                        if (fulfillmentCache.has(orderId)) {
+                            return fulfillmentCache.get(orderId);
+                        }
+
+                        const { orderFulfillments } = await import('@wix/ecom');
+                        const response = await orderFulfillments.listFulfillmentsForSingleOrder(orderId);
+                        const fulfillments = response.orderWithFulfillments?.fulfillments || [];
+
+                        // Cache the result
+                        fulfillmentCache.set(orderId, fulfillments);
+                        return fulfillments;
+                    } catch (error: any) {
+                        // Check if it's a rate limit error (429) or server error (5xx)
+                        const isRetryableError = error?.status === 429 || 
+                                               (error?.status >= 500 && error?.status < 600) ||
+                                               error?.code === 'RATE_LIMIT_EXCEEDED';
+                        
+                        if (isRetryableError && retryCount < maxRetries) {
+                            retryCount++;
+                            const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000); // Exponential backoff, max 5s
+                            console.warn(`Retrying fulfillment request for order ${orderId} (attempt ${retryCount}/${maxRetries}) after ${delay}ms`);
+                            
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            return attemptRequest();
+                        } else {
+                            throw error;
+                        }
+                    }
+                };
+
+                try {
+                    const fulfillments = await attemptRequest();
+                    resolve(fulfillments);
+                } catch (error) {
+                    console.warn(`Fulfillment data fetch failed for order ${orderId} after ${retryCount} retries:`, error);
+                    // Cache empty result to avoid repeated failed calls
+                    fulfillmentCache.set(orderId, []);
+                    resolve([]); // Resolve with empty array instead of rejecting
+                } finally {
+                    rateLimiter.current.activeRequests--;
+                    // Continue processing queue after a delay
+                    setTimeout(() => processQueue(), 100);
+                }
+            })();
+        }
+
+        rateLimiter.current.processing = false;
     };
 
     // Function to check if an item has any tracking info using CACHED fulfillment data
@@ -344,7 +427,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 index === self.findIndex(o => o._id === order._id)
             );
 
-            console.log(`📦 Found ${uniqueUnfulfilledOrders.length} total unfulfilled/partially fulfilled orders from API (${unfulfilledOrdersFromApi.length} unfulfilled + ${partiallyFulfilledOrdersFromApi.length} partially fulfilled)`);
+            // Found unfulfilled orders from API
 
             const productMap = new Map<string, PreparationItem>();
 
@@ -372,96 +455,96 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                     orderTimestamp = Date.now();
                 }
 
-                for (const item of items) {
-                    const productName = (typeof item.productName === 'object' && item.productName?.original)
-                        ? item.productName.original
-                        : (typeof item.productName === 'string' ? item.productName : 'Unknown Product');
-                    const totalQuantity = item.quantity || 1;
-                    const itemId = item._id || item.id || '';
+                // Process items in batches to avoid overwhelming the API
+                const batchSize = 5; // Process 5 items at a time
+                for (let i = 0; i < items.length; i += batchSize) {
+                    const itemBatch = items.slice(i, i + batchSize);
+                    
+                    // Process batch concurrently but with rate limiting
+                    await Promise.all(itemBatch.map(async (item: any) => {
+                        const productName = (typeof item.productName === 'object' && item.productName?.original)
+                            ? item.productName.original
+                            : (typeof item.productName === 'string' ? item.productName : 'Unknown Product');
+                        const totalQuantity = item.quantity || 1;
+                        const itemId = item._id || item.id || '';
 
-                    // Skip if we don't have a valid item ID or order ID
-                    if (!itemId || !orderId) {
-                        console.warn('Skipping item due to missing ID:', { itemId, orderId, productName });
-                        continue;
-                    }
-
-                    // Get LIVE fulfillment data for this item
-                    const actualFulfilledQuantity = await getActualFulfilledQuantity(itemId, orderId);
-                    const remainingQty = Math.max(0, totalQuantity - actualFulfilledQuantity);
-                    const hasTracking = await hasItemTracking(itemId, orderId);
-
-                    console.log(`🔍 Debug ${productName}:`, {
-                        itemId,
-                        orderId,
-                        totalQuantity,
-                        actualFulfilledQuantity,
-                        remainingQty,
-                        hasTracking
-                    });
-
-                    // Skip items that are fully fulfilled
-                    if (remainingQty <= 0) {
-                        console.log(`⏭️ Skipping fully fulfilled item: ${productName} - ` +
-                            `Fulfilled: ${actualFulfilledQuantity}/${totalQuantity}`);
-                        continue;
-                    }
-
-                    console.log(`📦 Including item: ${productName} - ` +
-                        `Remaining: ${remainingQty}/${totalQuantity}, ` +
-                        `Has tracking: ${hasTracking}`);
-
-                    // Get customer name - handle both API and local order formats
-                    const recipientContact = (order as any).recipientInfo?.contactDetails;
-                    const billingContact = (order as any).billingInfo?.contactDetails;
-                    const buyerInfo = (order as any).buyerInfo;
-
-                    const firstName = recipientContact?.firstName || billingContact?.firstName || buyerInfo?.firstName || '';
-                    const lastName = recipientContact?.lastName || billingContact?.lastName || buyerInfo?.lastName || '';
-                    const customerName = `${firstName} ${lastName}`.trim() || 'Unknown Customer';
-
-                    const optionsKey = getProductOptionsKey(item);
-                    const mapKey = `${item.catalogReference?.catalogItemId || 'unknown'}-${optionsKey}`;
-
-                    if (processedProductMap.has(mapKey)) {
-                        // Add to existing product
-                        const existing = processedProductMap.get(mapKey)!;
-                        existing.totalQuantity += remainingQty;
-                        existing.orders.push({
-                            orderNumber,
-                            orderId,
-                            quantity: remainingQty,
-                            customerName,
-                            orderTimestamp,
-                            originalQuantity: totalQuantity,
-                            fulfilledQuantity: actualFulfilledQuantity
-                        });
-                        // Update most recent order date if this order is newer
-                        if (orderTimestamp > existing.mostRecentOrderDate) {
-                            existing.mostRecentOrderDate = orderTimestamp;
+                        // Skip if we don't have a valid item ID or order ID
+                        if (!itemId || !orderId) {
+                            console.warn('Skipping item due to missing ID:', { itemId, orderId, productName });
+                            return;
                         }
-                    } else {
-                        // Create new product entry
-                        processedProductMap.set(mapKey, {
-                            id: mapKey,
-                            productId: item.catalogReference?.catalogItemId,
-                            productName,
-                            productOptions: optionsKey,
-                            imageUrl: extractImageUrl(item),
-                            rawImageUrl: extractImageUrl(item, true),
-                            totalQuantity: remainingQty,
-                            orders: [{
-                                orderNumber,
-                                orderId,
-                                quantity: remainingQty,
-                                customerName,
-                                orderTimestamp,
-                                originalQuantity: totalQuantity,
-                                fulfilledQuantity: actualFulfilledQuantity
-                            }],
-                            optionsDisplay: optionsKey ? JSON.parse(optionsKey) : {},
-                            descriptionLines: item.descriptionLines || [],
-                            mostRecentOrderDate: orderTimestamp
-                        });
+
+                        try {
+                            // Get LIVE fulfillment data for this item (rate limited)
+                            const actualFulfilledQuantity = await getActualFulfilledQuantity(itemId, orderId);
+                            const remainingQty = Math.max(0, totalQuantity - actualFulfilledQuantity);
+
+                            // Skip items that are fully fulfilled
+                            if (remainingQty <= 0) {
+                                return;
+                            }
+
+                            // Get customer name - handle both API and local order formats
+                            const recipientContact = (order as any).recipientInfo?.contactDetails;
+                            const billingContact = (order as any).billingInfo?.contactDetails;
+                            const buyerInfo = (order as any).buyerInfo;
+
+                            const firstName = recipientContact?.firstName || billingContact?.firstName || buyerInfo?.firstName || '';
+                            const lastName = recipientContact?.lastName || billingContact?.lastName || buyerInfo?.lastName || '';
+                            const customerName = `${firstName} ${lastName}`.trim() || 'Unknown Customer';
+
+                            const optionsKey = getProductOptionsKey(item);
+                            const mapKey = `${item.catalogReference?.catalogItemId || 'unknown'}-${optionsKey}`;
+
+                            if (processedProductMap.has(mapKey)) {
+                                // Add to existing product
+                                const existing = processedProductMap.get(mapKey)!;
+                                existing.totalQuantity += remainingQty;
+                                existing.orders.push({
+                                    orderNumber,
+                                    orderId,
+                                    quantity: remainingQty,
+                                    customerName,
+                                    orderTimestamp,
+                                    originalQuantity: totalQuantity,
+                                    fulfilledQuantity: actualFulfilledQuantity
+                                });
+                                // Update most recent order date if this order is newer
+                                if (orderTimestamp > existing.mostRecentOrderDate) {
+                                    existing.mostRecentOrderDate = orderTimestamp;
+                                }
+                            } else {
+                                // Create new product entry
+                                processedProductMap.set(mapKey, {
+                                    id: mapKey,
+                                    productId: item.catalogReference?.catalogItemId,
+                                    productName,
+                                    productOptions: optionsKey,
+                                    imageUrl: extractImageUrl(item),
+                                    rawImageUrl: extractImageUrl(item, true),
+                                    totalQuantity: remainingQty,
+                                    orders: [{
+                                        orderNumber,
+                                        orderId,
+                                        quantity: remainingQty,
+                                        customerName,
+                                        orderTimestamp,
+                                        originalQuantity: totalQuantity,
+                                        fulfilledQuantity: actualFulfilledQuantity
+                                    }],
+                                    optionsDisplay: optionsKey ? JSON.parse(optionsKey) : {},
+                                    descriptionLines: item.descriptionLines || [],
+                                    mostRecentOrderDate: orderTimestamp
+                                });
+                            }
+                        } catch (error) {
+                            console.warn(`Error processing item ${itemId} from order ${orderId}:`, error);
+                        }
+                    }));
+
+                    // Add a small delay between batches to avoid overwhelming the API
+                    if (i + batchSize < items.length) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
                 }
             }

@@ -7,7 +7,6 @@ import { dashboard } from '@wix/dashboard';
 import { PeriodAnalyticsCard } from './PeriodAnalyticsCard';
 import TopSellingItems from '../TopSellingItems/TopSellingItems';
 import LowInventoryItems from '../LowInventoryItems/LowInventoryItems';
-import { LiveVisitors } from '../LiveVisitors/LiveVisitors';
 import { settingsStore } from '../../stores/SettingsStore';
 
 type TimePeriod = 'today' | 'yesterday' | '7days' | '30days' | 'thisweek' | 'thismonth';
@@ -155,7 +154,7 @@ export const CompactAnalytics: React.FC = observer(() => {
 
                 // If unique visitors is still 0 for Today/Yesterday, try to get recent visitor data
                 if ((period === 'today' || period === 'yesterday') && totalUniqueVisitors === 0 && todayUniqueVisitors === 0 && yesterdayUniqueVisitors === 0) {
-// Debug log removed
+                    // Debug log removed
 
                     try {
                         // Try to get visitor data from last 7 days as a fallback
@@ -164,18 +163,14 @@ export const CompactAnalytics: React.FC = observer(() => {
                             const recentData = recentVisitorResult.data as AnalyticsData;
                             todayUniqueVisitors = recentData.todayUniqueVisitors || 0;
                             yesterdayUniqueVisitors = recentData.yesterdayUniqueVisitors || 0;
-// Debug log removed
+                            // Debug log removed
                         }
                     } catch (visitorError) {
                         console.warn(`[loadAnalyticsFromAPI] Failed to get recent visitor data:`, visitorError);
                     }
                 }
 
-                console.log(`[loadAnalyticsFromAPI] Extracted visitor data:`, {
-                    totalUniqueVisitors,
-                    todayUniqueVisitors,
-                    yesterdayUniqueVisitors
-                });
+                // Extracted visitor data
 
                 // If we don't have today/yesterday data from the API response, try to extract from detailed values
                 if (todayUniqueVisitors === 0 && detailedUniqueVisitors?.length) {
@@ -192,12 +187,7 @@ export const CompactAnalytics: React.FC = observer(() => {
                 // For all periods, use the total unique visitors as the main display value
                 let displayUniqueVisitors = totalUniqueVisitors;
 
-                console.log(`[loadAnalyticsFromAPI] Final visitor counts for ${period}:`, {
-                    displayUniqueVisitors,
-                    todayUniqueVisitors,
-                    yesterdayUniqueVisitors,
-                    detailedCount: detailedUniqueVisitors?.length || 0
-                });
+                // Final visitor counts processed
 
                 // Update the analytics data in the store
                 const analyticsPayload: any = {
@@ -234,7 +224,7 @@ export const CompactAnalytics: React.FC = observer(() => {
                     period
                 });
 
-// Debug log removed
+                // Debug log removed
                 return { success: true };
             } else {
                 const errorMsg = result.error || 'Failed to load analytics data';
@@ -411,7 +401,7 @@ export const CompactAnalytics: React.FC = observer(() => {
         // Ensure inputs are valid numbers
         const safeCurrent = isNaN(current) ? 0 : Math.max(0, current);
         const safePrevious = isNaN(previous) ? 0 : Math.max(0, previous);
-        
+
         if (safePrevious === 0) return safeCurrent > 0 ? 100 : 0;
         const change = ((safeCurrent - safePrevious) / safePrevious) * 100;
         return isNaN(change) ? 0 : Math.round(change);
@@ -596,7 +586,7 @@ export const CompactAnalytics: React.FC = observer(() => {
     };
 
     const handlePeriodChange = (selectedOption: any) => {
-// Debug log removed
+        // Debug log removed
 
         if (orderStore.connectionStatus === 'connected') {
             loadAnalyticsForPeriod(selectedOption.id as TimePeriod);

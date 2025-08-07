@@ -331,11 +331,7 @@ export class FulfillmentController {
         shippingProvider?: string;
         sendShippingEmail?: boolean;
     }): Promise<void> {
-        console.log('🚀 FulfillmentController.bulkMarkOrdersAsFulfilled called with:', {
-            orderCount: params.orderIds.length,
-            hasTracking: !!params.trackingNumber,
-            carrier: params.shippingProvider
-        });
+        // Bulk marking orders as fulfilled
 
         if (params.orderIds.length === 0) {
             this.showToast('No orders selected for fulfillment', 'error');

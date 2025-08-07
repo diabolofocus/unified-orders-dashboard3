@@ -4,7 +4,6 @@ import { Box, Text, TextButton, Avatar, Tooltip } from '@wix/design-system';
 import { useOrderController } from '../../hooks/useOrderController';
 import { settingsStore } from '../../stores/SettingsStore';
 import { dashboard } from '@wix/dashboard';
-import { contacts } from '@wix/crm';
 import type { Order } from '../../types/Order';
 
 interface CustomerInfoProps {
@@ -36,40 +35,24 @@ export const CustomerInfo: React.FC<CustomerInfoProps> = ({ order }) => {
     // Email should be available from order.customer
     const email = order.customer.email || 'No email provided';
 
-    // Function to fetch contact's profile picture
+    // Simplified avatar handling - no backend calls to avoid 403 errors
     const fetchContactAvatar = async (contactId: string) => {
         if (!contactId) return;
-
-        try {
-            setLoadingAvatar(true);
-
-            const contact = await contacts.getContact(contactId, {
-                fields: ['info.picture'] // Specify the fields to retrieve
-            });
-
-            if (contact.info?.picture?.image) {
-                // ContactPicture has an 'image' property containing the URL or Wix Media GUID
-                const imageUrl = contact.info.picture.image;
-                setContactImageUrl(imageUrl);
-            } else {
-                setContactImageUrl(null);
-            }
-        } catch (error) {
-            setContactImageUrl(null);
-        } finally {
-            setLoadingAvatar(false);
-        }
+        
+        // For now, we'll not fetch contact avatars to avoid permission issues
+        // This can be re-enabled when proper CRM permissions are configured
+        console.log('Contact avatar fetching disabled to prevent 403 errors');
+        setContactImageUrl(null);
+        setLoadingAvatar(false);
     };
 
-    // Fetch contact avatar when component mounts or order changes
+    // Simplified: No contact avatar fetching to avoid permission issues
     React.useEffect(() => {
-        const contactId = order.rawOrder?.buyerInfo?.contactId;
-        if (contactId) {
-            fetchContactAvatar(contactId);
-        } else {
-            setContactImageUrl(null);
-        }
-    }, [order._id, order.rawOrder?.buyerInfo?.contactId]);
+        // Avatar functionality disabled to prevent 403 errors
+        // Can be re-enabled when proper CRM permissions are configured
+        setContactImageUrl(null);
+        setLoadingAvatar(false);
+    }, [order._id]);
 
     const handleContactPageNavigation = async () => {
         if (!email || email === 'No email provided') {
@@ -80,26 +63,15 @@ export const CustomerInfo: React.FC<CustomerInfoProps> = ({ order }) => {
         try {
             setIsNavigating(true);
 
-            const queryResult = await contacts.queryContacts()
-                .eq('primaryInfo.email', email)
-                .limit(1)
-                .find();
-
-            if (queryResult.items && queryResult.items.length > 0) {
-                const contactId = queryResult.items[0]._id;
-// Debug log removed
-
-
-                dashboard.navigate({
-                    pageId: "bdd09dca-7cc9-4524-81d7-c9336071b33e",
-                    relativeUrl: `/view/${contactId}`
-                },
-                );
-
-            }
+            // For now, navigate to the contacts list page instead of specific contact
+            // This avoids the need for backend API calls that cause 403 errors
+            dashboard.navigate({
+                pageId: "bdd09dca-7cc9-4524-81d7-c9336071b33e",
+                relativeUrl: `/`
+            });
 
         } catch (error) {
-            console.error('Failed to find contact or navigate:', error);
+            console.error('Failed to navigate to contacts:', error);
         } finally {
             setIsNavigating(false);
         }
@@ -115,7 +87,7 @@ export const CustomerInfo: React.FC<CustomerInfoProps> = ({ order }) => {
                     imgProps={contactImageUrl ? { src: contactImageUrl } : undefined}
                 />
 
-                <Tooltip content="View Contact">
+                <Tooltip content="View Contacts">
                     <TextButton
                         size="medium"
                         underline="onHover"
@@ -131,7 +103,7 @@ export const CustomerInfo: React.FC<CustomerInfoProps> = ({ order }) => {
                             maxWidth: '200px'
                         }}
                     >
-                        {isNavigating ? 'Opening contact...' : fullName}
+                        {isNavigating ? 'Opening contacts...' : fullName}
                     </TextButton>
                 </Tooltip>
             </Box>

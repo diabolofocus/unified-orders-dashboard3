@@ -203,7 +203,7 @@ class ProductionMonitor {
             return;
         }
 
-        console.log('🚀 Starting production monitoring...');
+        // Starting production monitoring
         
         healthChecks.forEach(({ name, check, interval }) => {
             // Run initial check
