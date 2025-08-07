@@ -1,7 +1,7 @@
 // components/OrdersTable/OrdersTableWithTabs.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Box, Tabs, Text, Table, TableToolbar, Heading, Tag, Button, Tooltip, Loader, Search, IconButton } from '@wix/design-system';
+import { Box, Tabs, Text, Table, TableToolbar, Heading, Tag, Tooltip, Loader, Search, IconButton } from '@wix/design-system';
 import type { Order } from '../../types/Order';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';

@@ -391,7 +391,8 @@ export const CompactAnalytics: React.FC = observer(() => {
         }
 
         const parsed = parseFloat(cleanPrice);
-        return isNaN(parsed) ? 0 : parsed;
+        // Ensure we never return NaN or negative values
+        return isNaN(parsed) ? 0 : Math.max(0, parsed);
     };
 
     const extractCurrency = (priceString: string): string => {
@@ -407,8 +408,13 @@ export const CompactAnalytics: React.FC = observer(() => {
     };
 
     const calculatePercentageChange = (current: number, previous: number): number => {
-        if (previous === 0) return current > 0 ? 100 : 0;
-        return Math.round(((current - previous) / previous) * 100);
+        // Ensure inputs are valid numbers
+        const safeCurrent = isNaN(current) ? 0 : Math.max(0, current);
+        const safePrevious = isNaN(previous) ? 0 : Math.max(0, previous);
+        
+        if (safePrevious === 0) return safeCurrent > 0 ? 100 : 0;
+        const change = ((safeCurrent - safePrevious) / safePrevious) * 100;
+        return isNaN(change) ? 0 : Math.round(change);
     };
 
     const getMetrics = () => {

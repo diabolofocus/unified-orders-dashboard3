@@ -2,6 +2,7 @@
 
 import type { OrdersResponse, FulfillOrderParams, FulfillmentResponse, Order, OrderStatus, PaymentStatus } from '../types/Order';
 import { settingsStore } from '../stores/SettingsStore';
+import { logProductionError, recordPerformanceMetrics } from '../utils/production-monitor';
 import {
     smartFulfillOrderElevated
 } from '../../backend/fulfillment-elevated.web';
@@ -42,6 +43,65 @@ export class OrderService {
     }
     private orderCache: { orders: Order[]; timestamp: number; hasMore: boolean; nextCursor: string } | null = null;
     private readonly CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for progressive loading
+
+    /**
+     * Check if an error is retriable (network, timeout, etc.) or permanent (auth, permissions, etc.)
+     */
+    private isRetriableError(error: any): boolean {
+        const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        const errorCode = error?.code || error?.status || 0;
+        
+        // Non-retriable errors (don't retry these)
+        const nonRetriablePatterns = [
+            'unauthorized',
+            'forbidden',
+            'permission denied',
+            'invalid credentials',
+            'authentication failed',
+            'not found', // 404 errors typically shouldn't be retried
+            'bad request', // 400 errors are usually permanent
+            'method not allowed', // 405 errors are permanent
+        ];
+        
+        // Non-retriable status codes
+        const nonRetriableCodes = [400, 401, 403, 404, 405, 409, 422];
+        
+        // Check for non-retriable patterns
+        if (nonRetriablePatterns.some(pattern => errorMessage.includes(pattern))) {
+            return false;
+        }
+        
+        // Check for non-retriable status codes
+        if (nonRetriableCodes.includes(errorCode)) {
+            return false;
+        }
+        
+        // Retriable errors (network issues, timeouts, server errors)
+        const retriablePatterns = [
+            'network error',
+            'timeout',
+            'failed to fetch',
+            'connection',
+            'cors',
+            'server error',
+            'internal server error',
+            'bad gateway',
+            'service unavailable',
+            'gateway timeout'
+        ];
+        
+        // Retriable status codes (5xx server errors, some 4xx)
+        const retriableCodes = [408, 429, 500, 501, 502, 503, 504, 507, 508, 510, 511];
+        
+        // Check for retriable patterns or codes
+        if (retriablePatterns.some(pattern => errorMessage.includes(pattern)) || 
+            retriableCodes.includes(errorCode)) {
+            return true;
+        }
+        
+        // Default to retriable for unknown errors (better safe than sorry in production)
+        return true;
+    }
 
     // ===== EXISTING METHODS (kept as-is) =====
 
@@ -152,15 +212,36 @@ export class OrderService {
                                 limit: Math.min(batchSize, initialLimit - totalFetched),
                                 cursor: cursor 
                             },
-                            { request: { method: 'POST' } } // Add context parameter
+                            { 
+                                request: { 
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    }
+                                } 
+                            }
                         );
                         success = true;
                     } catch (error) {
                         lastError = error;
-                        console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Attempt ${attempt} failed:`, error);
-                        if (attempt < maxRetries) {
-                            const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Attempt ${attempt} failed:`, errorMessage);
+                        
+                        // Check if error is retriable
+                        const isRetriableError = this.isRetriableError(error);
+                        
+                        if (attempt < maxRetries && isRetriableError) {
+                            // Enhanced exponential backoff with jitter for production
+                            const baseWaitTime = Math.pow(2, attempt) * 1000;
+                            const jitter = Math.random() * 1000; // Add randomness to prevent thundering herd
+                            const waitTime = baseWaitTime + jitter;
+                            
+                            console.log(`⏳ [${isProd ? 'PROD' : 'DEV'}] Retrying in ${Math.round(waitTime)}ms (attempt ${attempt + 1}/${maxRetries})`);
                             await new Promise(resolve => setTimeout(resolve, waitTime));
+                        } else if (!isRetriableError) {
+                            console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Non-retriable error, aborting:`, errorMessage);
+                            break;
                         }
                         attempt++;
                     }
@@ -246,15 +327,36 @@ export class OrderService {
                                 limit: Math.min(batchSize, limit - totalFetched),
                                 cursor: currentCursor 
                             },
-                            { request: { method: 'POST' } } // Add context parameter
+                            { 
+                                request: { 
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    }
+                                } 
+                            }
                         );
                         success = true;
                     } catch (error) {
                         lastError = error;
-                        console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Attempt ${attempt} failed:`, error);
-                        if (attempt < maxRetries) {
-                            const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Attempt ${attempt} failed:`, errorMessage);
+                        
+                        // Check if error is retriable
+                        const isRetriableError = this.isRetriableError(error);
+                        
+                        if (attempt < maxRetries && isRetriableError) {
+                            // Enhanced exponential backoff with jitter for production
+                            const baseWaitTime = Math.pow(2, attempt) * 1000;
+                            const jitter = Math.random() * 1000; // Add randomness to prevent thundering herd
+                            const waitTime = baseWaitTime + jitter;
+                            
+                            console.log(`⏳ [${isProd ? 'PROD' : 'DEV'}] Retrying in ${Math.round(waitTime)}ms (attempt ${attempt + 1}/${maxRetries})`);
                             await new Promise(resolve => setTimeout(resolve, waitTime));
+                        } else if (!isRetriableError) {
+                            console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Non-retriable error, aborting:`, errorMessage);
+                            break;
                         }
                         attempt++;
                     }
@@ -309,7 +411,15 @@ export class OrderService {
                 // Call testOrdersConnection with the required parameters
                 const result = await testOrdersConnection(
                     { limit, cursor },
-                    { request: { method: 'POST' } } // Add context parameter
+                    { 
+                        request: { 
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            }
+                        } 
+                    }
                 );
 
                 if (result.success) {
@@ -337,12 +447,27 @@ export class OrderService {
             } catch (error: any) {
                 lastError = error instanceof Error ? error.message : String(error);
                 console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Exception fetching orders:`, lastError);
+                
+                // Check if error is retriable
+                const isRetriableError = this.isRetriableError(error);
+                
+                // Only retry if not the last attempt and error is retriable
+                if (attempt < maxRetries && isRetriableError) {
+                    // Enhanced exponential backoff with jitter for production
+                    const baseWaitTime = Math.pow(2, attempt) * 1000;
+                    const jitter = Math.random() * 1000; // Add randomness to prevent thundering herd
+                    const waitTime = baseWaitTime + jitter;
+                    
+                    console.log(`⏳ [${isProd ? 'PROD' : 'DEV'}] Retrying in ${Math.round(waitTime)}ms (attempt ${attempt + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                } else if (!isRetriableError) {
+                    console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Non-retriable error, aborting:`, lastError);
+                    break;
+                }
             }
 
-            // Only retry if not the last attempt
-            if (attempt < maxRetries) {
-                const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+            if (attempt >= maxRetries) {
+                break;
             }
         }
 

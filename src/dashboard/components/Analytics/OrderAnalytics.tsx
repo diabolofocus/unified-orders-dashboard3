@@ -111,12 +111,14 @@ export const OrderAnalytics: React.FC = observer(() => {
         });
     };
 
-    // Helper to parse price string
+    // Helper to parse price string safely
     const parsePrice = (price: string): number => {
+        if (!price || typeof price !== 'string') return 0;
         const cleaned = price.replace(/[^0-9.,-]/g, '');
         const normalized = cleaned.replace(',', '.');
         const parsed = parseFloat(normalized);
-        return isNaN(parsed) ? 0 : parsed;
+        // Ensure we never return NaN or negative values
+        return isNaN(parsed) ? 0 : Math.max(0, parsed);
     };
 
     // Helper to extract currency symbol

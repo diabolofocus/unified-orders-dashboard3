@@ -44,10 +44,10 @@ import { ProductsApiService } from '../../services/ProductsApiService';
 
 const shimmer = keyframes`
   0% {
-    background-position: -1000px 0;
+    transform: translateX(-100%);
   }
   100% {
-    background-position: 1000px 0;
+    transform: translateX(calc(100vw + 100%));
   }
 `;
 
@@ -58,17 +58,31 @@ const ShimmerOverlay = styled.div<{ $visible: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.64) 50%,  /* Reduced from 0.8 to 0.64 (20% less pronounced) */
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 1000px 100%;
-  animation: ${shimmer} 1.8s infinite ease-in-out;
   pointer-events: none;
-  z-index: 10;
-  border-radius: 8px;
+  z-index: 5;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 120px; /* Skip the toolbar and filter tags area */
+    left: 0;
+    width: 200px;
+    bottom: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.2) 20%,
+      rgba(255, 255, 255, 0.4) 35%,
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 0.4) 65%,
+      rgba(255, 255, 255, 0.2) 80%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    animation: ${shimmer} 2.5s infinite ease-in-out;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
 `;
 
 const TableContainer = styled.div`

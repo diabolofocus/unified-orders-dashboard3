@@ -638,7 +638,7 @@ export const fulfillOrderInWix = webMethod(
   }
 );
 
-// CORS headers configuration
+// Legacy CORS headers configuration (replaced by enhanced headers in production)
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -648,13 +648,26 @@ const corsHeaders = {
 export const testOrdersConnection = webMethod(
   Permissions.Anyone,
   async ({ limit = 3, cursor = '' }: { limit?: number; cursor?: string } = {}, context) => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+    
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
     // Handle OPTIONS method for CORS preflight
-    if (context.request?.method === 'OPTIONS') {
-      // For Wix web methods, we'll handle CORS through the response headers
+    if (context?.request?.method === 'OPTIONS') {
       return {
         success: true,
-        headers: corsHeaders,
-        statusCode: 204
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
       };
     }
     const maxRetries = 3;
@@ -902,7 +915,7 @@ export const testOrdersConnection = webMethod(
           };
         }) || [];
 
-        // Return response with CORS headers in a format that Wix can handle
+        // Return response with enhanced CORS headers
         return {
           success: true,
           method: '@wix/ecom',
@@ -914,8 +927,8 @@ export const testOrdersConnection = webMethod(
             prevCursor: result.metadata?.cursors?.prev || ''
           },
           message: `Successfully parsed ${parsedOrders.length} orders from your store with enhanced fulfillment details! (Limit: ${limit})`,
-          // Include CORS headers in the response
-          headers: corsHeaders
+          // Include enhanced CORS headers in the response
+          headers: enhancedCorsHeaders
         };
 
       } catch (currentError: unknown) {
@@ -934,7 +947,7 @@ export const testOrdersConnection = webMethod(
 
     const finalErrorMsg = lastError instanceof Error ? lastError.message : String(lastError);
 
-    // Return error response with CORS headers in a format that Wix can handle
+    // Return error response with enhanced CORS headers
     return {
       success: false,
       error: 'eCommerce API not accessible',
@@ -947,8 +960,8 @@ export const testOrdersConnection = webMethod(
         prevCursor: ''
       },
       message: `Could not access @wix/ecom orders API after ${maxRetries} attempts. Check permissions and app setup. Last error: ${finalErrorMsg}`,
-      // Include CORS headers in the response
-      headers: corsHeaders
+      // Include enhanced CORS headers in the response
+      headers: enhancedCorsHeaders
     };
   }
 );
