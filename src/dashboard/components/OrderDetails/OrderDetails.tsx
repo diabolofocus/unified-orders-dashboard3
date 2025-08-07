@@ -113,7 +113,7 @@ export const OrderDetails: React.FC = observer(() => {
                 selectedOrder.customer?.email ||
                 selectedOrder.buyerInfo?.email;
 
-            console.log('🔍 Looking for customer orders with email:', customerEmail);
+// Debug log removed
 
             if (!customerEmail) {
                 console.warn('No customer email found');
@@ -125,7 +125,7 @@ export const OrderDetails: React.FC = observer(() => {
                 // Use proper Wix ecom API filtering with correct types
                 const { orders } = await import('@wix/ecom');
 
-                console.log('🚀 Using Wix API with proper email filter...');
+// Debug log removed
 
                 const searchOptions = {
                     filter: {
@@ -142,7 +142,7 @@ export const OrderDetails: React.FC = observer(() => {
 
                 const result = await orders.searchOrders(searchOptions);
 
-                console.log('📊 Total orders found for email:', result.orders?.length || 0);
+// Debug log removed
 
                 if (result.orders && result.orders.length > 0) {
                     // Include ALL orders (including the current one) and sort by date
@@ -161,13 +161,13 @@ export const OrderDetails: React.FC = observer(() => {
                             const dateB = b._createdDate ? new Date(b._createdDate).getTime() : 0;
                             return dateB - dateA; // Sort by newest first
                         });
-                    console.log('🎯 Found', allOrders.length, 'total orders for this customer');
+// Debug log removed
                     console.log('📋 Orders:', allOrders.map(o => `#${o.number} (${o.total})`));
 
                     setCustomerOrders(allOrders);
 
                 } else {
-                    console.log('✅ This customer has no other orders');
+// Debug log removed
                     setCustomerOrders([]);
                 }
 
@@ -175,7 +175,7 @@ export const OrderDetails: React.FC = observer(() => {
                 console.error('❌ Wix API failed:', apiError);
 
                 // If the filter doesn't work, try without the filter and manual filtering
-                console.log('🔄 Trying fallback: get all orders and filter manually...');
+// Debug log removed
                 try {
                     const { orders } = await import('@wix/ecom');
 
@@ -206,7 +206,7 @@ export const OrderDetails: React.FC = observer(() => {
                             }))
                             .slice(0, 10);
 
-                        console.log('🎯 Fallback found', filteredOrders.length, 'matching orders');
+// Debug log removed
                         setCustomerOrders(filteredOrders);
                     } else {
                         setCustomerOrders([]);

@@ -54,7 +54,7 @@ export const getSiteIdFromContext = (): string | null => {
             wixGlobals.SITE_ID ||
             wixGlobals.META_SITE_ID;
         if (globalSiteId) {
-            console.log('🔑 Site ID found in global variables:', globalSiteId);
+// Debug log removed
             return globalSiteId;
         }
     }

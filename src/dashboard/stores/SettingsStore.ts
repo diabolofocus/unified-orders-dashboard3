@@ -381,7 +381,7 @@ export class SettingsStore {
 
   async fetchOrderSettings() {
     try {
-      console.log('Fetching current order settings...');
+// Debug log removed
 
       // Try different approaches to get the settings
       let actualSettings;
@@ -389,16 +389,16 @@ export class SettingsStore {
       try {
         // Method 1: Direct call
         const response = await ordersSettings.getOrdersSettings() as any;
-        console.log('Direct API response:', response);
+// Debug log removed
         actualSettings = response;
       } catch (directError) {
-        console.log('Direct call failed:', directError);
+// Debug log removed
 
         try {
           // Method 2: Check if it's a different API structure
           const ecomModule = await import('@wix/ecom');
           const response = await ecomModule.ordersSettings.getOrdersSettings() as any;
-          console.log('Module import response:', response);
+// Debug log removed
           actualSettings = response;
         } catch (moduleError) {
           console.error('Module import also failed:', moduleError);
@@ -406,7 +406,7 @@ export class SettingsStore {
         }
       }
 
-      console.log('Final settings data:', actualSettings);
+// Debug log removed
 
       // Extract the settings
       const settings = actualSettings?.ordersSettings || actualSettings;

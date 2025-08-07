@@ -228,7 +228,7 @@ export class OrderStore {
         const customerEmail = this.getCustomerEmail(order);
         if (customerEmail) {
             this.invalidateCustomerCache(customerEmail);
-            console.log(`🔄 New order detected, will recalculate badges for ${customerEmail}`);
+// Debug log removed
         }
     }
 
@@ -821,7 +821,7 @@ export class OrderStore {
  * Pre-calculate order counts for visible customers (batch processing)
  */
     async preCalculateCustomerCounts(customerEmails: string[]): Promise<void> {
-        console.log(`🚀 Pre-calculating order counts for ${customerEmails.length} customers...`);
+// Debug log removed
 
         // Process customers one by one with delays to avoid API rate limits
         for (let i = 0; i < customerEmails.length; i++) {
@@ -839,7 +839,7 @@ export class OrderStore {
             }
         }
 
-        console.log(`✅ Finished pre-calculating order counts`);
+// Debug log removed
     }
 
     /**
@@ -1055,7 +1055,7 @@ export class OrderStore {
     }
 
     selectMultipleOrders(orderIds: string[]) {
-        console.log('Bulk selection not implemented yet:', orderIds);
+// Debug log removed
     }
 
     bulkUpdateStatus(orderIds: string[], status: OrderStatus) {

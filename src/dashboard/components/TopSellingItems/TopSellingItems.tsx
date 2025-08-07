@@ -218,7 +218,7 @@ const TopSellingItems: React.FC = observer(() => {
                     }
                 }
 
-                console.log(`Processing ${allOrders.length} approved paid orders from ${orderStore.selectedAnalyticsPeriod}`);
+// Debug log removed
 
                 // Enhanced object to track quantities, orders, and revenue by product name
                 const productData: {

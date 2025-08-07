@@ -939,7 +939,7 @@ export const testOrdersConnection = webMethod(
 
         if (attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000;
-          console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+// Debug log removed
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       }

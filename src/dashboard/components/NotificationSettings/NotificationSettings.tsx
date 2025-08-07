@@ -35,13 +35,13 @@ const NotificationSettings: React.FC = observer(() => {
     const handleTestSound = useCallback(async () => {
         if (isTestingSound) return;
 
-        console.log('[NotificationSettings] Testing sound...');
+// Debug log removed
         setIsTestingSound(true);
 
         try {
             // Test the notification sound
             await testNotifications();
-            console.log('[NotificationSettings] Test sound played successfully');
+// Debug log removed
             dashboard.showToast({
                 message: ' played successfully',
                 type: 'success'
@@ -59,12 +59,12 @@ const NotificationSettings: React.FC = observer(() => {
     }, [isTestingSound, testNotifications]);
 
     const handleAutomaticDetectionChange = useCallback(async (checked: boolean) => {
-        console.log(`[NotificationSettings] Automatic detection toggled: ${checked}`);
+// Debug log removed
         settingsStore.setAutomaticDetection(checked);
 
         // If enabling automatic detection, also enable sound alerts by default
         if (checked && !settingsStore.soundAlert) {
-            console.log('[NotificationSettings] Enabling sound alerts by default');
+// Debug log removed
             settingsStore.setSoundAlert(true);
 
             // Play a test sound to ensure audio is working
@@ -86,7 +86,7 @@ const NotificationSettings: React.FC = observer(() => {
     }, [testNotifications]);
 
     const handleSoundAlertChange = useCallback(async (checked: boolean) => {
-        console.log(`[NotificationSettings] Sound alert toggled: ${checked}`);
+// Debug log removed
 
         // Don't allow enabling sound alerts if automatic detection is disabled
         if (checked && !settingsStore.automaticDetection) {
@@ -103,7 +103,7 @@ const NotificationSettings: React.FC = observer(() => {
         // If enabling sound alert, initialize audio and play a test sound
         if (checked) {
             try {
-                console.log('[NotificationSettings] Playing test sound after enabling sound alert');
+// Debug log removed
                 await testNotifications();
                 dashboard.showToast({
                     message: 'Sound alerts enabled',

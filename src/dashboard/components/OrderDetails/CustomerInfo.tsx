@@ -87,7 +87,7 @@ export const CustomerInfo: React.FC<CustomerInfoProps> = ({ order }) => {
 
             if (queryResult.items && queryResult.items.length > 0) {
                 const contactId = queryResult.items[0]._id;
-                console.log(`Found contact ID: ${contactId}`);
+// Debug log removed
 
 
                 dashboard.navigate({

@@ -924,7 +924,7 @@ export class OrderController {
      */
     async selectOrderById(orderId: string): Promise<void> {
         try {
-            console.log('🔄 Refreshing order data for:', orderId);
+// Debug log removed
 
             // Clear any existing selection first to prevent stuck state
             this.orderStore.selectOrder(null);

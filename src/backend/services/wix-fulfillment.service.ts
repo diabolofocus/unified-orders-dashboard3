@@ -102,7 +102,7 @@ export class WixFulfillmentService {
                 fulfillmentId: result.fulfillmentId
             };
 
-            console.log(`🎉 WixFulfillmentService.createFulfillment returning:`, returnValue);
+// Debug log removed
             return returnValue;
 
         } catch (error) {
@@ -119,7 +119,7 @@ export class WixFulfillmentService {
                 method: 'createFulfillment'
             };
 
-            console.log(`💥 WixFulfillmentService.createFulfillment returning error:`, returnValue);
+// Debug log removed
             return returnValue;
         }
     }

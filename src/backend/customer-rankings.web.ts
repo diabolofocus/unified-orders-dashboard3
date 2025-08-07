@@ -31,15 +31,15 @@ export const getCustomerRankings = webMethod(
     const startTime = Date.now();
 
     try {
-      console.log('Customer rankings webMethod called');
+// Debug log removed
 
       // The response will be automatically cached by Wix with the cache options below
-      console.log('Calculating fresh customer rankings...');
+// Debug log removed
 
       const result = await calculateCustomerRankings();
 
       const processingTime = Date.now() - startTime;
-      console.log(`Customer rankings calculated: ${result.rankings.length} customers, ${result.totalOrders} orders, ${processingTime}ms`);
+// Debug log removed
 
       return {
         ...result,
@@ -97,7 +97,7 @@ async function calculateCustomerRankings(): Promise<{
 
   while (hasMore && pageCount < MAX_PAGES) {
     try {
-      console.log(`Loading orders chunk ${pageCount + 1}${cursor ? ` (cursors: ${cursor.substring(0, 20)}...)` : ''}`);
+      // Loading orders chunk ${pageCount + 1}
 
       const elevatedSearchOrders = auth.elevate(orders.searchOrders);
 
@@ -116,7 +116,7 @@ async function calculateCustomerRankings(): Promise<{
         // Process orders immediately instead of storing all in memory
         processOrdersChunk(response.orders, customerSpending, customerOrderCounts);
 
-        console.log(`Processed ${response.orders.length} orders (running total: ${allOrders.length + response.orders.length})`);
+        // Processed orders chunk
 
         // Keep track of total for reporting
         allOrders.length += response.orders.length;
@@ -138,7 +138,7 @@ async function calculateCustomerRankings(): Promise<{
     }
   }
 
-  console.log(`Loaded and processed ${allOrders.length} total orders from ${pageCount} chunks`);
+// Debug log removed
 
   // Sort customers by total spending (highest first)
   const sortedCustomers = Array.from(customerSpending.entries())
@@ -227,7 +227,7 @@ export const invalidateCustomerRankingsCache = webMethod(
       // Invalidate the customer rankings cache
       await cache.invalidateCache([{ tag: CACHE_TAG }]);
 
-      console.log('Customer rankings cache invalidated successfully');
+// Debug log removed
 
       return {
         success: true,

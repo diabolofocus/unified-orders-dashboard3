@@ -139,7 +139,7 @@ export const CompactAnalytics: React.FC = observer(() => {
 
                 // For Today/Yesterday periods, if API returns zeros, fall back to local calculation
                 if ((period === 'today' || period === 'yesterday') && totalSales === 0 && totalOrders === 0) {
-                    console.log(`[loadAnalyticsFromAPI] API returned zeros for ${period}, falling back to local calculation`);
+                    // API returned zeros, falling back to local calculation
 
                     // Calculate from local orders for the specific period
                     const selectedPeriodOrders = orderStore.getOrdersForSelectedPeriod();
@@ -150,12 +150,12 @@ export const CompactAnalytics: React.FC = observer(() => {
                     totalOrders = currentMetrics.totalOrders;
                     averageOrderValue = currentMetrics.averageOrderValue;
 
-                    console.log(`[loadAnalyticsFromAPI] Local calculation for ${period}: sales=${totalSales}, orders=${totalOrders}, aov=${averageOrderValue}`);
+                    // Local calculation completed
                 }
 
                 // If unique visitors is still 0 for Today/Yesterday, try to get recent visitor data
                 if ((period === 'today' || period === 'yesterday') && totalUniqueVisitors === 0 && todayUniqueVisitors === 0 && yesterdayUniqueVisitors === 0) {
-                    console.log(`[loadAnalyticsFromAPI] No visitor data for ${period}, attempting to get recent visitor data`);
+// Debug log removed
 
                     try {
                         // Try to get visitor data from last 7 days as a fallback
@@ -164,7 +164,7 @@ export const CompactAnalytics: React.FC = observer(() => {
                             const recentData = recentVisitorResult.data as AnalyticsData;
                             todayUniqueVisitors = recentData.todayUniqueVisitors || 0;
                             yesterdayUniqueVisitors = recentData.yesterdayUniqueVisitors || 0;
-                            console.log(`[loadAnalyticsFromAPI] Got recent visitor data: today=${todayUniqueVisitors}, yesterday=${yesterdayUniqueVisitors}`);
+// Debug log removed
                         }
                     } catch (visitorError) {
                         console.warn(`[loadAnalyticsFromAPI] Failed to get recent visitor data:`, visitorError);
@@ -234,7 +234,7 @@ export const CompactAnalytics: React.FC = observer(() => {
                     period
                 });
 
-                console.log('[loadAnalyticsFromAPI] Successfully updated analytics data');
+// Debug log removed
                 return { success: true };
             } else {
                 const errorMsg = result.error || 'Failed to load analytics data';
@@ -596,7 +596,7 @@ export const CompactAnalytics: React.FC = observer(() => {
     };
 
     const handlePeriodChange = (selectedOption: any) => {
-        console.log('Period changed to:', selectedOption.id);
+// Debug log removed
 
         if (orderStore.connectionStatus === 'connected') {
             loadAnalyticsForPeriod(selectedOption.id as TimePeriod);

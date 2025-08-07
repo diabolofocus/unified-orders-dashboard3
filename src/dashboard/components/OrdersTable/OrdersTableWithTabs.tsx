@@ -179,14 +179,14 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Function to handle order tag clicks
     const handleOrderTagClick = async (orderId: string) => {
         try {
-            console.log('🔍 Order tag clicked, fetching order:', orderId);
+// Debug log removed
 
             // Find the order in the current store first
             let orderToSelect = orderStore.orders.find(order => order._id === orderId);
 
             if (!orderToSelect) {
                 // If not found in store, fetch it from the API
-                console.log('📡 Order not found in store, fetching from API...');
+// Debug log removed
 
                 const { orders: ordersApi } = await import('@wix/ecom');
                 const response = await ordersApi.getOrder(orderId);
@@ -243,7 +243,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
                     // Add it to the store
                     orderStore.addOrder(orderToSelect);
-                    console.log('✅ Order fetched and added to store');
+// Debug log removed
                 } else {
                     throw new Error('Order not found');
                 }
@@ -276,7 +276,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         fulfillmentCache.clear();
 
         try {
-            console.log('🔍 Fetching ALL unfulfilled and partially fulfilled orders from API...');
+// Debug log removed
 
             // Make a direct API call to get ALL unfulfilled and partially fulfilled orders
             const { orders } = await import('@wix/ecom');
@@ -309,7 +309,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         const fetchedOrders = response.orders || [];
                         allOrders.push(...fetchedOrders);
 
-                        console.log(`📦 Fetched ${fetchedOrders.length} orders with status ${fulfillmentStatus}, total so far: ${allOrders.length}`);
+// Debug log removed
 
                         // Check if there are more pages
                         hasMore = response.metadata?.hasNext || false;
@@ -330,10 +330,10 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 return allOrders;
             };
 
-            console.log('🔍 Fetching unfulfilled orders...');
+// Debug log removed
             const unfulfilledOrdersFromApi = await fetchAllOrdersWithStatus("NOT_FULFILLED");
 
-            console.log('🔍 Fetching partially fulfilled orders...');
+// Debug log removed
             const partiallyFulfilledOrdersFromApi = await fetchAllOrdersWithStatus("PARTIALLY_FULFILLED");
 
             // Combine and deduplicate orders
@@ -476,13 +476,13 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
             console.error('❌ Error in getPreparationItems:', error);
 
             // Fallback to using local orders if API call fails
-            console.log('🔄 Falling back to local orders...');
+// Debug log removed
             try {
                 const localUnfulfilledOrders = orderStore.orders.filter(order => {
                     return order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED';
                 });
 
-                console.log(`📦 Fallback: Found ${localUnfulfilledOrders.length} unfulfilled orders from local store`);
+// Debug log removed
 
                 // Process local orders the same way but without the async fulfillment checks
                 const productMap = new Map<string, PreparationItem>();
@@ -643,7 +643,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Function to download packing list as PDF
     const handleDownloadPackingList = async () => {
         try {
-            console.log('Generating packing list PDF...');
+// Debug log removed
 
             // Helper function to convert Wix image URLs to accessible URLs
             const convertWixImageUrl = (imageUrl: string): string => {
@@ -690,15 +690,15 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
             const convertImageToBase64 = async (imageUrl: string): Promise<string> => {
                 try {
                     if (!imageUrl || imageUrl.trim() === '') {
-                        console.log('No image URL provided');
+// Debug log removed
                         return '';
                     }
 
-                    console.log('Original image URL:', imageUrl);
+// Debug log removed
 
                     // Convert Wix image URL to accessible format
                     const accessibleUrl = convertWixImageUrl(imageUrl);
-                    console.log('Converted image URL:', accessibleUrl);
+// Debug log removed
 
                     // Try multiple fallback URLs
                     const urlsToTry = [
@@ -715,7 +715,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
                     for (const urlToTry of urlsToTry) {
                         try {
-                            console.log('Trying URL:', urlToTry);
+// Debug log removed
 
                             const response = await fetch(urlToTry as string, {
                                 mode: 'cors',
@@ -730,7 +730,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                             }
 
                             const blob = await response.blob();
-                            console.log('Image blob size:', blob.size, 'bytes');
+// Debug log removed
 
                             if (blob.size === 0) {
                                 console.warn('Empty blob received');
@@ -741,7 +741,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                                 const reader = new FileReader();
                                 reader.onload = () => {
                                     const result = reader.result as string;
-                                    console.log('Base64 conversion successful, length:', result.length);
+// Debug log removed
                                     resolve(result);
                                 };
                                 reader.onerror = () => reject(new Error('Failed to convert image to base64'));
@@ -767,9 +767,9 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
                     if (item.rawImageUrl) {
                         try {
-                            console.log(`Converting image for ${item.productName}: ${item.rawImageUrl}`);
+// Debug log removed
                             base64Image = await convertImageToBase64(item.rawImageUrl);
-                            console.log(`Image conversion ${base64Image ? 'successful' : 'failed'} for ${item.productName}`);
+// Debug log removed
                         } catch (error) {
                             console.error(`Failed to convert image for ${item.productName}:`, error);
                         }
@@ -938,14 +938,14 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 // Clean up
                 document.body.removeChild(pageElement);
 
-                console.log(`Generated PDF page ${page}/${totalPages}`);
+// Debug log removed
             }
 
             // Download the PDF
             const fileName = `packing-list-${new Date().toISOString().split('T')[0]}.pdf`;
             pdf.save(fileName);
 
-            console.log('Packing list PDF generated successfully');
+// Debug log removed
 
         } catch (error) {
             console.error('Failed to generate packing list PDF:', error);
@@ -956,7 +956,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Function to print packing list
     const handlePrintPackingList = async () => {
         try {
-            console.log('Printing packing list...');
+// Debug log removed
 
             // Helper function to convert Wix image URLs to accessible URLs
             const convertWixImageUrl = (imageUrl: string): string => {
@@ -1180,7 +1180,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 }, 1000);
             }, 500);
 
-            console.log('Print dialog opened successfully');
+// Debug log removed
 
         } catch (error) {
             console.error('Failed to print packing list:', error);

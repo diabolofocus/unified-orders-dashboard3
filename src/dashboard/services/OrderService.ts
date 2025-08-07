@@ -204,7 +204,10 @@ export class OrderService {
                 // Retry logic for each batch
                 while (attempt <= maxRetries && !success) {
                     try {
-                        console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders chunk (attempt ${attempt}/${maxRetries})`);
+                        // Only log in development or first attempt in production
+                        if (!isProd || attempt === 1) {
+                            console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders chunk (attempt ${attempt}/${maxRetries})`);
+                        }
                         
                         // Call testOrdersConnection with the required parameters
                         result = await testOrdersConnection(
@@ -237,7 +240,10 @@ export class OrderService {
                             const jitter = Math.random() * 1000; // Add randomness to prevent thundering herd
                             const waitTime = baseWaitTime + jitter;
                             
-                            console.log(`⏳ [${isProd ? 'PROD' : 'DEV'}] Retrying in ${Math.round(waitTime)}ms (attempt ${attempt + 1}/${maxRetries})`);
+                            // Only log retries in development
+                            if (!isProd) {
+                                console.log(`⏳ [${isProd ? 'PROD' : 'DEV'}] Retrying in ${Math.round(waitTime)}ms (attempt ${attempt + 1}/${maxRetries})`);
+                            }
                             await new Promise(resolve => setTimeout(resolve, waitTime));
                         } else if (!isRetriableError) {
                             console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Non-retriable error, aborting:`, errorMessage);
@@ -319,7 +325,10 @@ export class OrderService {
                 // Retry logic for each batch
                 while (attempt <= maxRetries && !success) {
                     try {
-                        console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching more orders (attempt ${attempt}/${maxRetries})`);
+                        // Only log in development or first attempt in production
+                        if (!isProd || attempt === 1) {
+                            console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching more orders (attempt ${attempt}/${maxRetries})`);
+                        }
                         
                         // Call testOrdersConnection with the required parameters
                         result = await testOrdersConnection(
@@ -352,7 +361,10 @@ export class OrderService {
                             const jitter = Math.random() * 1000; // Add randomness to prevent thundering herd
                             const waitTime = baseWaitTime + jitter;
                             
-                            console.log(`⏳ [${isProd ? 'PROD' : 'DEV'}] Retrying in ${Math.round(waitTime)}ms (attempt ${attempt + 1}/${maxRetries})`);
+                            // Only log retries in development
+                            if (!isProd) {
+                                console.log(`⏳ [${isProd ? 'PROD' : 'DEV'}] Retrying in ${Math.round(waitTime)}ms (attempt ${attempt + 1}/${maxRetries})`);
+                            }
                             await new Promise(resolve => setTimeout(resolve, waitTime));
                         } else if (!isRetriableError) {
                             console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Non-retriable error, aborting:`, errorMessage);
@@ -406,7 +418,10 @@ export class OrderService {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders (attempt ${attempt}/${maxRetries})`);
+                // Only log in development or first attempt in production
+                if (!isProd || attempt === 1) {
+                    console.log(`🚀 [${isProd ? 'PROD' : 'DEV'}] Fetching orders (attempt ${attempt}/${maxRetries})`);
+                }
                 
                 // Call testOrdersConnection with the required parameters
                 const result = await testOrdersConnection(
@@ -423,7 +438,10 @@ export class OrderService {
                 );
 
                 if (result.success) {
-                    console.log(`✅ [${isProd ? 'PROD' : 'DEV'}] Successfully fetched ${result.orders?.length || 0} orders`);
+                    // Only log success in development
+                    if (!isProd) {
+// Debug log removed
+                    }
                     
                     // Transform the orders using the mapping function
                     const transformedOrders = result.orders?.map(this.transformOrderFromBackend) || [];
@@ -518,18 +536,21 @@ export class OrderService {
     async fulfillOrder(params: ExtendedFulfillOrderParams): Promise<FulfillmentResponse> {
         const isProd = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
 
-        console.log('🚀 OrderService.fulfillOrder called with params:', {
-            orderId: params.orderId,
-            orderNumber: params.orderNumber,
-            trackingNumber: params.trackingNumber,
-            carrier: params.shippingProvider,
-            hasSelectedItems: !!(params.selectedItems?.length || params.lineItems?.length),
-            selectedItemsCount: (params.selectedItems?.length || params.lineItems?.length || 0),
-            editMode: params.editMode,
-            sendShippingEmail: params.sendShippingEmail,
-            trackingUrl: params.trackingUrl,
-            customCarrierName: params.customCarrierName
-        });
+        // Debug logging only in development
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('🚀 OrderService.fulfillOrder called with params:', {
+                orderId: params.orderId,
+                orderNumber: params.orderNumber,
+                trackingNumber: params.trackingNumber,
+                carrier: params.shippingProvider,
+                hasSelectedItems: !!(params.selectedItems?.length || params.lineItems?.length),
+                selectedItemsCount: (params.selectedItems?.length || params.lineItems?.length || 0),
+                editMode: params.editMode,
+                sendShippingEmail: params.sendShippingEmail,
+                trackingUrl: params.trackingUrl,
+                customCarrierName: params.customCarrierName
+            });
+        }
 
         try {
             const startTime = Date.now();
@@ -537,7 +558,7 @@ export class OrderService {
             const selectedItems = params.selectedItems || params.lineItems || [];
 
             if (selectedItems.length > 0) {
-                console.log('📦 Using per-item fulfillment method');
+                // Per-item fulfillment method selected
 
                 let trackingUrl = params.trackingUrl || '';
                 if (!trackingUrl && params.shippingProvider === 'other') {
@@ -560,7 +581,10 @@ export class OrderService {
                 });
 
                 const duration = Date.now() - startTime;
-                console.log(`✅ Per-item fulfillment completed in ${duration}ms:`, result);
+                // Log only in development
+                if (process.env.NODE_ENV !== 'production') {
+// Debug log removed
+                }
 
                 if (result.success) {
                     return {
@@ -579,7 +603,7 @@ export class OrderService {
                     throw new Error(result.error || 'Per-item fulfillment failed');
                 }
             } else {
-                console.log('📦 Using traditional full order fulfillment method');
+                // Traditional full order fulfillment method selected
 
                 let trackingUrl = params.trackingUrl || '';
                 const customCarrierName = params.customCarrierName;
@@ -596,7 +620,10 @@ export class OrderService {
                 });
 
                 const duration = Date.now() - startTime;
-                console.log(`✅ Traditional fulfillment completed in ${duration}ms:`, result);
+                // Log only in development
+                if (process.env.NODE_ENV !== 'production') {
+// Debug log removed
+                }
 
                 // Transform the response to match expected format - SAFER VERSION
                 if (result.success) {
@@ -734,7 +761,7 @@ export class OrderService {
         orderDetails?: any;
         error?: string;
     }> {
-        console.log('📋 OrderService.getOrderFulfillmentDetails called');
+// Debug log removed
 
         try {
             const result = await getOrderFulfillmentDetails({
@@ -762,7 +789,7 @@ export class OrderService {
         canProceed?: boolean;
         error?: string;
     }> {
-        console.log('✅ OrderService.validateItemsForFulfillment called');
+// Debug log removed
 
         try {
             const result = await validateItemsForFulfillment({

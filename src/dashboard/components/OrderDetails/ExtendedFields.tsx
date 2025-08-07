@@ -132,7 +132,7 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
             {hasArrayCustomFields && (
                 <Box gap="8px" direction="vertical">
                     {customFields.map((field: any, index: number) => {
-                        console.log(`📋 Processing array field ${index}:`, field);
+// Debug log removed
 
                         const fieldTitle = field.translatedTitle || field.title || `Field ${index + 1}`;
 

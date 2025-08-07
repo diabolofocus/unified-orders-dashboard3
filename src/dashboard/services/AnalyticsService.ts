@@ -120,14 +120,12 @@ export class AnalyticsService {
             detailedUniqueVisitors?: Array<{ date?: string; value?: number }>;
         } = {}
     ) {
-        console.log('Raw currentData in formatAnalyticsWithComparison:', currentData);
-        console.log('Raw previousData in formatAnalyticsWithComparison:', previousData);
+        // Debug logging removed for production
 
         const current = this.transformAnalyticsData(currentData);
         const previous = this.transformAnalyticsData(previousData);
 
-        console.log('Transformed current data:', current);
-        console.log('Transformed previous data:', previous);
+        // Data transformation completed
 
         const calculateChange = (currentVal: number, previousVal: number): number => {
             if (previousVal === 0) return currentVal > 0 ? 100 : 0;

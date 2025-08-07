@@ -205,7 +205,7 @@ export default function SupportPage() {
 
           // Try to get app instance data with proper type assertions
           try {
-            console.log('🔍 Attempting to get app instance data...');
+// Debug log removed
             const appInstanceResponse = await appInstances.getAppInstance() as ExtendedAppInstanceResponse;
             console.log('📦 Full app instance response:', JSON.stringify(appInstanceResponse, null, 2));
 
@@ -216,7 +216,7 @@ export default function SupportPage() {
             let siteUrl = null;
 
             if (appInstanceResponse) {
-              console.log('🔍 Exploring response structure...');
+// Debug log removed
               console.log('Response keys:', Object.keys(appInstanceResponse));
 
               // Get instance and site data separately (they're siblings in the response)
@@ -225,12 +225,12 @@ export default function SupportPage() {
 
               if (instance) {
                 console.log('📋 Instance keys:', Object.keys(instance));
-                console.log('📋 Instance data:', instance);
+// Debug log removed
               }
 
               if (siteInfo) {
                 console.log('🏠 Site info keys:', Object.keys(siteInfo));
-                console.log('🏠 Site info data:', siteInfo);
+// Debug log removed
               }
 
               // Extract data from both instance and site
@@ -258,15 +258,15 @@ export default function SupportPage() {
                 // Get site URL - this should be directly available
                 siteUrl = siteInfo.url;
 
-                console.log('🔍 Found in siteInfo:');
-                console.log('  📧 Email:', email);
-                console.log('  🆔 Site ID:', siteId);
-                console.log('  🏷️ Site Name:', siteName);
-                console.log('  🌐 Site URL:', siteUrl);
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
 
                 // If ownerInfo exists, log its structure
                 if (siteInfo.ownerInfo) {
-                  console.log('👤 Owner info structure:', siteInfo.ownerInfo);
+// Debug log removed
                   console.log('👤 Owner info keys:', Object.keys(siteInfo.ownerInfo));
                 }
               }
@@ -284,19 +284,19 @@ export default function SupportPage() {
                   instanceId: instanceId || prev.instanceId,
                   siteUrl: siteUrl || prev.siteUrl
                 }));
-                console.log('✅ User info updated with found data');
-                console.log('  📧 Email:', email);
-                console.log('  🆔 Site ID:', siteId);
-                console.log('  🏷️ Site Name:', siteName);
-                console.log('  📱 App Name:', appName);
-                console.log('  🔢 App Version:', appVersion);
-                console.log('  💰 Is Free:', isFree);
-                console.log('  🌐 Site URL:', siteUrl);
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
               } else {
-                console.log('⚠️ No data found. Possible reasons:');
-                console.log('  - Missing READ SITE OWNER EMAIL permission');
-                console.log('  - Different API structure than expected');
-                console.log('  - App not properly authenticated');
+// Debug log removed
+// Debug log removed
+// Debug log removed
+// Debug log removed
               }
             }
           } catch (error) {
@@ -369,7 +369,7 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
 
   // Debug: Log user info when it changes
   useEffect(() => {
-    console.log('Current userInfo state:', userInfo);
+// Debug log removed
   }, [userInfo]);
 
   const handleBackToOrders = () => {
@@ -402,7 +402,7 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         timestamp: new Date().toISOString()
       };
 
-      console.log('🐛 Submitting bug report:', submissionData.title);
+// Debug log removed
 
       const response = await fetch('https://www.karpo.studio/_functions/supportSubmission', {
         method: 'POST',
@@ -412,11 +412,11 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         body: JSON.stringify(submissionData)
       });
 
-      console.log('📡 Response status:', response.status);
+// Debug log removed
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Success:', result);
+// Debug log removed
 
         setBugReport({ title: '', description: '', userEmail: '', userName: '' });
         setIsSubmitted(prev => ({ ...prev, bug: true }));
@@ -470,7 +470,7 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         timestamp: new Date().toISOString()
       };
 
-      console.log('💡 Submitting feature request:', submissionData.title);
+// Debug log removed
 
       const response = await fetch('https://www.karpo.studio/_functions/supportSubmission', {
         method: 'POST',
@@ -480,11 +480,11 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         body: JSON.stringify(submissionData)
       });
 
-      console.log('📡 Response status:', response.status);
+// Debug log removed
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Success:', result);
+// Debug log removed
 
         setFeatureRequest({ title: '', description: '', userEmail: '', userName: '' });
         setIsSubmitted(prev => ({ ...prev, feature: true }));
@@ -544,7 +544,7 @@ Cookies: ${systemInfo.cookieEnabled ? 'Enabled' : 'Disabled'}
 Referrer: ${systemInfo.referrer}`;
 
       setSystemInfoText(sysInfoTemplate);
-      console.log('✅ System info template updated');
+// Debug log removed
     }
   };
 
@@ -953,7 +953,7 @@ Please describe your feature request in detail here...`
                               boxSizing: 'border-box'
                             }}
                             onClick={() => {
-                              console.log('FAQ clicked:', index, 'Current expanded:', expandedFaq);
+// Debug log removed
                               setExpandedFaq(expandedFaq === index ? null : index);
                             }}
                             onMouseEnter={(e) => {

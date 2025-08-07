@@ -35,7 +35,7 @@ export const useFieldDefinitions = (): UseFieldDefinitionsResult => {
         // Check cache first
         const now = Date.now();
         if (cachedDefinitions && cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {
-            console.log('📋 Using cached field definitions');
+// Debug log removed
             setFieldDefinitions(cachedDefinitions);
             return;
         }
@@ -44,7 +44,7 @@ export const useFieldDefinitions = (): UseFieldDefinitionsResult => {
         setError(null);
 
         try {
-            console.log('📋 Fetching field definitions from backend...');
+// Debug log removed
             const result = await getCustomFieldDefinitions();
 
             if (result.success) {

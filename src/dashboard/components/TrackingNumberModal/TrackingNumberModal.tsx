@@ -906,7 +906,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
 
         // NEW: Handle specific tracking number selection
         if (updateMode && selectedTrackingNumber) {
-            console.log('Submitting for SPECIFIC tracking number:', selectedTrackingNumber);
+// Debug log removed
 
             // Find all items that have this specific tracking number
             const itemsWithSelectedTracking: Array<{ id: string, quantity: number }> = [];
@@ -931,7 +931,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
             }
 
             selectedItems = itemsWithSelectedTracking;
-            console.log('Submitting with items for tracking', selectedTrackingNumber, ':', selectedItems);
+// Debug log removed
         } else if (applyToAllItems || isSingleTrackingUpdateMode) {
             // Apply to all items - don't send selectedItems (undefined means all)
             selectedItems = undefined;
@@ -1031,7 +1031,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
 
             // NEW: Check if we're updating an existing tracking number
             if (updateMode && selectedTrackingNumber) {
-                console.log('🔄 UPDATING existing tracking number:', selectedTrackingNumber);
+// Debug log removed
 
                 // Find the fulfillment ID for the selected tracking number
                 let fulfillmentIdToUpdate: string | undefined;
@@ -1046,7 +1046,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                     throw new Error(`Could not find fulfillment for tracking number: ${selectedTrackingNumber}`);
                 }
 
-                console.log('🔄 Found fulfillment ID to update:', fulfillmentIdToUpdate);
+// Debug log removed
 
                 // Use the existing onSave but pass a special selectedItems array with fulfillment ID
                 const updateParams = selectedItems || [];

@@ -299,7 +299,7 @@ const OrdersTable = observer(() => {
                 }
             ]);
 
-            console.log(`Successfully marked order ${orderId} as seen by human`);
+// Debug log removed
         } catch (error) {
             console.error(`Failed to mark order ${orderId} as seen:`, error);
             // If the API call fails, revert the local cache
@@ -381,9 +381,9 @@ const OrdersTable = observer(() => {
                 return '';
             }
 
-            console.log('Original image URL:', imageUrl);
+// Debug log removed
             const accessibleUrl = convertWixImageUrl(imageUrl);
-            console.log('Converted image URL:', accessibleUrl);
+// Debug log removed
 
             const urlsToTry = [
                 accessibleUrl,
@@ -397,7 +397,7 @@ const OrdersTable = observer(() => {
 
             for (const urlToTry of urlsToTry) {
                 try {
-                    console.log('Trying URL:', urlToTry);
+// Debug log removed
 
                     const response = await fetch(urlToTry as string, {
                         mode: 'cors',
@@ -412,7 +412,7 @@ const OrdersTable = observer(() => {
                     }
 
                     const blob = await response.blob();
-                    console.log('Image blob size:', blob.size, 'bytes');
+// Debug log removed
 
                     if (blob.size === 0) {
                         console.warn('Empty blob received');
@@ -423,7 +423,7 @@ const OrdersTable = observer(() => {
                         const reader = new FileReader();
                         reader.onload = () => {
                             const result = reader.result as string;
-                            console.log('Base64 conversion successful, length:', result.length);
+// Debug log removed
                             resolve(result);
                         };
                         reader.onerror = () => reject(new Error('Failed to convert image to base64'));
@@ -460,7 +460,7 @@ const OrdersTable = observer(() => {
             }
         }
 
-        console.log('No image URL found for item:', item.productName?.original);
+// Debug log removed
         return '';
     };
 
@@ -566,7 +566,7 @@ const OrdersTable = observer(() => {
      */
     const handlePrintOrder = async (order: Order) => {
         try {
-            console.log(`Generating PDF for order #${order.number}`);
+// Debug log removed
             setIsPrinting(true);
 
             // Get customer info from multiple sources
@@ -583,7 +583,7 @@ const OrdersTable = observer(() => {
             // Fetch payment method from order transactions
             let paymentMethod = 'Credit Card'; // Default fallback
             try {
-                console.log('Fetching payment method for order:', order._id);
+// Debug log removed
                 const transactionResponse = await orderTransactions.listTransactionsForSingleOrder(order._id);
                 const payments = transactionResponse.orderTransactions?.payments || [];
 
@@ -620,9 +620,9 @@ const OrdersTable = observer(() => {
                                 paymentMethod = rawPaymentMethod;
                         }
                     }
-                    console.log('Payment method found:', paymentMethod);
+// Debug log removed
                 } else {
-                    console.log('No payments found for order');
+// Debug log removed
                 }
             } catch (error) {
                 console.error('Error fetching payment method:', error);
@@ -639,9 +639,9 @@ const OrdersTable = observer(() => {
 
                     if (imageUrl) {
                         try {
-                            console.log(`Converting image for ${item.productName?.original}: ${imageUrl}`);
+// Debug log removed
                             base64Image = await convertImageToBase64(imageUrl);
-                            console.log(`Image conversion ${base64Image ? 'successful' : 'failed'} for ${item.productName?.original}`);
+// Debug log removed
                         } catch (error) {
                             console.error(`Failed to convert image for ${item.productName?.original}:`, error);
                         }
@@ -996,7 +996,7 @@ const OrdersTable = observer(() => {
             // Clean up
             document.body.removeChild(printElement);
 
-            console.log(`PDF generated successfully for order #${order.number}`);
+// Debug log removed
 
         } catch (error) {
             console.error('Failed to generate PDF:', error);
@@ -1069,10 +1069,10 @@ const OrdersTable = observer(() => {
         try {
             if (status) {
                 await orderController.performFulfillmentStatusFilter(status);
-                console.log(`Applied fulfillment status filter: ${status}`);
+// Debug log removed
             } else {
                 orderController.clearStatusFilter();
-                console.log('Cleared fulfillment status filter');
+// Debug log removed
             }
         } finally {
             setIsFulfillmentStatusLoading(false);
@@ -1086,10 +1086,10 @@ const OrdersTable = observer(() => {
         try {
             if (status) {
                 await orderController.performPaymentStatusFilter(status);
-                console.log(`Applied payment status filter: ${status}`);
+// Debug log removed
             } else {
                 orderController.clearStatusFilter();
-                console.log('Cleared payment status filter');
+// Debug log removed
             }
         } finally {
             setIsPaymentStatusLoading(false);
@@ -1098,7 +1098,7 @@ const OrdersTable = observer(() => {
 
     const handleArchiveStatusFilterChange = (status: string | null) => {
         setArchiveStatusFilter(status);
-        console.log(`Archive status filter changed to: ${status}`);
+// Debug log removed
     };
 
     const handleProductsApiFilterChange = async (productIds: string[], selectedProducts: Array<{ id: string, name: string }> = []) => {
@@ -1146,7 +1146,7 @@ const OrdersTable = observer(() => {
 
                     // Replace the current orders with API search results
                     orderStore.setFilteredOrders(transformedOrders);
-                    console.log(`Found ${response.totalCount} orders with selected products`);
+// Debug log removed
                 } else {
                     console.error('Products API search failed:', response.error);
                     // Clear results on error
@@ -1162,7 +1162,7 @@ const OrdersTable = observer(() => {
         } else {
             // Clear Products API filter - restore original orders
             orderStore.clearProductsApiFilter();
-            console.log('Products API filter cleared');
+// Debug log removed
         }
     };
 
@@ -1207,7 +1207,7 @@ const OrdersTable = observer(() => {
 
     const handleSelectionChange = (selectedIds: string[]) => {
         setSelectedOrderIds(selectedIds);
-        console.log('Selected orders:', selectedIds);
+// Debug log removed
     };
 
     const handleSelectAll = (checked: boolean) => {
@@ -1466,7 +1466,7 @@ const OrdersTable = observer(() => {
                     }
                 }
 
-                console.log(`🎉 Sequential processing complete for ${newCustomers.length} customers`);
+// Debug log removed
             } catch (error) {
                 console.error('❌ Badge processing failed:', error);
             } finally {
@@ -2144,10 +2144,10 @@ const OrdersTable = observer(() => {
                             const skuList = skus.length > 3 ?
                                 `${skus.slice(0, 3).join(', ')}... (+${skus.length - 3} more)` :
                                 skus.join(', ');
-                            console.log(`Filtering by SKUs: ${skuList}`);
+// Debug log removed
                             console.log(`Showing ${getFilteredOrders().length} orders out of ${statusFilteredOrders.length} total`);
                         } else {
-                            console.log('SKU filter cleared - showing all orders');
+// Debug log removed
                         }
                     }}
                     selectedFulfillmentStatus={selectedFulfillmentStatusFilter}
@@ -2162,12 +2162,12 @@ const OrdersTable = observer(() => {
                         if (date !== 'custom') {
                             setCustomDateRange({ from: null, to: null });
                         }
-                        console.log(`Date filter changed to: ${date}`);
+// Debug log removed
                     }}
                     customDateRange={customDateRange}
                     onCustomDateRangeChange={(range) => {
                         setCustomDateRange(range);
-                        console.log('Custom date range changed:', range);
+// Debug log removed
                     }}
                     isFulfillmentStatusLoading={isFulfillmentStatusLoading}
                     isPaymentStatusLoading={isPaymentStatusLoading}

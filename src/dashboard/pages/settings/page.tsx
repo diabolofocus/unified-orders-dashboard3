@@ -34,16 +34,16 @@ import { ComponentsVisibility } from '../../components/ComponentsVisibility/Comp
 import { AdvancedSettings } from '../../components/AdvancedSettings/AdvancedSettings';
 
 const DashboardPage: FC = () => {
-  console.log('DashboardPage: Rendering...');
+  // Component rendering
   const [isSaving, setIsSaving] = React.useState(false);
 
   const handleBackToOrders = () => {
-    console.log('DashboardPage: Back to orders clicked');
+    // Navigation to orders page
     dashboard.navigate({ pageId: '8dbd275e-3b05-4a4a-aa2c-a19f82c4a712' });
   };
 
   const handleSaveSettings = async () => {
-    console.log('DashboardPage: Save settings clicked');
+    // Settings save initiated
     setIsSaving(true);
 
     try {
@@ -67,7 +67,7 @@ const DashboardPage: FC = () => {
   };
 
   const handleResetSettings = () => {
-    console.log('DashboardPage: Reset settings clicked');
+// Debug log removed
     try {
       settingsStore.resetToDefaults();
       dashboard.showToast({
@@ -90,7 +90,7 @@ const DashboardPage: FC = () => {
   };
 
   const handleAddToFavorites = async () => {
-    console.log('DashboardPage: Add to Favorites clicked');
+// Debug log removed
 
     try {
       // Check if the favoriteList API is available
@@ -110,10 +110,10 @@ const DashboardPage: FC = () => {
         created: new Date().toISOString()
       } as const;
 
-      console.log('Attempting to add favorite:', favorite);
+// Debug log removed
 
       const response = await favoriteList.addUserFavorite(favorite);
-      console.log('Favorite added successfully:', response);
+// Debug log removed
 
       dashboard.showToast({
         message: 'Orders Dashboard added to favorites!',
@@ -161,12 +161,12 @@ const DashboardPage: FC = () => {
 
   // Initialize OrderController with required dependencies
   const orderController = React.useMemo(() => {
-    console.log('DashboardPage: Initializing OrderController...');
+// Debug log removed
     try {
       const { orderStore, uiStore } = rootStore;
       const orderService = new OrderService();
       const controller = new OrderController(orderStore, uiStore, orderService);
-      console.log('DashboardPage: OrderController initialized successfully');
+// Debug log removed
       return controller;
     } catch (error: unknown) {
       console.error('DashboardPage: Error initializing OrderController:', error);
@@ -177,9 +177,9 @@ const DashboardPage: FC = () => {
 
   // Check if we're in a browser environment
   useEffect(() => {
-    console.log('DashboardPage: Component mounted');
+// Debug log removed
     return () => {
-      console.log('DashboardPage: Component unmounting');
+// Debug log removed
     };
   }, []);
 

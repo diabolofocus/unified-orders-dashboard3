@@ -33,7 +33,7 @@ export class FulfillmentController {
      * Enhanced fulfill order method with per-item support
      */
     async fulfillOrder(params?: PerItemFulfillmentParams): Promise<void> {
-        console.log('🚀 FulfillmentController.fulfillOrder called', params ? 'with params' : 'using store state');
+// Debug log removed
 
         let fulfillmentParams: PerItemFulfillmentParams;
 
@@ -130,7 +130,7 @@ export class FulfillmentController {
         shippingProvider: string;
         sendShippingEmail?: boolean;
     }): Promise<void> {
-        console.log('🔄 FulfillmentController.updateItemTracking called');
+// Debug log removed
 
         this.uiStore.setSubmitting(true);
 
@@ -273,7 +273,7 @@ export class FulfillmentController {
         validItems: ItemFulfillment[];
         invalidItems: Array<{ item: ItemFulfillment; error: string }>;
     }> {
-        console.log('✅ FulfillmentController.validateItemsForFulfillment called');
+// Debug log removed
 
         try {
             const result = await this.orderService.validateItemsForFulfillment(orderId, selectedItems);

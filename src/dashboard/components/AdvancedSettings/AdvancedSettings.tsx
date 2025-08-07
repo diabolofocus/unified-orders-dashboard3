@@ -98,7 +98,7 @@ export const AdvancedSettings: React.FC = observer(() => {
   useEffect(() => {
     const loadInvoiceSettings = async () => {
       try {
-        console.log('Loading current invoice settings...');
+// Debug log removed
         setIsLoading(true);
         await settingsStore.fetchOrderSettings();
       } catch (error) {
