@@ -27,6 +27,7 @@ import {
     calculateOrderFulfillmentStatus,
     getOrderUnfulfilledItems,
     Order,
+    OrderStatus,
     type ItemFulfillment,
     type OrderFulfillmentCapabilities
 } from '../../types/Order';
@@ -268,33 +269,86 @@ export const OrderDetails: React.FC = observer(() => {
                 const fulfillmentResult = (result as any).result;
                 if (fulfillmentResult?.orderWithFulfillments) {
 
-                    // Update the order with the new fulfillment data
-                    const updatedOrder = {
-                        ...selectedOrder,
-                        rawOrder: {
-                            ...selectedOrder.rawOrder,
-                            ...fulfillmentResult.orderWithFulfillments,
-                            // Ensure fulfillments array is properly set
-                            fulfillments: fulfillmentResult.orderWithFulfillments.fulfillments || []
-                        }
-                    };
+                    // Wait a moment for Wix backend to process the fulfillment
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    // Transform the order with fulfillment data through OrderService to ensure proper status calculation
+                    const transformedOrder = await orderService.fetchSingleOrder(selectedOrder._id);
+                    
+                    if (transformedOrder.success && transformedOrder.order) {
+                        console.log('🔄 Updated order status after fulfillment:', {
+                            orderId: transformedOrder.order._id,
+                            newStatus: transformedOrder.order.status,
+                            oldStatus: selectedOrder.status,
+                            fulfillments: transformedOrder.order.rawOrder?.fulfillments?.length || 0
+                        });
+                        
+                        // Update the store with the freshly transformed order
+                        orderStore.updateOrder(transformedOrder.order);
+                        orderStore.selectOrder(transformedOrder.order);
+                    } else {
+                        // Fallback: manual update with status recalculation
+                        const updatedOrder = {
+                            ...selectedOrder,
+                            rawOrder: {
+                                ...selectedOrder.rawOrder,
+                                ...fulfillmentResult.orderWithFulfillments,
+                                // Ensure fulfillments array is properly set
+                                fulfillments: fulfillmentResult.orderWithFulfillments.fulfillments || []
+                            }
+                        };
 
-                    // Update the store immediately
-                    orderStore.updateOrder(updatedOrder);
-                    orderStore.selectOrder(updatedOrder);
+                        // Recalculate status based on fulfillment data
+                        const lineItems = updatedOrder.rawOrder?.lineItems || [];
+                        let totalQuantity = 0;
+                        let fulfilledQuantity = 0;
+                        
+                        lineItems.forEach((item: any) => {
+                            const quantity = item.quantity || 1;
+                            const fulfilled = item.fulfilledQuantity || 0;
+                            totalQuantity += quantity;
+                            fulfilledQuantity += fulfilled;
+                        });
+                        
+                        // Determine correct status
+                        let newStatus = 'NOT_FULFILLED';
+                        if (fulfilledQuantity >= totalQuantity && totalQuantity > 0) {
+                            newStatus = 'FULFILLED';
+                        } else if (fulfilledQuantity > 0) {
+                            newStatus = 'PARTIALLY_FULFILLED';
+                        }
+                        
+                        const finalOrder = {
+                            ...updatedOrder,
+                            status: newStatus as OrderStatus
+                        };
+
+                        // Update the store with corrected status
+                        orderStore.updateOrder(finalOrder);
+                        orderStore.selectOrder(finalOrder);
+                    }
 
                     // Also trigger a UI refresh
                     setRefreshTrigger(prev => prev + 1);
                 } else {
                     console.warn('⚠️ No fulfillment data in result, doing fallback refresh');
-                    // Fallback: try refreshing from API
+                    // Fallback: try refreshing from API to ensure status is updated
                     setTimeout(async () => {
+                        console.log('🔄 Fallback refresh attempt...');
                         const refreshedOrder = await orderService.fetchSingleOrder(selectedOrder._id);
                         if (refreshedOrder.success && refreshedOrder.order) {
+                            console.log('✅ Fallback refresh successful:', {
+                                orderId: refreshedOrder.order._id,
+                                status: refreshedOrder.order.status,
+                                fulfillments: refreshedOrder.order.rawOrder?.fulfillments?.length || 0
+                            });
                             orderStore.updateOrder(refreshedOrder.order);
                             orderStore.selectOrder(refreshedOrder.order);
+                            setRefreshTrigger(prev => prev + 1);
+                        } else {
+                            console.warn('❌ Fallback refresh failed:', refreshedOrder.error);
                         }
-                    }, 2000);
+                    }, 2500);
                 }
 
             } else {

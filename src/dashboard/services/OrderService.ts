@@ -1012,26 +1012,52 @@ export class OrderService {
     private transformOrderFromBackend = (backendOrder: any): Order => {
         const isProd = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
 
-        // Enhanced status handling
-        let finalStatus: OrderStatus;
-
+        // First check if order is canceled
         const orderStatus = backendOrder.rawOrder?.status || backendOrder.status;
-        if (orderStatus === 'CANCELED' || orderStatus === 'CANCELLED') {
-            finalStatus = 'CANCELED';
-        } else {
-            const fulfillmentStatus = backendOrder.rawOrder?.fulfillmentStatus ||
-                backendOrder.fulfillmentStatus ||
-                'NOT_FULFILLED';
-            finalStatus = this.normalizeOrderStatus(fulfillmentStatus);
-        }
+        const isCanceled = orderStatus === 'CANCELED' || orderStatus === 'CANCELLED';
 
         // 🔥 ENHANCED: Process line items with improved fulfillment details
         // Handle both formats: direct @wix/ecom (lineItems) and processed (items)
         const lineItems = backendOrder.lineItems || backendOrder.items || [];
         const items = lineItems.map((item: any) => {
             const lineItemId = this.safeGetItemId(item);
-            const fulfilledQuantity = this.safeGetFulfilledQuantity(item);
             const quantity = this.safeGetItemQuantity(item);
+            
+            // Calculate fulfilled quantity from fulfillments array
+            const fulfillments = backendOrder.rawOrder?.fulfillments || backendOrder.fulfillments || [];
+            let calculatedFulfilledQuantity = 0;
+            
+            // First try to get from item properties
+            const itemFulfilledQuantity = this.safeGetFulfilledQuantity(item);
+            if (itemFulfilledQuantity > 0) {
+                calculatedFulfilledQuantity = itemFulfilledQuantity;
+            } else {
+                // Calculate from fulfillments array
+                fulfillments.forEach((fulfillment: any) => {
+                    // Check different possible structures for line items in fulfillments
+                    const lineItem = fulfillment.lineItems?.find((li: any) =>
+                        li.lineItemId === lineItemId || li._id === lineItemId || li.id === lineItemId
+                    );
+                    
+                    if (lineItem) {
+                        const fulfilledQty = lineItem.quantity || lineItem.fulfilledQuantity || 0;
+                        if (fulfilledQty > 0) {
+                            calculatedFulfilledQuantity += fulfilledQty;
+                        }
+                    } else {
+                        // Some fulfillments might reference items differently
+                        // Check if this fulfillment applies to all items (full order fulfillment)
+                        if (!fulfillment.lineItems || fulfillment.lineItems.length === 0) {
+                            // This might be a full order fulfillment - assume this item is fulfilled
+                            if (fulfillment.trackingInfo?.trackingNumber) {
+                                calculatedFulfilledQuantity = quantity;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            const fulfilledQuantity = calculatedFulfilledQuantity;
             const remainingQuantity = Math.max(0, quantity - fulfilledQuantity);
 
             // Determine line item fulfillment status
@@ -1039,9 +1065,14 @@ export class OrderService {
             if (fulfilledQuantity > 0) {
                 fulfillmentStatus = fulfilledQuantity >= quantity ? 'FULFILLED' : 'PARTIALLY_FULFILLED';
             }
+            
+            // Debug logging for status calculation (only in development)
+            if (!isProd && fulfillments.length > 0) {
+                console.log(`📊 Item ${lineItemId}: qty=${quantity}, fulfilled=${fulfilledQuantity}, status=${fulfillmentStatus}`);
+            }
 
             // 🔥 ENHANCED: Process fulfillment details with better tracking info
-            const fulfillments = backendOrder.rawOrder?.fulfillments || [];
+            // (fulfillments already calculated above)
             const lineItemFulfillments: any[] = [];
             const trackingInfos: any[] = [];
 
@@ -1110,27 +1141,61 @@ export class OrderService {
             };
         });
 
+        // Calculate final status based on fulfillment progress
+        let finalStatus: OrderStatus;
+        if (isCanceled) {
+            finalStatus = 'CANCELED';
+        } else {
+            // Calculate status from actual item fulfillment data
+            const overallFulfillmentStatus = this.calculateOverallFulfillmentStatus(items);
+            finalStatus = overallFulfillmentStatus as OrderStatus;
+            
+            // Fallback: Check if Wix native status indicates fulfilled but our calculation doesn't
+            const wixFulfillmentStatus = backendOrder.rawOrder?.fulfillmentStatus || backendOrder.fulfillmentStatus;
+            if (finalStatus === 'NOT_FULFILLED' && wixFulfillmentStatus && 
+                (wixFulfillmentStatus === 'FULFILLED' || wixFulfillmentStatus === 'PARTIALLY_FULFILLED')) {
+                finalStatus = this.normalizeOrderStatus(wixFulfillmentStatus);
+                if (!isProd) {
+                    console.log(`🔄 Using Wix native status: ${wixFulfillmentStatus} -> ${finalStatus}`);
+                }
+            }
+            
+            // Debug logging for overall status calculation
+            if (!isProd && items.length > 0) {
+                const totalQty = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+                const fulfilledQty = items.reduce((sum: number, item: any) => sum + (item.fulfilledQuantity || 0), 0);
+                console.log(`📈 Order ${backendOrder._id}: total=${totalQty}, fulfilled=${fulfilledQty}, calculated=${overallFulfillmentStatus}, final=${finalStatus}`);
+            }
+        }
+
+        // Extract customer info from different formats
+        const recipientContact = backendOrder.recipientInfo?.contactDetails;
+        const billingContact = backendOrder.billingInfo?.contactDetails;
+        const buyerInfo = backendOrder.buyerInfo;
+        
+        const customer = {
+            firstName: backendOrder.customer?.firstName || recipientContact?.firstName || billingContact?.firstName || 'Unknown',
+            lastName: backendOrder.customer?.lastName || recipientContact?.lastName || billingContact?.lastName || 'Customer',
+            email: backendOrder.customer?.email || buyerInfo?.email || recipientContact?.email || billingContact?.email || 'no-email@example.com',
+            phone: backendOrder.customer?.phone || recipientContact?.phone || billingContact?.phone || '',
+            company: backendOrder.customer?.company || recipientContact?.company || billingContact?.company || ''
+        };
+
         return {
             _id: backendOrder._id,
             number: backendOrder.number,
             _createdDate: backendOrder._createdDate,
-            customer: {
-                firstName: backendOrder.customer?.firstName || '',
-                lastName: backendOrder.customer?.lastName || '',
-                email: backendOrder.customer?.email || '',
-                phone: backendOrder.customer?.phone || '',
-                company: backendOrder.customer?.company || ''
-            },
+            customer,
             items,
             lineItems: items, // 🔥 NEW: Also populate lineItems for consistency
             totalWeight: backendOrder.totalWeight || 0,
-            total: backendOrder.total,
+            total: backendOrder.total || backendOrder.priceSummary?.total?.formattedAmount || '$0.00',
             status: finalStatus,
             paymentStatus: this.normalizePaymentStatus(backendOrder.paymentStatus),
             shippingInfo: backendOrder.shippingInfo || {
-                carrierId: '',
-                title: '',
-                cost: '$0.00'
+                carrierId: backendOrder.shippingInfo?.carrierId || '',
+                title: backendOrder.shippingInfo?.title || 'No shipping method',
+                cost: backendOrder.shippingInfo?.cost?.formattedAmount || backendOrder.shippingInfo?.cost || '$0.00'
             },
             weightUnit: backendOrder.weightUnit || 'KG',
             shippingAddress: backendOrder.shippingAddress || null,

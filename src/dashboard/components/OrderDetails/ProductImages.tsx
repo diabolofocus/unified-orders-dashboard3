@@ -113,20 +113,22 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
     const [isUpdateMode, setIsUpdateMode] = useState(false);
     const [selectedItemForEdit, setSelectedItemForEdit] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [hasAnyTrackingDisplayed, setHasAnyTrackingDisplayed] = useState(false);
-    const [allItemsHaveTracking, setAllItemsHaveTracking] = useState(false);
+    const { hasAnyTrackingDisplayed, allItemsHaveTracking } = useTrackingStatus(order);
+    const [isMounted, setIsMounted] = useState(true);
+
+    // Cleanup on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            setIsMounted(false);
+        };
+    }, []);
+
     // Refresh order data when refresh trigger changes
     useEffect(() => {
-        if (refreshTrigger > 0 && onRefreshOrder) {
+        if (refreshTrigger > 0 && onRefreshOrder && isMounted) {
             onRefreshOrder();
         }
-    }, [refreshTrigger, onRefreshOrder]);
-
-    // Reset tracking state when order changes
-    useEffect(() => {
-        setHasAnyTrackingDisplayed(false);
-        setAllItemsHaveTracking(false);
-    }, [order._id]);
+    }, [refreshTrigger, onRefreshOrder, isMounted]);
 
     const handleSaveTracking = async (trackingNumber: string, carrier: string, selectedItems?: Array<{ id: string, quantity: number }>, trackingUrl?: string, customCarrierName?: string) => {
         try {
@@ -175,25 +177,30 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                 }
             }
 
-            // Force a refresh of the order data to get updated fulfillments
-            setRefreshTrigger(prev => prev + 1);
-
-            // Add a small delay to ensure backend has processed the fulfillment
-            setTimeout(async () => {
-                // Force another refresh to ensure we have the latest data
+            // Only update state if component is still mounted
+            if (isMounted) {
+                // Force a refresh of the order data to get updated fulfillments
                 setRefreshTrigger(prev => prev + 1);
 
-                // If we have a refresh callback, call it to ensure the order status is updated
-                if (onRefreshOrder) {
-                    await onRefreshOrder();
-                }
-            }, 1000);
+                // Close the modal and reset state immediately
+                setIsTrackingModalOpen(false);
+                setIsEditMode(false);
+                setIsUpdateMode(false);
+                setSelectedItemForEdit(null);
 
-            // Close the modal and reset state
-            setIsTrackingModalOpen(false);
-            setIsEditMode(false);
-            setIsUpdateMode(false);
-            setSelectedItemForEdit(null);
+                // Add a small delay to ensure backend has processed the fulfillment
+                setTimeout(async () => {
+                    if (!isMounted) return; // Check again before async operations
+                    
+                    // Force another refresh to ensure we have the latest data
+                    setRefreshTrigger(prev => prev + 1);
+
+                    // If we have a refresh callback, call it to ensure the order status is updated
+                    if (onRefreshOrder) {
+                        await onRefreshOrder();
+                    }
+                }, 1000);
+            }
         } catch (error) {
             console.error('Failed to save tracking:', error);
             // Error handling is done in the parent component
@@ -429,12 +436,6 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                         </Button>
                     )}
 
-                    {/* Hidden tracker component */}
-                    <TrackingButtonController
-                        order={order}
-                        onTrackingFound={() => setHasAnyTrackingDisplayed(true)}
-                        onAllItemsTracked={() => setAllItemsHaveTracking(true)}
-                    />
                 </Box>
 
                 <TrackingNumberModal
@@ -780,68 +781,61 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
         </Box >
     );
 });
-// Enhanced component to check tracking status for both buttons
-const TrackingButtonController: React.FC<{
-    order: any;
-    onTrackingFound: () => void;
-    onAllItemsTracked: () => void;
-}> = ({ order, onTrackingFound, onAllItemsTracked }) => {
+// Simple tracking status checker without CORS issues
+const useTrackingStatus = (order: any) => {
+    const [hasAnyTrackingDisplayed, setHasAnyTrackingDisplayed] = useState(false);
+    const [allItemsHaveTracking, setAllItemsHaveTracking] = useState(false);
+
     useEffect(() => {
-        const checkTrackingStatus = async () => {
-            try {
-                const { orderFulfillments } = await import('@wix/ecom');
-                const response = await orderFulfillments.listFulfillmentsForSingleOrder(order._id);
-                const fulfillments = response.orderWithFulfillments?.fulfillments || [];
+        // Check tracking status from order data directly (no API calls)
+        const orderItems = order.rawOrder?.lineItems || [];
+        const fulfillments = order.rawOrder?.fulfillments || [];
+        
+        let hasAnyTracking = false;
+        let allTracked = true;
 
-                // Check if any fulfillment has tracking
-                const hasAnyTracking = fulfillments.some(fulfillment =>
-                    fulfillment.trackingInfo?.trackingNumber
-                );
+        if (orderItems.length === 0) {
+            setHasAnyTrackingDisplayed(false);
+            setAllItemsHaveTracking(false);
+            return;
+        }
 
-                if (hasAnyTracking) {
-                    onTrackingFound();
-                }
+        orderItems.forEach((item: any) => {
+            const itemId = item._id || item.id;
+            const totalQuantity = item.quantity || 1;
+            let trackedQuantity = 0;
 
-                // Check if ALL QUANTITIES of ALL items have tracking
-                const orderItems = order.rawOrder?.lineItems || [];
-                if (orderItems.length > 0) {
-                    const allQuantitiesTracked = orderItems.every((item: any) => {
-                        const itemId = item._id || item.id;
-                        const totalQuantity = item.quantity || 1;
+            // Check item's fulfillment details for tracking
+            if (item.fulfillmentDetails?.trackingInfo?.length > 0) {
+                hasAnyTracking = true;
+                trackedQuantity = item.fulfillmentDetails.trackingInfo.reduce((sum: number, tracking: any) => {
+                    return sum + (tracking.quantity || 0);
+                }, 0);
+            }
 
-                        // Calculate how many of this item have tracking
-                        const trackedQuantity = fulfillments.reduce((total, fulfillment) => {
-                            if (!fulfillment.trackingInfo?.trackingNumber) return total;
-
-                            const fulfillmentLineItem = fulfillment.lineItems?.find((li: any) => {
-                                const possibleIds = [li._id, li.id].filter(Boolean);
-                                return possibleIds.includes(itemId);
-                            });
-
-                            if (fulfillmentLineItem) {
-                                return total + (fulfillmentLineItem.quantity || 0);
-                            }
-
-                            return total;
-                        }, 0);
-
-                        // This item is fully tracked if tracked quantity >= total quantity
-                        return trackedQuantity >= totalQuantity;
-                    });
-
-                    if (allQuantitiesTracked) {
-                        onAllItemsTracked();
+            // Also check fulfillments array
+            fulfillments.forEach((fulfillment: any) => {
+                if (fulfillment.trackingInfo?.trackingNumber) {
+                    const lineItem = fulfillment.lineItems?.find((li: any) => 
+                        li._id === itemId || li.id === itemId || li.lineItemId === itemId
+                    );
+                    if (lineItem) {
+                        hasAnyTracking = true;
+                        trackedQuantity += (lineItem.quantity || 0);
                     }
                 }
-            } catch (error) {
-                console.error('Error checking tracking status:', error);
+            });
+
+            if (trackedQuantity < totalQuantity) {
+                allTracked = false;
             }
-        };
+        });
 
-        checkTrackingStatus();
-    }, [order._id, onTrackingFound, onAllItemsTracked]);
+        setHasAnyTrackingDisplayed(hasAnyTracking);
+        setAllItemsHaveTracking(allTracked && hasAnyTracking);
+    }, [order._id, order.rawOrder?.fulfillments, order.rawOrder?.lineItems]);
 
-    return null; // This component renders nothing
+    return { hasAnyTrackingDisplayed, allItemsHaveTracking };
 };
 
 export default ProductImages;
