@@ -41,6 +41,9 @@ export class OrderStore {
     // NEW: Search-related properties
     searchResults: SearchResult | null = null;
     isSearching: boolean = false;
+    
+    // Force re-render counter for UI updates
+    updateTrigger: number = 0;
 
     pagination = {
         hasNext: false,
@@ -151,20 +154,32 @@ export class OrderStore {
         const orderIndex = this.orders.findIndex(o => o._id === orderId);
 
         if (orderIndex !== -1) {
-            this.orders[orderIndex] = {
+            const oldStatus = this.orders[orderIndex].status;
+            
+            // Force MobX to detect the change by using splice to replace the order
+            const newOrder = {
                 ...this.orders[orderIndex],
                 ...updatedOrder
             };
+            this.orders.splice(orderIndex, 1, newOrder);
+            
+            // Clear memoized computed values to trigger re-render
+            this.clearMemoizedComputed();
+            
+            // Force UI update by incrementing trigger
+            this.updateTrigger++;
+            
         }
 
         // Also update in search results if they exist
         if (this.searchResults) {
             const searchOrderIndex = this.searchResults.orders.findIndex(o => o._id === orderId);
             if (searchOrderIndex !== -1) {
-                this.searchResults.orders[searchOrderIndex] = {
+                const newSearchOrder = {
                     ...this.searchResults.orders[searchOrderIndex],
                     ...updatedOrder
                 };
+                this.searchResults.orders.splice(searchOrderIndex, 1, newSearchOrder);
             }
         }
 

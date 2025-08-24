@@ -276,13 +276,6 @@ export const OrderDetails: React.FC = observer(() => {
                     const transformedOrder = await orderService.fetchSingleOrder(selectedOrder._id);
                     
                     if (transformedOrder.success && transformedOrder.order) {
-                        console.log('🔄 Updated order status after fulfillment:', {
-                            orderId: transformedOrder.order._id,
-                            newStatus: transformedOrder.order.status,
-                            oldStatus: selectedOrder.status,
-                            fulfillments: transformedOrder.order.rawOrder?.fulfillments?.length || 0
-                        });
-                        
                         // Update the store with the freshly transformed order
                         orderStore.updateOrder(transformedOrder.order);
                         orderStore.selectOrder(transformedOrder.order);
@@ -331,22 +324,13 @@ export const OrderDetails: React.FC = observer(() => {
                     // Also trigger a UI refresh
                     setRefreshTrigger(prev => prev + 1);
                 } else {
-                    console.warn('⚠️ No fulfillment data in result, doing fallback refresh');
                     // Fallback: try refreshing from API to ensure status is updated
                     setTimeout(async () => {
-                        console.log('🔄 Fallback refresh attempt...');
                         const refreshedOrder = await orderService.fetchSingleOrder(selectedOrder._id);
                         if (refreshedOrder.success && refreshedOrder.order) {
-                            console.log('✅ Fallback refresh successful:', {
-                                orderId: refreshedOrder.order._id,
-                                status: refreshedOrder.order.status,
-                                fulfillments: refreshedOrder.order.rawOrder?.fulfillments?.length || 0
-                            });
                             orderStore.updateOrder(refreshedOrder.order);
                             orderStore.selectOrder(refreshedOrder.order);
                             setRefreshTrigger(prev => prev + 1);
-                        } else {
-                            console.warn('❌ Fallback refresh failed:', refreshedOrder.error);
                         }
                     }, 2500);
                 }

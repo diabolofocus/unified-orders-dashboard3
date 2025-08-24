@@ -1363,8 +1363,11 @@ const OrdersTable = observer(() => {
     }, [statusFilteredOrders, archiveStatusFilter, dateFilter, customDateRange, fulfillmentStatusFilter, paymentStatusFilter, skuFilter]);
 
     // Memoized filtered orders computation
-    const finalFilteredOrders = useMemo(() => getFilteredOrders(), [
-        getFilteredOrders
+    const finalFilteredOrders = useMemo(() => {
+        return getFilteredOrders();
+    }, [
+        getFilteredOrders,
+        orderStore.updateTrigger
     ]);
 
     // Memoized table data transformation

@@ -1066,10 +1066,6 @@ export class OrderService {
                 fulfillmentStatus = fulfilledQuantity >= quantity ? 'FULFILLED' : 'PARTIALLY_FULFILLED';
             }
             
-            // Debug logging for status calculation (only in development)
-            if (!isProd && fulfillments.length > 0) {
-                console.log(`📊 Item ${lineItemId}: qty=${quantity}, fulfilled=${fulfilledQuantity}, status=${fulfillmentStatus}`);
-            }
 
             // 🔥 ENHANCED: Process fulfillment details with better tracking info
             // (fulfillments already calculated above)
@@ -1155,16 +1151,6 @@ export class OrderService {
             if (finalStatus === 'NOT_FULFILLED' && wixFulfillmentStatus && 
                 (wixFulfillmentStatus === 'FULFILLED' || wixFulfillmentStatus === 'PARTIALLY_FULFILLED')) {
                 finalStatus = this.normalizeOrderStatus(wixFulfillmentStatus);
-                if (!isProd) {
-                    console.log(`🔄 Using Wix native status: ${wixFulfillmentStatus} -> ${finalStatus}`);
-                }
-            }
-            
-            // Debug logging for overall status calculation
-            if (!isProd && items.length > 0) {
-                const totalQty = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-                const fulfilledQty = items.reduce((sum: number, item: any) => sum + (item.fulfilledQuantity || 0), 0);
-                console.log(`📈 Order ${backendOrder._id}: total=${totalQty}, fulfilled=${fulfilledQty}, calculated=${overallFulfillmentStatus}, final=${finalStatus}`);
             }
         }
 
