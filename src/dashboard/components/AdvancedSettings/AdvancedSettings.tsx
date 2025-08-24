@@ -276,145 +276,143 @@ export const AdvancedSettings: React.FC = observer(() => {
             </Box>
             {/* Show clear cache option when badges are enabled */}
             {settingsStore.settings.showCustomerBadges && (
-              <>
-                <Box direction="horizontal" gap="16px" align="left" paddingTop="12px">
-                  <Button
-                    size="small"
-                    priority="secondary"
-                    onClick={() => {
-                      try {
-                        orderStore.clearCustomerOrderCountCache();
-                        // Also clear the processed customers ref
-                        if ((window as any).clearProcessedCustomersRef) {
-                          (window as any).clearProcessedCustomersRef();
-                        }
-
-                        // Show success toast
-                        dashboard.showToast({
-                          message: 'Cache cleared. Badges will recalculate on next load.',
-                          type: 'success'
-                        });
-                      } catch (error) {
-                        console.error('Error clearing badge cache:', error);
-                        dashboard.showToast({
-                          message: 'Failed to clear badge cache. Please try again.',
-                          type: 'error'
-                        });
+              <Box direction="horizontal" gap="16px" align="left" paddingTop="12px">
+                <Button
+                  size="small"
+                  priority="secondary"
+                  onClick={() => {
+                    try {
+                      orderStore.clearCustomerOrderCountCache();
+                      // Also clear the processed customers ref
+                      if ((window as any).clearProcessedCustomersRef) {
+                        (window as any).clearProcessedCustomersRef();
                       }
-                    }}
-                  >
-                    Clear Badge Cache
-                  </Button>
-                </Box>
 
-                {/* Customer Tier Configuration */}
-                <Box direction="vertical" gap="16px" paddingTop="16px">
-                  <Text weight="normal" size="medium">Configure Badge Tiers</Text>
-                  <Text secondary size="small">
-                    Customize the order count thresholds for customer loyalty badges.
-                  </Text>
-
-                  {/* VIP Customer */}
-                  <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
-                    <Box style={{ minWidth: '150px' }}>
-                      <Badge
-                        uppercase={false}
-                        skin={settingsStore.settings.customerTiers.vipCustomer.skin}
-                        size="tiny"
-                        type="outlined"
-                      >
-                        {settingsStore.settings.customerTiers.vipCustomer.name}
-                      </Badge>
-                    </Box>
-                    <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
-                      <Text size="small">for</Text>
-                      <div style={{ width: '80px' }}>
-                        <NumberInput
-                          value={settingsStore.settings.customerTiers.vipCustomer.threshold}
-                          onChange={(value) => {
-                            if (value && value >= 1) {
-                              settingsStore.setCustomerTierThreshold('vipCustomer', value);
-                              clearCacheAndNotify('VIP threshold updated.');
-                            }
-                          }}
-                          min={1}
-                          max={50}
-                          size="small"
-                        />
-                      </div>
-                      <Text size="small">+ orders</Text>
-                    </Box>
-                  </Box>
-
-                  {/* Loyal Customer */}
-                  <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
-                    <Box style={{ minWidth: '150px' }}>
-                      <Badge
-                        uppercase={false} q
-                        skin={settingsStore.settings.customerTiers.loyalCustomer.skin}
-                        size="tiny"
-                        type="outlined"
-                      >
-                        {settingsStore.settings.customerTiers.loyalCustomer.name}
-                      </Badge>
-                    </Box>
-                    <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
-                      <Text size="small">for</Text>
-                      <div style={{ width: '80px' }}>
-                        <NumberInput
-                          value={settingsStore.settings.customerTiers.loyalCustomer.threshold}
-                          onChange={(value) => {
-                            if (value && value >= 1) {
-                              settingsStore.setCustomerTierThreshold('loyalCustomer', value);
-                              clearCacheAndNotify('Loyal Customer threshold updated.');
-                            }
-                          }}
-                          min={1}
-                          max={50}
-                          size="small"
-                        />
-                      </div>
-                      <Text size="small">+ orders</Text>
-                    </Box>
-                  </Box>
-
-                  {/* Returning Customer */}
-                  <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
-                    <Box style={{ minWidth: '150px' }}>
-                      <Badge
-                        uppercase={false}
-                        skin={settingsStore.settings.customerTiers.returningCustomer.skin}
-                        size="tiny"
-                        type="outlined"
-                      >
-                        {settingsStore.settings.customerTiers.returningCustomer.name}
-                      </Badge>
-                    </Box>
-                    <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
-                      <Text size="small">for</Text>
-                      <div style={{ width: '80px' }}>
-                        <NumberInput
-                          value={settingsStore.settings.customerTiers.returningCustomer.threshold}
-                          onChange={(value) => {
-                            if (value && value >= 1) {
-                              settingsStore.setCustomerTierThreshold('returningCustomer', value);
-                              clearCacheAndNotify('Returning Customer threshold updated.');
-                            }
-                          }}
-                          min={1}
-                          max={50}
-                          size="small"
-                        />
-                      </div>
-                      <Text size="small">+ orders</Text>
-                    </Box>
-                  </Box>
-                  <Text size="tiny" secondary>
-                    Thresholds are saved automatically. Cache is cleared automatically when thresholds change - badges will recalculate on next page interaction.
-                  </Text>
-                </Box>
-              </>
+                      // Show success toast
+                      dashboard.showToast({
+                        message: 'Cache cleared. Badges will recalculate on next load.',
+                        type: 'success'
+                      });
+                    } catch (error) {
+                      console.error('Error clearing badge cache:', error);
+                      dashboard.showToast({
+                        message: 'Failed to clear badge cache. Please try again.',
+                        type: 'error'
+                      });
+                    }
+                  }}
+                >
+                  Clear Badge Cache
+                </Button>
+              </Box>
             )}
+
+            {/* Customer Tier Configuration - Always visible */}
+            <Box direction="vertical" gap="16px" paddingTop="16px">
+              <Text weight="normal" size="medium">Configure Badge Tiers</Text>
+              <Text secondary size="small">
+                Customize the order count thresholds for customer loyalty badges.
+              </Text>
+
+              {/* VIP Customer */}
+              <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
+                <Box style={{ minWidth: '150px' }}>
+                  <Badge
+                    uppercase={false}
+                    skin={settingsStore.settings.customerTiers.vipCustomer.skin}
+                    size="tiny"
+                    type="outlined"
+                  >
+                    {settingsStore.settings.customerTiers.vipCustomer.name}
+                  </Badge>
+                </Box>
+                <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
+                  <Text size="small">for</Text>
+                  <div style={{ width: '80px' }}>
+                    <NumberInput
+                      value={settingsStore.settings.customerTiers.vipCustomer.threshold}
+                      onChange={(value) => {
+                        if (value && value >= 1) {
+                          settingsStore.setCustomerTierThreshold('vipCustomer', value);
+                          clearCacheAndNotify('VIP threshold updated.');
+                        }
+                      }}
+                      min={1}
+                      max={50}
+                      size="small"
+                    />
+                  </div>
+                  <Text size="small">+ orders</Text>
+                </Box>
+              </Box>
+
+              {/* Loyal Customer */}
+              <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
+                <Box style={{ minWidth: '150px' }}>
+                  <Badge
+                    uppercase={false}
+                    skin={settingsStore.settings.customerTiers.loyalCustomer.skin}
+                    size="tiny"
+                    type="outlined"
+                  >
+                    {settingsStore.settings.customerTiers.loyalCustomer.name}
+                  </Badge>
+                </Box>
+                <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
+                  <Text size="small">for</Text>
+                  <div style={{ width: '80px' }}>
+                    <NumberInput
+                      value={settingsStore.settings.customerTiers.loyalCustomer.threshold}
+                      onChange={(value) => {
+                        if (value && value >= 1) {
+                          settingsStore.setCustomerTierThreshold('loyalCustomer', value);
+                          clearCacheAndNotify('Loyal Customer threshold updated.');
+                        }
+                      }}
+                      min={1}
+                      max={50}
+                      size="small"
+                    />
+                  </div>
+                  <Text size="small">+ orders</Text>
+                </Box>
+              </Box>
+
+              {/* Returning Customer */}
+              <Box direction="horizontal" gap="16px" align="left" style={{ alignItems: 'center' }}>
+                <Box style={{ minWidth: '150px' }}>
+                  <Badge
+                    uppercase={false}
+                    skin={settingsStore.settings.customerTiers.returningCustomer.skin}
+                    size="tiny"
+                    type="outlined"
+                  >
+                    {settingsStore.settings.customerTiers.returningCustomer.name}
+                  </Badge>
+                </Box>
+                <Box direction="horizontal" gap="8px" style={{ alignItems: 'center' }}>
+                  <Text size="small">for</Text>
+                  <div style={{ width: '80px' }}>
+                    <NumberInput
+                      value={settingsStore.settings.customerTiers.returningCustomer.threshold}
+                      onChange={(value) => {
+                        if (value && value >= 1) {
+                          settingsStore.setCustomerTierThreshold('returningCustomer', value);
+                          clearCacheAndNotify('Returning Customer threshold updated.');
+                        }
+                      }}
+                      min={1}
+                      max={50}
+                      size="small"
+                    />
+                  </div>
+                  <Text size="small">+ orders</Text>
+                </Box>
+              </Box>
+              <Text size="tiny" secondary>
+                Thresholds are saved automatically. Cache is cleared automatically when thresholds change - badges will recalculate on next page interaction.
+              </Text>
+            </Box>
 
           </Box>
         </Box>
