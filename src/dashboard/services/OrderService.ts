@@ -9,7 +9,6 @@ import {
 
 // 🔥 EXISTING: Direct imports from your backend methods
 import {
-    testOrdersConnection,
     getSingleOrder,
     fulfillOrderInWix
 } from '../../backend/orders-api.web';
@@ -204,24 +203,28 @@ export class OrderService {
                 // Retry logic for each batch
                 while (attempt <= maxRetries && !success) {
                     try {
-                        // Fetching orders chunk
+                        // Direct @wix/ecom call - no CORS issues
+                        const { orders } = await import('@wix/ecom');
                         
-                        // Call testOrdersConnection with the required parameters
-                        result = await testOrdersConnection(
-                            { 
-                                limit: Math.min(batchSize, initialLimit - totalFetched),
-                                cursor: cursor 
+                        const searchResult = await orders.searchOrders({
+                            filter: {
+                                status: { "$ne": "INITIALIZED" }
                             },
-                            { 
-                                request: { 
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Accept': 'application/json'
-                                    }
-                                } 
+                            cursorPaging: {
+                                limit: Math.min(batchSize, initialLimit - totalFetched),
+                                cursor: cursor || undefined
                             }
-                        );
+                        });
+                        
+                        result = {
+                            success: true,
+                            orders: searchResult.orders || [],
+                            pagination: {
+                                hasNext: searchResult.metadata?.hasNext || false,
+                                nextCursor: searchResult.metadata?.cursors?.next || '',
+                                prevCursor: searchResult.metadata?.cursors?.prev || ''
+                            }
+                        };
                         success = true;
                     } catch (error) {
                         lastError = error;
@@ -322,27 +325,28 @@ export class OrderService {
                 // Retry logic for each batch
                 while (attempt <= maxRetries && !success) {
                     try {
-                        // Only log in development or first attempt in production
-                        if (!isProd || attempt === 1) {
-                            // Fetching more orders
-                        }
+                        // Direct @wix/ecom call - no CORS issues
+                        const { orders } = await import('@wix/ecom');
                         
-                        // Call testOrdersConnection with the required parameters
-                        result = await testOrdersConnection(
-                            { 
-                                limit: Math.min(batchSize, limit - totalFetched),
-                                cursor: currentCursor 
+                        const searchResult = await orders.searchOrders({
+                            filter: {
+                                status: { "$ne": "INITIALIZED" }
                             },
-                            { 
-                                request: { 
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Accept': 'application/json'
-                                    }
-                                } 
+                            cursorPaging: {
+                                limit: Math.min(batchSize, limit - totalFetched),
+                                cursor: currentCursor
                             }
-                        );
+                        });
+                        
+                        result = {
+                            success: true,
+                            orders: searchResult.orders || [],
+                            pagination: {
+                                hasNext: searchResult.metadata?.hasNext || false,
+                                nextCursor: searchResult.metadata?.cursors?.next || '',
+                                prevCursor: searchResult.metadata?.cursors?.prev || ''
+                            }
+                        };
                         success = true;
                     } catch (error) {
                         lastError = error;
@@ -415,26 +419,36 @@ export class OrderService {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                // Fetching orders
+                // Direct @wix/ecom call - no CORS issues
+                const { orders } = await import('@wix/ecom');
                 
-                // Call testOrdersConnection with the required parameters
-                const result = await testOrdersConnection(
-                    { limit, cursor },
-                    { 
-                        request: { 
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            }
-                        } 
+                const searchResult = await orders.searchOrders({
+                    filter: {
+                        status: { "$ne": "INITIALIZED" }
+                    },
+                    cursorPaging: {
+                        limit: limit,
+                        cursor: cursor || undefined
                     }
-                );
+                });
+                
+                const result = {
+                    success: true,
+                    orders: searchResult.orders || [],
+                    orderCount: (searchResult.orders || []).length,
+                    pagination: {
+                        hasNext: searchResult.metadata?.hasNext || false,
+                        nextCursor: searchResult.metadata?.cursors?.next || '',
+                        prevCursor: searchResult.metadata?.cursors?.prev || ''
+                    },
+                    method: '@wix/ecom',
+                    message: `Successfully loaded ${(searchResult.orders || []).length} orders`
+                };
 
                 if (result.success) {
                     // Only log success in development
                     if (!isProd) {
-// Debug log removed
+                        // Debug log removed
                     }
                     
                     // Transform the orders using the mapping function
@@ -453,7 +467,7 @@ export class OrderService {
                         message: result.message
                     };
                 } else {
-                    lastError = result.error || 'Unknown error';
+                    lastError = 'Unknown error from @wix/ecom';
                     console.error(`❌ [${isProd ? 'PROD' : 'DEV'}] Error fetching orders:`, lastError);
                 }
             } catch (error: any) {
@@ -1012,10 +1026,12 @@ export class OrderService {
         }
 
         // 🔥 ENHANCED: Process line items with improved fulfillment details
-        const items = (backendOrder.items || []).map((item: any) => {
-            const lineItemId = item._id || item.id;
-            const fulfilledQuantity = item.fulfilledQuantity || 0;
-            const quantity = item.quantity || 0;
+        // Handle both formats: direct @wix/ecom (lineItems) and processed (items)
+        const lineItems = backendOrder.lineItems || backendOrder.items || [];
+        const items = lineItems.map((item: any) => {
+            const lineItemId = this.safeGetItemId(item);
+            const fulfilledQuantity = this.safeGetFulfilledQuantity(item);
+            const quantity = this.safeGetItemQuantity(item);
             const remainingQuantity = Math.max(0, quantity - fulfilledQuantity);
 
             // Determine line item fulfillment status
@@ -1206,5 +1222,37 @@ export class OrderService {
                 console.warn(`🚨 Unknown payment status: "${statusString}" - defaulting to UNPAID`);
                 return 'UNPAID'; // Default to UNPAID instead of UNKNOWN
         }
+    }
+    
+    // Helper function to safely get product name from different formats
+    private safeGetProductName = (item: any): string => {
+        if (typeof item?.productName === 'string') {
+            return item.productName;
+        }
+        if (typeof item?.productName === 'object' && item?.productName?.original) {
+            return item.productName.original;
+        }
+        if (item?.name) {
+            return item.name;
+        }
+        return 'Unknown Product';
+    }
+    
+    // Helper function to safely get item ID from different formats
+    private safeGetItemId = (item: any): string => {
+        return item?._id || item?.id || item?.lineItemId || '';
+    }
+    
+    // Helper function to safely get item quantity
+    private safeGetItemQuantity = (item: any): number => {
+        return item?.quantity || 1;
+    }
+    
+    // Helper function to safely get fulfilled quantity
+    private safeGetFulfilledQuantity = (item: any): number => {
+        return item?.fulfilledQuantity ||
+            item?.fulfillmentDetails?.totalFulfilled ||
+            item?.totalFulfilledQuantity ||
+            0;
     }
 }

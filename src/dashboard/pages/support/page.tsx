@@ -205,7 +205,7 @@ export default function SupportPage() {
 
           // Try to get app instance data with proper type assertions
           try {
-// Debug log removed
+            // Debug log removed
             const appInstanceResponse = await appInstances.getAppInstance() as ExtendedAppInstanceResponse;
             console.log('📦 Full app instance response:', JSON.stringify(appInstanceResponse, null, 2));
 
@@ -216,7 +216,7 @@ export default function SupportPage() {
             let siteUrl = null;
 
             if (appInstanceResponse) {
-// Debug log removed
+              // Debug log removed
               console.log('Response keys:', Object.keys(appInstanceResponse));
 
               // Get instance and site data separately (they're siblings in the response)
@@ -225,12 +225,12 @@ export default function SupportPage() {
 
               if (instance) {
                 console.log('📋 Instance keys:', Object.keys(instance));
-// Debug log removed
+                // Debug log removed
               }
 
               if (siteInfo) {
                 console.log('🏠 Site info keys:', Object.keys(siteInfo));
-// Debug log removed
+                // Debug log removed
               }
 
               // Extract data from both instance and site
@@ -258,15 +258,15 @@ export default function SupportPage() {
                 // Get site URL - this should be directly available
                 siteUrl = siteInfo.url;
 
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
 
                 // If ownerInfo exists, log its structure
                 if (siteInfo.ownerInfo) {
-// Debug log removed
+                  // Debug log removed
                   console.log('👤 Owner info keys:', Object.keys(siteInfo.ownerInfo));
                 }
               }
@@ -284,19 +284,19 @@ export default function SupportPage() {
                   instanceId: instanceId || prev.instanceId,
                   siteUrl: siteUrl || prev.siteUrl
                 }));
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
               } else {
-// Debug log removed
-// Debug log removed
-// Debug log removed
-// Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
+                // Debug log removed
               }
             }
           } catch (error) {
@@ -369,7 +369,7 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
 
   // Debug: Log user info when it changes
   useEffect(() => {
-// Debug log removed
+    // Debug log removed
   }, [userInfo]);
 
   const handleBackToOrders = () => {
@@ -402,7 +402,7 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         timestamp: new Date().toISOString()
       };
 
-// Debug log removed
+      // Debug log removed
 
       const response = await fetch('https://www.karpo.studio/_functions/supportSubmission', {
         method: 'POST',
@@ -412,11 +412,11 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         body: JSON.stringify(submissionData)
       });
 
-// Debug log removed
+      // Debug log removed
 
       if (response.ok) {
         const result = await response.json();
-// Debug log removed
+        // Debug log removed
 
         setBugReport({ title: '', description: '', userEmail: '', userName: '' });
         setIsSubmitted(prev => ({ ...prev, bug: true }));
@@ -470,7 +470,7 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         timestamp: new Date().toISOString()
       };
 
-// Debug log removed
+      // Debug log removed
 
       const response = await fetch('https://www.karpo.studio/_functions/supportSubmission', {
         method: 'POST',
@@ -480,11 +480,11 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
         body: JSON.stringify(submissionData)
       });
 
-// Debug log removed
+      // Debug log removed
 
       if (response.ok) {
         const result = await response.json();
-// Debug log removed
+        // Debug log removed
 
         setFeatureRequest({ title: '', description: '', userEmail: '', userName: '' });
         setIsSubmitted(prev => ({ ...prev, feature: true }));
@@ -544,7 +544,7 @@ Cookies: ${systemInfo.cookieEnabled ? 'Enabled' : 'Disabled'}
 Referrer: ${systemInfo.referrer}`;
 
       setSystemInfoText(sysInfoTemplate);
-// Debug log removed
+      // Debug log removed
     }
   };
 
@@ -953,7 +953,7 @@ Please describe your feature request in detail here...`
                               boxSizing: 'border-box'
                             }}
                             onClick={() => {
-// Debug log removed
+                              // Debug log removed
                               setExpandedFaq(expandedFaq === index ? null : index);
                             }}
                             onMouseEnter={(e) => {
