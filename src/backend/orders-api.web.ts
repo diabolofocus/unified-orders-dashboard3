@@ -575,7 +575,29 @@ export const fulfillOrderInWix = webMethod(
     lineItems?: Array<{ id: string; quantity: number }>;
     trackingUrl?: string;
     customCarrierName?: string;
-  }) => {
+  }, context?) => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+    
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
+      };
+    }
     try {
       const rawResult = await smartFulfillOrderElevated({
         orderId,
@@ -600,6 +622,7 @@ export const fulfillOrderInWix = webMethod(
           isPartialFulfillment: result.isPartialFulfillment || false,
           isTrackingUpdate: false,
           result: result.result || result,
+          headers: enhancedCorsHeaders,
           emailInfo: {
             emailRequested: sendShippingEmail,
             emailSentAutomatically: result.emailSent || false,
@@ -613,6 +636,7 @@ export const fulfillOrderInWix = webMethod(
           error: result.error || 'Fulfillment failed',
           message: result.message || `Failed to fulfill order ${orderNumber}`,
           method: 'fulfillOrderInWix',
+          headers: enhancedCorsHeaders,
           emailInfo: {
             emailRequested: sendShippingEmail,
             emailSentAutomatically: false,
@@ -628,6 +652,7 @@ export const fulfillOrderInWix = webMethod(
         error: errorMsg,
         message: `Failed to fulfill order ${orderNumber}: ${errorMsg}`,
         method: 'fulfillOrderInWix',
+        headers: enhancedCorsHeaders,
         emailInfo: {
           emailRequested: sendShippingEmail,
           emailSentAutomatically: false,
@@ -968,7 +993,30 @@ export const testOrdersConnection = webMethod(
 
 export const getSingleOrder = webMethod(
   Permissions.Anyone,
-  async (orderId: string) => {
+  async (orderId: string, context?) => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+    
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
+      };
+    }
+
     try {
       const { orders } = await import('@wix/ecom');
 
@@ -1162,7 +1210,8 @@ export const getSingleOrder = webMethod(
 
       return {
         success: true,
-        order: parsedOrder
+        order: parsedOrder,
+        headers: enhancedCorsHeaders
       };
 
     } catch (error: unknown) {
@@ -1171,7 +1220,8 @@ export const getSingleOrder = webMethod(
 
       return {
         success: false,
-        error: errorMsg
+        error: errorMsg,
+        headers: enhancedCorsHeaders
       };
     }
   }

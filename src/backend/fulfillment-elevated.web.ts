@@ -52,7 +52,29 @@ export const smartFulfillOrderElevated = webMethod(
         lineItems?: FulfillmentLineItem[];
         trackingUrl?: string;
         customCarrierName?: string;
-    }) => {
+    }, context?) => {
+        // Enhanced CORS handling for production
+        const requestHeaders = context?.request?.headers || {};
+        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+        
+        const enhancedCorsHeaders = {
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400',
+            'Vary': 'Origin'
+        };
+
+        // Handle OPTIONS method for CORS preflight
+        if (context?.request?.method === 'OPTIONS') {
+            return {
+                success: true,
+                headers: enhancedCorsHeaders,
+                statusCode: 200,
+                message: 'CORS preflight successful'
+            };
+        }
 
         try {
             const fulfillmentsCheck = await getFulfillmentsElevated({ orderId, orderNumber });
@@ -70,7 +92,7 @@ export const smartFulfillOrderElevated = webMethod(
                 }
 
                 if (sendShippingEmail) {
-                    return await updateFulfillmentElevated({
+                    const result = await updateFulfillmentElevated({
                         orderId,
                         fulfillmentId,
                         trackingNumber,
@@ -80,8 +102,9 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
+                    return { ...result, headers: enhancedCorsHeaders };
                 } else {
-                    return await updateFulfillmentRegular({
+                    const result = await updateFulfillmentRegular({
                         orderId,
                         fulfillmentId,
                         trackingNumber,
@@ -91,10 +114,11 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
+                    return { ...result, headers: enhancedCorsHeaders };
                 }
             } else {
                 if (sendShippingEmail) {
-                    return await createFulfillmentElevated({
+                    const result = await createFulfillmentElevated({
                         orderId,
                         trackingNumber,
                         shippingProvider,
@@ -104,8 +128,9 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
+                    return { ...result, headers: enhancedCorsHeaders };
                 } else {
-                    return await createFulfillmentRegular({
+                    const result = await createFulfillmentRegular({
                         orderId,
                         trackingNumber,
                         shippingProvider,
@@ -115,6 +140,7 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
+                    return { ...result, headers: enhancedCorsHeaders };
                 }
             }
 
@@ -125,7 +151,8 @@ export const smartFulfillOrderElevated = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Smart fulfillment failed for order ${orderNumber}: ${errorMsg}`,
-                method: 'smartFulfillOrderElevated'
+                method: 'smartFulfillOrderElevated',
+                headers: enhancedCorsHeaders
             };
         }
     }

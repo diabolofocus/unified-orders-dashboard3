@@ -621,15 +621,30 @@ export class OrderService {
 
                 // Transform the response to match expected format - SAFER VERSION
                 if (result.success) {
+                    // Handle CORS preflight responses
+                    if ('statusCode' in result && result.statusCode === 200) {
+                        return {
+                            success: true,
+                            method: 'cors-preflight',
+                            message: result.message || 'CORS preflight successful',
+                            emailInfo: {
+                                emailSentAutomatically: false,
+                                customerEmail: 'N/A',
+                                emailRequested: params.sendShippingEmail || false,
+                                note: 'CORS preflight response'
+                            }
+                        };
+                    }
+
                     const baseResponse: FulfillmentResponse = {
                         success: true,
-                        method: result.method || 'smartFulfillOrderElevated',
+                        method: ('method' in result ? result.method : 'smartFulfillOrderElevated') || 'smartFulfillOrderElevated',
                         message: result.message || `Order ${params.orderNumber} fulfilled successfully`,
                         emailInfo: {
-                            emailSentAutomatically: result.emailSent || false,
+                            emailSentAutomatically: ('emailSent' in result) ? result.emailSent || false : false,
                             customerEmail: 'Available in order details',
                             emailRequested: params.sendShippingEmail || false,
-                            note: result.emailSent ? 'Shipping confirmation sent automatically by Wix (if email settings are enabled for third party apps)' : 'No email sent'
+                            note: ('emailSent' in result && result.emailSent) ? 'Shipping confirmation sent automatically by Wix (if email settings are enabled for third party apps)' : 'No email sent'
                         }
                     };
 
@@ -656,7 +671,7 @@ export class OrderService {
 
                     return baseResponse;
                 } else {
-                    throw new Error(result.error || 'Smart fulfillment failed');
+                    throw new Error(('error' in result ? result.error : 'Smart fulfillment failed') || 'Smart fulfillment failed');
                 }
             }
 

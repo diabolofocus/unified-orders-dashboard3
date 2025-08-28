@@ -509,7 +509,7 @@ const LowInventoryItems: React.FC = observer(() => {
                             <Box
                                 key={`${item.id}-${item.variantId || index}`}
                                 direction="horizontal"
-                                align="center"
+                                align="left"
                                 paddingTop="6px"
                                 paddingBottom="6px"
                                 paddingLeft="12px"
@@ -519,7 +519,7 @@ const LowInventoryItems: React.FC = observer(() => {
                                     minHeight: '50px'
                                 }}
                             >
-                                <Box direction="horizontal" align="center" gap="8px" style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
+                                <Box direction="horizontal" align="left" gap="8px" style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
                                     <div
                                         style={{
                                             width: '40px',
@@ -567,7 +567,7 @@ const LowInventoryItems: React.FC = observer(() => {
                                         <Text ellipsis title={item.name} size="small" style={{ lineHeight: 1.2 }}>
                                             {item.name}
                                         </Text>
-                                        <Box direction="horizontal" gap="8px" align="center">
+                                        <Box direction="horizontal" gap="8px" align="left">
                                             {item.variantName && item.variantId && (
                                                 <Text
                                                     ellipsis

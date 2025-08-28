@@ -8,7 +8,8 @@ import {
   Button,
   Heading,
   Divider,
-  Breadcrumbs
+  Breadcrumbs,
+  Loader
 } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
 import { dashboard } from '@wix/dashboard';
@@ -67,7 +68,7 @@ const DashboardPage: FC = () => {
   };
 
   const handleResetSettings = () => {
-// Debug log removed
+    // Debug log removed
     try {
       settingsStore.resetToDefaults();
       dashboard.showToast({
@@ -90,7 +91,7 @@ const DashboardPage: FC = () => {
   };
 
   const handleAddToFavorites = async () => {
-// Debug log removed
+    // Debug log removed
 
     try {
       // Check if the favoriteList API is available
@@ -110,10 +111,10 @@ const DashboardPage: FC = () => {
         created: new Date().toISOString()
       } as const;
 
-// Debug log removed
+      // Debug log removed
 
       const response = await favoriteList.addUserFavorite(favorite);
-// Debug log removed
+      // Debug log removed
 
       dashboard.showToast({
         message: 'Orders Dashboard added to favorites!',
@@ -161,12 +162,12 @@ const DashboardPage: FC = () => {
 
   // Initialize OrderController with required dependencies
   const orderController = React.useMemo(() => {
-// Debug log removed
+    // Debug log removed
     try {
       const { orderStore, uiStore } = rootStore;
       const orderService = new OrderService();
       const controller = new OrderController(orderStore, uiStore, orderService);
-// Debug log removed
+      // Debug log removed
       return controller;
     } catch (error: unknown) {
       console.error('DashboardPage: Error initializing OrderController:', error);
@@ -177,9 +178,9 @@ const DashboardPage: FC = () => {
 
   // Check if we're in a browser environment
   useEffect(() => {
-// Debug log removed
+    // Debug log removed
     return () => {
-// Debug log removed
+      // Debug log removed
     };
   }, []);
 
@@ -243,14 +244,6 @@ const DashboardPage: FC = () => {
                 .advanced-settings-card {
                   border-radius: 8px 8px 0px 0px !important;
                 }
-                @keyframes spin {
-                  0% { transform: rotate(0deg); }
-                  100% { transform: rotate(360deg); }
-                }
-                .spinner {
-                  display: inline-block;
-                  vertical-align: middle;
-                }
               `}</style>
               <Page.FixedFooter>
                 <Box
@@ -264,24 +257,11 @@ const DashboardPage: FC = () => {
                 // boxShadow="0px -2px 8px rgba(0, 0, 0, 0.1)"
                 >
                   <Button
-                    prefixIcon={isSaving ? <Icons.Confirm /> : undefined}
+                    suffixIcon={isSaving ? <Loader size="tiny" /> : undefined}
                     onClick={handleSaveSettings}
                     disabled={isSaving}
                   >
-                    {isSaving ? (
-                      <Box gap="4px" verticalAlign="middle" direction="horizontal">
-                        <div className="spinner" style={{
-                          width: '16px',
-                          height: '16px',
-                          border: '2px solid rgba(0,0,0,0.1)',
-                          borderTop: '2px solid #000',
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite',
-                          marginRight: '8px'
-                        }} />
-                        <span>Saving...</span>
-                      </Box>
-                    ) : 'Save Settings'}
+                    {isSaving ? 'Saving...' : 'Save Settings'}
                   </Button>
                   <Button
                     priority="secondary"
