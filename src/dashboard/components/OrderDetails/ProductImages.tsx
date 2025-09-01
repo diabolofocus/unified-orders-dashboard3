@@ -113,7 +113,7 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
     const [isUpdateMode, setIsUpdateMode] = useState(false);
     const [selectedItemForEdit, setSelectedItemForEdit] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const { hasAnyTrackingDisplayed, allItemsHaveTracking, showEditButton, showAddButton, itemTrackingInfo } = useTrackingStatus(order);
+    const { hasAnyTrackingDisplayed, allItemsHaveTracking, showEditButton, showAddButton, itemTrackingInfo } = useTrackingStatus(order, refreshTrigger);
     const [isMounted, setIsMounted] = useState(true);
 
     // Cleanup on unmount to prevent memory leaks
@@ -174,7 +174,6 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
             if (!isEditMode && !isUpdateMode && selectedItems && selectedItems.length > 0) {
                 console.log('🚀 SAVE TRACKING - FAILSAFE: Running mandatory filtering for ADD mode');
                 console.log('🚀 SAVE TRACKING - FAILSAFE: Input items:', selectedItems);
-                console.log('🚀 SAVE TRACKING - FAILSAFE: Current itemTrackingInfo map:', Array.from(itemTrackingInfo.entries()));
                 
                 processedSelectedItems = selectedItems.filter(selectedItem => {
                     const orderItem = order.rawOrder?.lineItems?.find((item: any) => 
@@ -677,6 +676,7 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                         }
                         return undefined;
                     })()}
+                    refreshTrigger={refreshTrigger}
                 />
             </Box>
 
@@ -987,7 +987,7 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
     );
 });
 // Enhanced tracking status checker - restored API-based approach for accuracy
-const useTrackingStatus = (order: any) => {
+const useTrackingStatus = (order: any, refreshTrigger: number) => {
     const [hasAnyTrackingDisplayed, setHasAnyTrackingDisplayed] = useState(false);
     const [allItemsHaveTracking, setAllItemsHaveTracking] = useState(false);
     const [showAddButton, setShowAddButton] = useState(false);
@@ -1309,7 +1309,7 @@ const useTrackingStatus = (order: any) => {
             setShowEditButton(false);
             setShowAddButton(false);
         }
-    }, [order._id]);
+    }, [order._id, refreshTrigger]);
 
     return { hasAnyTrackingDisplayed, allItemsHaveTracking, showEditButton, showAddButton, itemTrackingInfo };
 };

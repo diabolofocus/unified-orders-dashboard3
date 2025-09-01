@@ -71,6 +71,7 @@ interface TrackingNumberModalProps {
         };
     };
     onSave: (trackingNumber: string, carrier: string, selectedItems?: Array<{ id: string, quantity: number }>, trackingUrl?: string, customCarrierName?: string) => Promise<void>;
+    refreshTrigger?: number;
     editMode?: boolean;
     updateMode?: boolean;
     isPartialOrder?: boolean;
@@ -88,7 +89,8 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
     editMode,
     updateMode = false,
     isPartialOrder = false,
-    existingTrackingInfo
+    existingTrackingInfo,
+    refreshTrigger
 }) => {
     const { uiStore } = rootStore;
     const [trackingNumber, setTrackingNumber] = useState('');
@@ -149,7 +151,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
         };
 
         fetchFulfillments();
-    }, [isOpen, order._id]);
+    }, [isOpen, order._id, refreshTrigger]);
 
     // Function to get existing tracking for an item - uses FRESH fulfillment data
     const getExistingTracking = (itemId: string) => {
@@ -1015,12 +1017,6 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                         const item = order?.items?.[index];
                         if (item) {
                             const itemId = item._id || item.id || `item-${index}`;
-                            console.log(`🎯 MODAL DEBUG - Processing item index ${index}:`, {
-                                indexKey,
-                                itemId,
-                                itemName: typeof item.productName === 'string' ? item.productName : item.productName?.original,
-                                isSelected: selectedItemsState[indexKey]
-                            });
 
                             // Use NumberInput value if available, otherwise calculate remaining quantity
                             let quantity = itemQuantities[indexKey];
@@ -1040,11 +1036,6 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                             }
 
                             if (quantity > 0) {
-                                console.log(`🎯 MODAL DEBUG - Adding to selectedItemsData:`, {
-                                    id: itemId,
-                                    quantity: quantity,
-                                    itemName: typeof item.productName === 'string' ? item.productName : item.productName?.original
-                                });
                                 selectedItemsData.push({
                                     id: itemId,
                                     quantity: quantity
