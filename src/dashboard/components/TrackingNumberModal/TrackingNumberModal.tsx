@@ -191,6 +191,7 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
         if (order?.items && fulfillmentsLoaded) {
             const initialQuantities: Record<string, number> = {};
             const initialSelected: Record<string, boolean> = {};
+            let totalRemainingItems = 0;
 
             order.items.forEach((item, index) => {
                 const itemId = item._id || item.id || `item-${index}`;
@@ -208,13 +209,21 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                     initialQuantities[`${index}-unfulfilled`] = remainingQuantity;
                 }
 
+                // Count remaining items for auto-setting applyToAllItems
+                totalRemainingItems += remainingQuantity;
+
                 initialSelected[index.toString()] = false; // Unselected by default when applyToAllItems is false
             });
+
+            // Auto-set applyToAllItems to true if there's only one remaining item (or in add mode with single item)
+            if (!updateMode && totalRemainingItems <= 1) {
+                setApplyToAllItems(true);
+            }
 
             setItemQuantities(initialQuantities);
             setSelectedItemsState(initialSelected);
         }
-    }, [order, fulfillmentsLoaded]);
+    }, [order, fulfillmentsLoaded, updateMode]);
 
 
     // Initialize carrier from settings and handle edit mode
@@ -932,10 +941,40 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
 
             selectedItems = itemsWithSelectedTracking;
 // Debug log removed
-        } else if (applyToAllItems || isSingleTrackingUpdateMode) {
-            // Apply to all items - don't send selectedItems (undefined means all)
+        } else if (isSingleTrackingUpdateMode) {
+            // In single tracking update mode (edit mode), apply to all items
             selectedItems = undefined;
-            console.log('Submitting with ALL items (full fulfillment)');
+            console.log('Submitting with ALL items (single tracking update mode)');
+        } else if (applyToAllItems && !updateMode) {
+            // In add mode with applyToAllItems, only apply to unfulfilled items
+            const unfulfilledItemsData: Array<{ id: string, quantity: number }> = [];
+            
+            order.items?.forEach((item, index) => {
+                const itemId = item._id || item.id || `item-${index}`;
+                const existingTracking = getExistingTracking(itemId);
+                const actualFulfilledQuantity = existingTracking.reduce((total, tracking) => total + tracking.quantity, 0);
+                const totalQuantity = item.quantity || 1;
+                const remainingQuantity = Math.max(0, totalQuantity - actualFulfilledQuantity);
+                
+                if (remainingQuantity > 0) {
+                    unfulfilledItemsData.push({
+                        id: itemId,
+                        quantity: remainingQuantity
+                    });
+                }
+            });
+            
+            if (unfulfilledItemsData.length === 0) {
+                console.warn('No unfulfilled items found for tracking');
+                return;
+            }
+            
+            selectedItems = unfulfilledItemsData;
+            console.log('Submitting with UNFULFILLED items only (applyToAllItems in add mode):', selectedItems);
+        } else if (applyToAllItems && updateMode) {
+            // In update mode with applyToAllItems, apply to all items with existing tracking
+            selectedItems = undefined;
+            console.log('Submitting with ALL items (applyToAllItems in update mode)');
         } else {
             // Apply only to selected items
             const selectedItemsData: Array<{ id: string, quantity: number }> = [];
@@ -976,6 +1015,12 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                         const item = order?.items?.[index];
                         if (item) {
                             const itemId = item._id || item.id || `item-${index}`;
+                            console.log(`🎯 MODAL DEBUG - Processing item index ${index}:`, {
+                                indexKey,
+                                itemId,
+                                itemName: typeof item.productName === 'string' ? item.productName : item.productName?.original,
+                                isSelected: selectedItemsState[indexKey]
+                            });
 
                             // Use NumberInput value if available, otherwise calculate remaining quantity
                             let quantity = itemQuantities[indexKey];
@@ -995,6 +1040,11 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                             }
 
                             if (quantity > 0) {
+                                console.log(`🎯 MODAL DEBUG - Adding to selectedItemsData:`, {
+                                    id: itemId,
+                                    quantity: quantity,
+                                    itemName: typeof item.productName === 'string' ? item.productName : item.productName?.original
+                                });
                                 selectedItemsData.push({
                                     id: itemId,
                                     quantity: quantity
@@ -1467,21 +1517,23 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                                         </Box>
                                     </div>
 
-                                    {/* Apply to all checkbox - Only show when there are multiple filtered items AND not in single tracking update mode */}
-                                    {order.items && !updateMode && (() => {
-                                        const filteredItems = order.items.filter((item, index) => {
+                                    {/* Apply to all checkbox - Only show when there are multiple remaining unfulfilled items */}
+                                    {order.items && !updateMode && fulfillmentsLoaded && (() => {
+                                        // Calculate total remaining unfulfilled items using fresh fulfillment data
+                                        let totalRemainingItems = 0;
+                                        
+                                        order.items.forEach((item, index) => {
                                             const itemId = item._id || item.id || `item-${index}`;
-                                            const hasExistingTracking = getExistingTracking(itemId).length > 0;
-                                            const fulfilledQuantity = item.fulfilledQuantity || 0;
-                                            const remainingQuantity = (item.quantity || 1) - fulfilledQuantity;
-
-                                            return updateMode ? (hasExistingTracking || fulfilledQuantity > 0) : remainingQuantity > 0;
+                                            const existingTracking = getExistingTracking(itemId);
+                                            const actualFulfilledQuantity = existingTracking.reduce((total, tracking) => total + tracking.quantity, 0);
+                                            const totalQuantity = item.quantity || 1;
+                                            const remainingQuantity = Math.max(0, totalQuantity - actualFulfilledQuantity);
+                                            
+                                            totalRemainingItems += remainingQuantity;
                                         });
 
-                                        const hasMultipleItems = filteredItems.length > 1;
-                                        const hasItemWithMultipleQuantity = filteredItems.some(item => (item.quantity || 1) > 1);
-
-                                        return hasMultipleItems || hasItemWithMultipleQuantity;
+                                        // Only show checkbox if there are multiple remaining items to fulfill
+                                        return totalRemainingItems > 1;
                                     })() && (
                                             <div
                                                 onClick={() => !isSaving && setApplyToAllItems(!applyToAllItems)}
