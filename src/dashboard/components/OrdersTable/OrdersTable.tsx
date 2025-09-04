@@ -325,7 +325,28 @@ const OrdersTable = observer(() => {
                 sendShippingEmail: params.sendShippingEmail
             });
 
+            // Clear selected orders
             setSelectedOrderIds([]);
+
+            // Refresh orders silently (same as refresh button but without shimmer)
+            try {
+                const result = await orderController.getOrderService().fetchOrders({
+                    limit: 50,
+                    cursor: undefined
+                });
+
+                if (result.success && result.orders && result.orders.length > 0) {
+                    orderStore.setOrders(result.orders);
+                    orderStore.setPagination({
+                        hasNext: result.pagination?.hasNext || false,
+                        nextCursor: result.pagination?.nextCursor || '',
+                        prevCursor: result.pagination?.prevCursor || ''
+                    });
+                    orderStore.setConnectionStatus('connected');
+                }
+            } catch (refreshError) {
+                console.warn('Silent refresh after bulk fulfillment failed:', refreshError);
+            }
 
         } catch (error) {
             console.error('Bulk fulfillment failed:', error);

@@ -135,11 +135,6 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
                 const response = await orderFulfillments.listFulfillmentsForSingleOrder(order._id);
                 const fulfillments = response.orderWithFulfillments?.fulfillments || [];
 
-                console.log('🔄 Fresh fulfillments loaded:', {
-                    orderId: order._id,
-                    fulfillmentsCount: fulfillments.length,
-                    fulfillmentsWithTracking: fulfillments.filter(f => f.trackingInfo?.trackingNumber).length
-                });
 
                 setFulfillmentsData(fulfillments);
                 setFulfillmentsLoaded(true);
@@ -946,7 +941,6 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
         } else if (isSingleTrackingUpdateMode) {
             // In single tracking update mode (edit mode), apply to all items
             selectedItems = undefined;
-            console.log('Submitting with ALL items (single tracking update mode)');
         } else if (applyToAllItems && !updateMode) {
             // In add mode with applyToAllItems, only apply to unfulfilled items
             const unfulfilledItemsData: Array<{ id: string, quantity: number }> = [];
@@ -972,11 +966,9 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
             }
             
             selectedItems = unfulfilledItemsData;
-            console.log('Submitting with UNFULFILLED items only (applyToAllItems in add mode):', selectedItems);
         } else if (applyToAllItems && updateMode) {
             // In update mode with applyToAllItems, apply to all items with existing tracking
             selectedItems = undefined;
-            console.log('Submitting with ALL items (applyToAllItems in update mode)');
         } else {
             // Apply only to selected items
             const selectedItemsData: Array<{ id: string, quantity: number }> = [];
@@ -1052,7 +1044,6 @@ export const TrackingNumberModal: React.FC<TrackingNumberModalProps> = observer(
             }
 
             selectedItems = selectedItemsData;
-            console.log('Submitting with SELECTED items (partial fulfillment):', selectedItems);
         }
 
         setIsSaving(true);

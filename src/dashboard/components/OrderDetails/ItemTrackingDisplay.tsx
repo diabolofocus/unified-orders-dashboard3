@@ -32,12 +32,19 @@ export const ItemTrackingDisplay: React.FC<ItemTrackingDisplayProps> = ({
             return;
         }
 
+        let isCancelled = false;
+
         const fetchItemTrackingInfo = async () => {
             try {
-                setLoading(true);
+                if (!isCancelled) {
+                    setLoading(true);
+                }
 
                 // Fetch all fulfillments for this order
                 const response = await orderFulfillments.listFulfillmentsForSingleOrder(orderId);
+                
+                if (isCancelled) return;
+                
                 const fulfillments = response.orderWithFulfillments?.fulfillments || [];
 
                 // Find tracking info for this specific item
@@ -67,16 +74,26 @@ export const ItemTrackingDisplay: React.FC<ItemTrackingDisplayProps> = ({
                     }
                 });
 
-                setTrackingInfos(itemTrackingInfos);
+                if (!isCancelled) {
+                    setTrackingInfos(itemTrackingInfos);
+                }
             } catch (error) {
-                console.error('Error fetching item tracking info:', error);
-                setTrackingInfos([]);
+                if (!isCancelled) {
+                    console.error('Error fetching item tracking info:', error);
+                    setTrackingInfos([]);
+                }
             } finally {
-                setLoading(false);
+                if (!isCancelled) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchItemTrackingInfo();
+
+        return () => {
+            isCancelled = true;
+        };
     }, [orderId, itemId, refreshTrigger]);
 
     // Don't show loading state for tracking - just show nothing until we have data

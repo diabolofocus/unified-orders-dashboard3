@@ -138,6 +138,7 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
             // FAILSAFE: Always filter items in ADD mode, regardless of how they're formatted
             let processedSelectedItems = selectedItems;
             if (!isEditMode && !isUpdateMode && selectedItems && selectedItems.length > 0) {
+                console.log('🚀 SAVE TRACKING - FAILSAFE: Running mandatory filtering for ADD mode');
                 
                 processedSelectedItems = selectedItems.filter(selectedItem => {
                     const orderItem = order.rawOrder?.lineItems?.find((item: any) => 
@@ -226,6 +227,7 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
 
             // Only update state if component is still mounted
             if (isMounted) {
+                console.log('🚀 SAVE TRACKING - Success! Triggering refreshes...');
                 
                 // Force a refresh of the order data to get updated fulfillments
                 setRefreshTrigger(prev => prev + 1);
@@ -345,19 +347,12 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
 
     // Fetch payment method when order changes
     useEffect(() => {
-        if (!order._id) return;
-
-        let isCancelled = false;
-
         const fetchPaymentMethod = async () => {
+            if (!order._id) return;
+
             try {
-                if (!isCancelled) {
-                    setLoadingPayment(true);
-                }
+                setLoadingPayment(true);
                 const response = await orderTransactions.listTransactionsForSingleOrder(order._id);
-                
-                if (isCancelled) return;
-                
                 const payments = response.orderTransactions?.payments || [];
 
                 if (payments.length > 0) {
@@ -370,31 +365,19 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                         method = firstPayment.regularPaymentDetails.paymentMethod;
                     }
 
-                    if (!isCancelled) {
-                        setPaymentMethod(method);
-                    }
+                    setPaymentMethod(method);
                 } else {
-                    if (!isCancelled) {
-                        setPaymentMethod('No payment found');
-                    }
+                    setPaymentMethod('No payment found');
                 }
             } catch (error) {
-                if (!isCancelled) {
-                    console.error('Error fetching payment method:', error);
-                    setPaymentMethod('Error loading payment method');
-                }
+                console.error('Error fetching payment method:', error);
+                setPaymentMethod('Error loading payment method');
             } finally {
-                if (!isCancelled) {
-                    setLoadingPayment(false);
-                }
+                setLoadingPayment(false);
             }
         };
 
         fetchPaymentMethod();
-
-        return () => {
-            isCancelled = true;
-        };
     }, [order._id]);
 
     const getDiscountDisplayText = (): string => {
@@ -482,6 +465,15 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                 <Box direction="horizontal" gap="8px" align="right">
                     {/* Debug logging for button visibility */}
                     {(() => {
+                        const debugInfo = {
+                            orderId: order._id,
+                            hasAnyTrackingDisplayed,
+                            allItemsHaveTracking,
+                            showEditButton,
+                            showAddButton,
+                            renderingEditButton: showEditButton,
+                            renderingAddButton: showAddButton
+                        };
                         return null;
                     })()}
 
@@ -562,6 +554,23 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                         });
                         
                         const isPartialOrder = hasUnfulfilledItems && hasFulfilledItems;
+                        const debugData = {
+                            hasUnfulfilledItems,
+                            hasFulfilledItems,
+                            isPartialOrder,
+                            orderStatus: order.status,
+                            itemTrackingMap: Array.from(itemTrackingInfo.entries()),
+                            itemDetails: orderItems.map((item: any, index: number) => {
+                                const itemId = item._id || item.id;
+                                return {
+                                    index,
+                                    name: item.productName?.original,
+                                    totalQuantity: item.quantity || 1,
+                                    fulfilledQuantity: item.fulfilledQuantity || 0,
+                                    hasTracking: itemTrackingInfo.get(itemId) || false
+                                };
+                            })
+                        };
                         return isPartialOrder;
                     })()}
                     existingTrackingInfo={(() => {
@@ -597,6 +606,9 @@ const ProductImages: React.FC<ProductImagesProps> = observer(({
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     });
+                    const itemPrice = item.price?.formattedAmount ? 
+                        `${totalPrice} ${currencySymbol}`.trim() : 
+                        '0.00';
                     const itemPriceDisplay = `${totalPrice} ${currencySymbol}`.trim();
                     const tooltipContent = `${formattedUnitPrice} ${currencySymbol} × ${itemQuantity} = ${itemPriceDisplay}`;
                     const fulfilledQuantity = item.fulfilledQuantity || 0;
@@ -893,16 +905,11 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
     const [itemTrackingInfo, setItemTrackingInfo] = useState<Map<string, boolean>>(new Map());
 
     useEffect(() => {
-        let isCancelled = false;
-
         const checkTrackingStatus = async () => {
             try {
                 
                 const { orderFulfillments } = await import('@wix/ecom');
                 const response = await orderFulfillments.listFulfillmentsForSingleOrder(order._id);
-                
-                if (isCancelled) return;
-                
                 const fulfillments = response.orderWithFulfillments?.fulfillments || [];
                 const orderItems = order.rawOrder?.lineItems || [];
 
@@ -935,28 +942,57 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
                     }
                 });
 
+                console.log(`🔍 TRACKING DEBUG - API Summary:`, {
+                    fulfillmentsWithTracking: fulfillments.filter(f => f.trackingInfo?.trackingNumber).length,
+                    totalApiTrackedItems,
+                    orderItemsCount: orderItems.length
+                });
 
                 if (orderItems.length > 0) {
                     // Always process all items, whether they have tracking or not
                     allQuantitiesTracked = orderItems.every((item: any, index: number) => {
                         const itemId = item._id || item.id;
+                        const itemName = item.productName?.original || `Item ${index + 1}`;
                         const totalQuantity = item.quantity || 1;
                         const fulfilledQuantity = item.fulfilledQuantity || 0;
 
+                        console.log(`🔍 TRACKING DEBUG - Checking item ${index + 1} (${itemName}):`, {
+                            itemId,
+                            totalQuantity,
+                            fulfilledQuantity
+                        });
 
                         // Calculate how many of this item have tracking from API
                         const trackedQuantityFromAPI = fulfillments.reduce((total, fulfillment) => {
                             if (!fulfillment.trackingInfo?.trackingNumber) return total;
 
+                            console.log(`🔍 TRACKING DEBUG - Checking fulfillment for item ${index + 1}:`, {
+                                fulfillmentId: fulfillment._id,
+                                trackingNumber: fulfillment.trackingInfo.trackingNumber,
+                                fulfillmentLineItems: fulfillment.lineItems?.map((li: any) => ({
+                                    id: li._id || li.id || li.lineItemId,
+                                    quantity: li.quantity
+                                }))
+                            });
 
                             const fulfillmentLineItem = fulfillment.lineItems?.find((li: any) => {
                                 const possibleIds = [li._id, li.id, li.lineItemId].filter(Boolean);
+                                console.log(`🔍 TRACKING DEBUG - Comparing item ${index + 1} IDs:`, {
+                                    orderItemId: itemId,
+                                    fulfillmentLineItemIds: possibleIds,
+                                    matches: possibleIds.includes(itemId)
+                                });
                                 return possibleIds.includes(itemId);
                             });
 
                             if (fulfillmentLineItem) {
+                                console.log(`🔍 TRACKING DEBUG - ✅ Item ${index + 1} found in fulfillment:`, {
+                                    trackingNumber: fulfillment.trackingInfo.trackingNumber,
+                                    quantity: fulfillmentLineItem.quantity
+                                });
                                 return total + (fulfillmentLineItem.quantity || 0);
                             } else {
+                                console.log(`🔍 TRACKING DEBUG - ❌ Item ${index + 1} NOT found in this fulfillment`);
                             }
 
                             return total;
@@ -970,18 +1006,28 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
                             // Strategy 1: Use fulfilledQuantity if available
                             if (fulfilledQuantity > 0) {
                                 trackedQuantity = fulfilledQuantity;
+                                console.log(`🔍 TRACKING DEBUG - Strategy 1: Using fulfilled quantity (${fulfilledQuantity}) as tracked quantity for item ${index + 1}`);
                             } 
                             // Strategy 2: If ALL items show 0 fulfilled but order is PARTIALLY_FULFILLED,
                             // assume at least one item per fulfillment has tracking (data freshness issue)
                             else if (index === 0 && orderStatusIndicatesTracking) {
                                 // For now, let's see if any fulfillment exists and assume first item might have tracking
                                 trackedQuantity = fulfillments.length > 0 ? 1 : 0;
+                                console.log(`🔍 TRACKING DEBUG - Strategy 2: Assuming item ${index + 1} has tracking due to fulfillments existence and order status`);
                             }
                         }
 
                         const hasItemTracking = trackedQuantity > 0;
                         trackingMap.set(itemId, hasItemTracking);
 
+                        console.log(`🔍 TRACKING DEBUG - Item ${index + 1} quantities:`, {
+                            totalQuantity,
+                            fulfilledQuantity,
+                            trackedQuantityFromAPI,
+                            trackedQuantity,
+                            hasItemTracking,
+                            isFullyTracked: trackedQuantity >= totalQuantity
+                        });
 
                         // Track items with/without tracking for button logic
                         if (hasItemTracking) {
@@ -1008,12 +1054,14 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
                     
                     // If order is partially fulfilled and has unfulfilled items, ensure Add button is available
                     if (isPartiallyFulfilled && hasUnfulfilledItems && itemsWithoutTracking === 0) {
+                        console.log(`🔍 TRACKING DEBUG - PARTIAL ORDER: Order has unfulfilled items but counter shows 0. Adjusting to 1.`);
                         itemsWithoutTracking = 1;
                     }
                     
                     // ENHANCED: Fallback for when API has tracking but item matching failed
                     // This happens due to ID mismatch or stale order data
                     if (totalApiTrackedItems > 0 && itemsWithTracking === 0) {
+                        console.log(`🔍 TRACKING DEBUG - FALLBACK: API shows ${totalApiTrackedItems} tracked items but matching failed. Using fallback strategy.`);
                         
                         // Strategy: Assume the first N items have tracking where N = number of fulfillments with tracking
                         const fulfillmentsWithTrackingCount = fulfillments.filter(f => f.trackingInfo?.trackingNumber).length;
@@ -1021,6 +1069,7 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
                         for (let i = 0; i < Math.min(fulfillmentsWithTrackingCount, orderItems.length); i++) {
                             const item = orderItems[i];
                             const itemId = item._id || item.id;
+                            console.log(`🔍 TRACKING DEBUG - FALLBACK: Assuming item ${i + 1} has tracking`);
                             
                             trackingMap.set(itemId, true);
                             itemsWithTracking++;
@@ -1061,8 +1110,9 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
                 // Start with no tracking assumed, let item analysis determine actual state
                 let hasAnyTracking = false;
                 
+                console.log('🔍 TRACKING DEBUG - FALLBACK: Processing local order data, orderStatus:', order.status);
                 
-                orderItems.forEach((item: any) => {
+                orderItems.forEach((item: any, index: number) => {
                     const itemId = item._id || item.id;
                     const totalQuantity = item.quantity || 1;
                     const fulfilledQuantity = item.fulfilledQuantity || 0;
@@ -1079,6 +1129,14 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
                     
                     trackingMap.set(itemId, hasItemTracking);
                     
+                    console.log(`🔍 FALLBACK - Item ${index + 1} (${item.productName?.original}):`, {
+                        totalQuantity,
+                        fulfilledQuantity,
+                        remainingQuantity,
+                        hasItemTrackingFromLocal,
+                        hasItemTracking,
+                        fulfillmentDetails: item.fulfillmentDetails
+                    });
                     
                     if (hasItemTracking) {
                         hasAnyTracking = true;
@@ -1100,20 +1158,26 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
                 });
                 
                 if (isPartiallyFulfilled && hasUnfulfilledItems && itemsWithoutTracking === 0) {
+                    console.log(`🔍 FALLBACK - PARTIAL ORDER: Order has unfulfilled items but counter shows 0. Adjusting to 1.`);
                     itemsWithoutTracking = 1;
                 }
                 
                 const shouldShowEditButton = itemsWithTracking > 0;
                 const shouldShowAddButton = itemsWithoutTracking > 0;
                 
+                console.log('🔍 TRACKING DEBUG - FALLBACK Final status:', {
+                    hasAnyTracking,
+                    itemsWithTracking,
+                    itemsWithoutTracking,
+                    shouldShowEditButton,
+                    shouldShowAddButton
+                });
                 
-                if (!isCancelled) {
-                    setItemTrackingInfo(trackingMap);
-                    setHasAnyTrackingDisplayed(hasAnyTracking);
-                    setAllItemsHaveTracking(itemsWithTracking > 0 && itemsWithoutTracking === 0);
-                    setShowEditButton(shouldShowEditButton);
-                    setShowAddButton(shouldShowAddButton);
-                }
+                setItemTrackingInfo(trackingMap);
+                setHasAnyTrackingDisplayed(hasAnyTracking);
+                setAllItemsHaveTracking(itemsWithTracking > 0 && itemsWithoutTracking === 0);
+                setShowEditButton(shouldShowEditButton);
+                setShowAddButton(shouldShowAddButton);
             }
         };
 
@@ -1126,10 +1190,6 @@ const useTrackingStatus = (order: any, refreshTrigger: number) => {
             setShowEditButton(false);
             setShowAddButton(false);
         }
-
-        return () => {
-            isCancelled = true;
-        };
     }, [order._id, refreshTrigger]);
 
     return { hasAnyTrackingDisplayed, allItemsHaveTracking, showEditButton, showAddButton, itemTrackingInfo };
