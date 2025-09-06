@@ -16,6 +16,7 @@ import {
     Checkbox,
     TextButton,
     Badge,
+    Tooltip,
 } from '@wix/design-system';
 import { SidePanel } from './SidePanel';
 import * as Icons from '@wix/wix-ui-icons-common';
@@ -299,7 +300,7 @@ const OrdersTable = observer(() => {
                 }
             ]);
 
-// Debug log removed
+            // Debug log removed
         } catch (error) {
             console.error(`Failed to mark order ${orderId} as seen:`, error);
             // If the API call fails, revert the local cache
@@ -402,9 +403,9 @@ const OrdersTable = observer(() => {
                 return '';
             }
 
-// Debug log removed
+            // Debug log removed
             const accessibleUrl = convertWixImageUrl(imageUrl);
-// Debug log removed
+            // Debug log removed
 
             const urlsToTry = [
                 accessibleUrl,
@@ -418,7 +419,7 @@ const OrdersTable = observer(() => {
 
             for (const urlToTry of urlsToTry) {
                 try {
-// Debug log removed
+                    // Debug log removed
 
                     const response = await fetch(urlToTry as string, {
                         mode: 'cors',
@@ -433,7 +434,7 @@ const OrdersTable = observer(() => {
                     }
 
                     const blob = await response.blob();
-// Debug log removed
+                    // Debug log removed
 
                     if (blob.size === 0) {
                         console.warn('Empty blob received');
@@ -444,7 +445,7 @@ const OrdersTable = observer(() => {
                         const reader = new FileReader();
                         reader.onload = () => {
                             const result = reader.result as string;
-// Debug log removed
+                            // Debug log removed
                             resolve(result);
                         };
                         reader.onerror = () => reject(new Error('Failed to convert image to base64'));
@@ -481,7 +482,7 @@ const OrdersTable = observer(() => {
             }
         }
 
-// Debug log removed
+        // Debug log removed
         return '';
     };
 
@@ -587,7 +588,7 @@ const OrdersTable = observer(() => {
      */
     const handlePrintOrder = async (order: Order) => {
         try {
-// Debug log removed
+            // Debug log removed
             setIsPrinting(true);
 
             // Get customer info from multiple sources
@@ -604,7 +605,7 @@ const OrdersTable = observer(() => {
             // Fetch payment method from order transactions
             let paymentMethod = 'Credit Card'; // Default fallback
             try {
-// Debug log removed
+                // Debug log removed
                 const transactionResponse = await orderTransactions.listTransactionsForSingleOrder(order._id);
                 const payments = transactionResponse.orderTransactions?.payments || [];
 
@@ -641,9 +642,9 @@ const OrdersTable = observer(() => {
                                 paymentMethod = rawPaymentMethod;
                         }
                     }
-// Debug log removed
+                    // Debug log removed
                 } else {
-// Debug log removed
+                    // Debug log removed
                 }
             } catch (error) {
                 console.error('Error fetching payment method:', error);
@@ -660,9 +661,9 @@ const OrdersTable = observer(() => {
 
                     if (imageUrl) {
                         try {
-// Debug log removed
+                            // Debug log removed
                             base64Image = await convertImageToBase64(imageUrl);
-// Debug log removed
+                            // Debug log removed
                         } catch (error) {
                             console.error(`Failed to convert image for ${item.productName?.original}:`, error);
                         }
@@ -1017,7 +1018,7 @@ const OrdersTable = observer(() => {
             // Clean up
             document.body.removeChild(printElement);
 
-// Debug log removed
+            // Debug log removed
 
         } catch (error) {
             console.error('Failed to generate PDF:', error);
@@ -1090,10 +1091,10 @@ const OrdersTable = observer(() => {
         try {
             if (status) {
                 await orderController.performFulfillmentStatusFilter(status);
-// Debug log removed
+                // Debug log removed
             } else {
                 orderController.clearStatusFilter();
-// Debug log removed
+                // Debug log removed
             }
         } finally {
             setIsFulfillmentStatusLoading(false);
@@ -1107,10 +1108,10 @@ const OrdersTable = observer(() => {
         try {
             if (status) {
                 await orderController.performPaymentStatusFilter(status);
-// Debug log removed
+                // Debug log removed
             } else {
                 orderController.clearStatusFilter();
-// Debug log removed
+                // Debug log removed
             }
         } finally {
             setIsPaymentStatusLoading(false);
@@ -1119,7 +1120,7 @@ const OrdersTable = observer(() => {
 
     const handleArchiveStatusFilterChange = (status: string | null) => {
         setArchiveStatusFilter(status);
-// Debug log removed
+        // Debug log removed
     };
 
     const handleProductsApiFilterChange = async (productIds: string[], selectedProducts: Array<{ id: string, name: string }> = []) => {
@@ -1167,7 +1168,7 @@ const OrdersTable = observer(() => {
 
                     // Replace the current orders with API search results
                     orderStore.setFilteredOrders(transformedOrders);
-// Debug log removed
+                    // Debug log removed
                 } else {
                     console.error('Products API search failed:', response.error);
                     // Clear results on error
@@ -1183,7 +1184,7 @@ const OrdersTable = observer(() => {
         } else {
             // Clear Products API filter - restore original orders
             orderStore.clearProductsApiFilter();
-// Debug log removed
+            // Debug log removed
         }
     };
 
@@ -1228,7 +1229,7 @@ const OrdersTable = observer(() => {
 
     const handleSelectionChange = (selectedIds: string[]) => {
         setSelectedOrderIds(selectedIds);
-// Debug log removed
+        // Debug log removed
     };
 
     const handleSelectAll = (checked: boolean) => {
@@ -1490,7 +1491,7 @@ const OrdersTable = observer(() => {
                     }
                 }
 
-// Debug log removed
+                // Debug log removed
             } catch (error) {
                 console.error('❌ Badge processing failed:', error);
             } finally {
@@ -1590,7 +1591,25 @@ const OrdersTable = observer(() => {
                 return (
                     <Box direction="vertical" gap="4px">
                         <Box direction="vertical" gap="2px">
-                            <Text size="small" ellipsis>{customerName}</Text>
+                            <Box direction="horizontal" gap="6px" align="left">
+                                <Text size="small" ellipsis>{customerName}</Text>
+                                {(order.buyerNote || order.rawOrder?.buyerNote) && (
+                                    <Tooltip
+                                        content={order.buyerNote || order.rawOrder?.buyerNote}
+                                        placement="top"
+                                        maxWidth="300px"
+                                    >
+                                        <Icons.Chat
+                                            size="16px"
+                                            style={{
+                                                color: '#3b82f6',
+                                                cursor: 'pointer',
+                                                flexShrink: 0
+                                            }}
+                                        />
+                                    </Tooltip>
+                                )}
+                            </Box>
                             {company && (
                                 <Text size="tiny" secondary ellipsis>{company}</Text>
                             )}
@@ -1797,6 +1816,47 @@ const OrdersTable = observer(() => {
             processedCustomersRef.current.clear();
         }
     }, [finalFilteredOrders.length > 0]); // Only when we go from 0 to >0 orders
+
+    // Auto-select oldest unfulfilled order from filtered results when filters change
+    useEffect(() => {
+        if (finalFilteredOrders.length === 0) return;
+
+        const currentSelectedOrder = orderStore.selectedOrder;
+        const selectedOrderInResults = currentSelectedOrder && finalFilteredOrders.find(order => order._id === currentSelectedOrder._id);
+
+        // Only auto-select when the currently selected order is not in the filtered results
+        // This handles the case where filters are applied and the selected order is no longer visible
+        if (currentSelectedOrder && !selectedOrderInResults) {
+            // Find the oldest unfulfilled order in the filtered results
+            const unfulfilledOrders = finalFilteredOrders.filter(order =>
+                order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED'
+            );
+
+            if (unfulfilledOrders.length > 0) {
+                // Sort by creation date (oldest first)
+                const oldestUnfulfilled = unfulfilledOrders.sort((a, b) =>
+                    new Date(a._createdDate).getTime() - new Date(b._createdDate).getTime()
+                )[0];
+
+                orderController.selectOrder(oldestUnfulfilled);
+
+                // Update visual selection in the table
+                setTimeout(() => {
+                    document.querySelectorAll('[data-selected-order]').forEach(row => {
+                        row.removeAttribute('data-selected-order');
+                    });
+
+                    const rows = document.querySelectorAll('tbody tr');
+                    rows.forEach((row, index) => {
+                        const orderData = finalFilteredOrders[index];
+                        if (orderData && orderData._id === oldestUnfulfilled._id) {
+                            row.setAttribute('data-selected-order', orderData._id);
+                        }
+                    });
+                }, 100);
+            }
+        }
+    }, [finalFilteredOrders]); // Only re-run when filtered orders change
 
     return (
         <Card className="relative">
@@ -2168,13 +2228,10 @@ const OrdersTable = observer(() => {
                         setSkuFilter(skus);
 
                         if (skus.length > 0) {
-                            const skuList = skus.length > 3 ?
-                                `${skus.slice(0, 3).join(', ')}... (+${skus.length - 3} more)` :
-                                skus.join(', ');
-// Debug log removed
+                            // Debug log removed
                             console.log(`Showing ${getFilteredOrders().length} orders out of ${statusFilteredOrders.length} total`);
                         } else {
-// Debug log removed
+                            // Debug log removed
                         }
                     }}
                     selectedFulfillmentStatus={selectedFulfillmentStatusFilter}
@@ -2189,12 +2246,12 @@ const OrdersTable = observer(() => {
                         if (date !== 'custom') {
                             setCustomDateRange({ from: null, to: null });
                         }
-// Debug log removed
+                        // Debug log removed
                     }}
                     customDateRange={customDateRange}
                     onCustomDateRangeChange={(range) => {
                         setCustomDateRange(range);
-// Debug log removed
+                        // Debug log removed
                     }}
                     isFulfillmentStatusLoading={isFulfillmentStatusLoading}
                     isPaymentStatusLoading={isPaymentStatusLoading}

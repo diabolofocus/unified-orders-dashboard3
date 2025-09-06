@@ -97,11 +97,25 @@ export const OrderDetails: React.FC = observer(() => {
         }
     }, [selectedOrder?._id]);
 
-    // Auto-select most recent order if none selected but orders exist
+    // Auto-select oldest unfulfilled order if none selected but orders exist
     useEffect(() => {
         if (!selectedOrder && orderStore.orders.length > 0) {
-            const mostRecentOrder = orderStore.orders[0]; // Orders are typically sorted by date
-            orderController.selectOrder(mostRecentOrder);
+            // Find the oldest unfulfilled order
+            const unfulfilledOrders = orderStore.orders.filter(order => 
+                order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED'
+            );
+            
+            if (unfulfilledOrders.length > 0) {
+                // Sort by creation date (oldest first)
+                const oldestUnfulfilled = unfulfilledOrders.sort((a, b) => 
+                    new Date(a._createdDate).getTime() - new Date(b._createdDate).getTime()
+                )[0];
+                orderController.selectOrder(oldestUnfulfilled);
+            } else {
+                // If no unfulfilled orders, fall back to most recent order
+                const mostRecentOrder = orderStore.orders[0];
+                orderController.selectOrder(mostRecentOrder);
+            }
         }
     }, [selectedOrder, orderStore.orders.length, orderController]);
 
@@ -623,27 +637,6 @@ export const OrderDetails: React.FC = observer(() => {
                         </Card>
                     )}
 
-                    {/* Buyer Note Card (if exists) */}
-                    {selectedOrder?.rawOrder?.buyerNote && (
-                        <Card>
-                            <Card.Content>
-                                <Box gap="8px" direction="vertical">
-                                    <Text size="small" className="section-title">Buyer Note:</Text>
-                                    <Text
-                                        size="small"
-                                        onClick={() => orderController.copyToClipboard(selectedOrder?.rawOrder?.buyerNote, 'Buyer Note')}
-                                        style={{
-                                            cursor: settingsStore.clickToCopyEnabled ? 'pointer' : 'default',
-                                            color: settingsStore.clickToCopyEnabled ? 'inherit' : 'var(--text-color, #2B2B2B)'
-                                        }}
-                                        className={settingsStore.clickToCopyEnabled ? 'clickable-info' : ''}
-                                    >
-                                        {selectedOrder?.rawOrder?.buyerNote}
-                                    </Text>
-                                </Box>
-                            </Card.Content>
-                        </Card>
-                    )}
 
                     {/* Order Activity Card */}
                     <Card>

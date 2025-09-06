@@ -91,10 +91,19 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
     const orderController = useOrderController();
     const { customFields, extendedFields } = getExtendedFieldsData(order);
 
+    // Debug buyer note data flow
+    console.log('ExtendedFields Debug - Order:', {
+        buyerNote: order.buyerNote,
+        rawOrderBuyerNote: order.rawOrder?.buyerNote,
+        orderId: order.id,
+        orderNumber: order.number
+    });
+
     const hasArrayCustomFields = Array.isArray(customFields) && customFields.length > 0;
     const hasExtendedFields = extendedFields?.namespaces && Object.keys(extendedFields.namespaces).length > 0;
+    const hasBuyerNote = !!(order.buyerNote || order.rawOrder?.buyerNote);
 
-    if (!hasArrayCustomFields && !hasExtendedFields) {
+    if (!hasArrayCustomFields && !hasExtendedFields && !hasBuyerNote) {
         return null;
     }
 
@@ -127,6 +136,35 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
     return (
         <Box gap="8px" direction="vertical">
             <Text size="small" className="section-title">Additional Info:</Text>
+
+            {/* Buyer Note */}
+            {hasBuyerNote && (
+                <Box gap="4px" direction="vertical">
+                    <Text size="small">
+                        Buyer Note:
+                    </Text>
+                    <Text
+                        size="small"
+                        className={settingsStore.clickToCopyEnabled ? 'clickable-info' : ''}
+                        onClick={() => {
+                            if (settingsStore.clickToCopyEnabled) {
+                                const buyerNoteText = order.buyerNote || order.rawOrder?.buyerNote || '';
+                                orderController.copyToClipboard(buyerNoteText, 'Buyer Note');
+                            }
+                        }}
+                        style={{
+                            paddingLeft: '8px',
+                            borderLeft: '2px solid #3b82f6',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            cursor: settingsStore.clickToCopyEnabled ? 'pointer' : 'default',
+                            color: settingsStore.clickToCopyEnabled ? 'inherit' : 'var(--text-color, #2B2B2B)'
+                        }}
+                    >
+                        {order.buyerNote || order.rawOrder?.buyerNote}
+                    </Text>
+                </Box>
+            )}
 
             {/* Array-style Custom Fields (ecom orders structure) */}
             {hasArrayCustomFields && (

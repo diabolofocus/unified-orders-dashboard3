@@ -1204,7 +1204,44 @@ export const getSingleOrder = webMethod(
         billingInfo: order.billingInfo,
         recipientInfo: order.recipientInfo,
         rawOrder: order,
-        buyerNote: order.buyerNote,
+        buyerNote: (() => {
+          console.log('Backend Debug - Buyer Note Fields:', {
+            orderId: order._id,
+            orderNumber: order.number,
+            buyerNote: order.buyerNote,
+            // Check if buyer note might be in buyerInfo
+            buyerInfo: order.buyerInfo,
+            // Check checkout information
+            checkoutInfo: order.checkoutInfo,
+            // Check activities (might contain notes)
+            activities: order.activities,
+            // Look for any field containing "note", "comment", or "message"
+            fieldsWithNote: Object.keys(order).filter(key => 
+              key.toLowerCase().includes('note') || 
+              key.toLowerCase().includes('comment') ||
+              key.toLowerCase().includes('message')
+            ),
+            // Log the complete order to see all available fields
+            completeOrder: JSON.stringify(order, null, 2)
+          });
+          
+          // Try to find buyer note in different possible locations
+          let actualBuyerNote = order.buyerNote;
+          
+          // Check if it's in buyerInfo
+          if (!actualBuyerNote && order.buyerInfo?.note) {
+            actualBuyerNote = order.buyerInfo.note;
+            console.log('Found buyer note in buyerInfo.note:', actualBuyerNote);
+          }
+          
+          // Check if it's in checkoutInfo
+          if (!actualBuyerNote && order.checkoutInfo?.buyerNote) {
+            actualBuyerNote = order.checkoutInfo.buyerNote;
+            console.log('Found buyer note in checkoutInfo.buyerNote:', actualBuyerNote);
+          }
+          
+          return actualBuyerNote || '';
+        })(),
         fulfillmentStatus: order.fulfillmentStatus || 'NOT_FULFILLED'
       };
 
