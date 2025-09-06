@@ -183,7 +183,29 @@ interface PerItemFulfillmentParams {
  */
 export const createPerItemFulfillment = webMethod(
   Permissions.Anyone,
-  async (params: PerItemFulfillmentParams) => {
+  async (params: PerItemFulfillmentParams, context?) => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+    
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
+      };
+    }
     try {
       const elevatedGetOrder = auth.elevate(orders.getOrder);
       const orderDetails = await elevatedGetOrder(params.orderId);
@@ -280,7 +302,8 @@ export const createPerItemFulfillment = webMethod(
           : `Order ${params.orderNumber} fulfilled successfully`,
         emailSent: !!params.sendShippingEmail,
         isPartialFulfillment,
-        result: fulfillmentResult
+        result: fulfillmentResult,
+        headers: enhancedCorsHeaders
       };
 
     } catch (error: unknown) {
@@ -291,7 +314,8 @@ export const createPerItemFulfillment = webMethod(
         success: false,
         error: errorMsg,
         message: `Failed to create per-item fulfillment for order ${params.orderNumber}: ${errorMsg}`,
-        method: 'createPerItemFulfillment'
+        method: 'createPerItemFulfillment',
+        headers: enhancedCorsHeaders
       };
     }
   }
@@ -318,7 +342,29 @@ export const updatePerItemTracking = webMethod(
     orderNumber: string;
     sendShippingEmail?: boolean;
     itemId?: string;
-  }) => {
+  }, context?) => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+    
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
+      };
+    }
     try {
       const carrierMapping: Record<string, string> = {
         'dhl': 'dhl',
@@ -361,7 +407,8 @@ export const updatePerItemTracking = webMethod(
           method: 'updatePerItemTracking',
           message: `Tracking updated for order ${orderNumber}: ${trackingNumber}`,
           emailSent: !!sendShippingEmail,
-          result: updateResult
+          result: updateResult,
+          headers: enhancedCorsHeaders
         };
       } else {
         return await createPerItemFulfillment({
@@ -382,7 +429,8 @@ export const updatePerItemTracking = webMethod(
         success: false,
         error: errorMsg,
         message: `Failed to update per-item tracking for order ${orderNumber}: ${errorMsg}`,
-        method: 'updatePerItemTracking'
+        method: 'updatePerItemTracking',
+        headers: enhancedCorsHeaders
       };
     }
   }
@@ -1204,44 +1252,7 @@ export const getSingleOrder = webMethod(
         billingInfo: order.billingInfo,
         recipientInfo: order.recipientInfo,
         rawOrder: order,
-        buyerNote: (() => {
-          console.log('Backend Debug - Buyer Note Fields:', {
-            orderId: order._id,
-            orderNumber: order.number,
-            buyerNote: order.buyerNote,
-            // Check if buyer note might be in buyerInfo
-            buyerInfo: order.buyerInfo,
-            // Check checkout information
-            checkoutInfo: order.checkoutInfo,
-            // Check activities (might contain notes)
-            activities: order.activities,
-            // Look for any field containing "note", "comment", or "message"
-            fieldsWithNote: Object.keys(order).filter(key => 
-              key.toLowerCase().includes('note') || 
-              key.toLowerCase().includes('comment') ||
-              key.toLowerCase().includes('message')
-            ),
-            // Log the complete order to see all available fields
-            completeOrder: JSON.stringify(order, null, 2)
-          });
-          
-          // Try to find buyer note in different possible locations
-          let actualBuyerNote = order.buyerNote;
-          
-          // Check if it's in buyerInfo
-          if (!actualBuyerNote && order.buyerInfo?.note) {
-            actualBuyerNote = order.buyerInfo.note;
-            console.log('Found buyer note in buyerInfo.note:', actualBuyerNote);
-          }
-          
-          // Check if it's in checkoutInfo
-          if (!actualBuyerNote && order.checkoutInfo?.buyerNote) {
-            actualBuyerNote = order.checkoutInfo.buyerNote;
-            console.log('Found buyer note in checkoutInfo.buyerNote:', actualBuyerNote);
-          }
-          
-          return actualBuyerNote || '';
-        })(),
+        buyerNote: order.buyerNote || order.buyerInfo?.note || order.checkoutInfo?.buyerNote || '',
         fulfillmentStatus: order.fulfillmentStatus || 'NOT_FULFILLED'
       };
 

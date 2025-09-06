@@ -47,7 +47,29 @@ interface PerItemFulfillmentParams {
  */
 export const createPerItemFulfillment = webMethod(
     Permissions.Anyone,
-    async (params: PerItemFulfillmentParams) => {
+    async (params: PerItemFulfillmentParams, context?) => {
+        // Enhanced CORS handling for production
+        const requestHeaders = context?.request?.headers || {};
+        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+        
+        const enhancedCorsHeaders = {
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400',
+            'Vary': 'Origin'
+        };
+
+        // Handle OPTIONS method for CORS preflight
+        if (context?.request?.method === 'OPTIONS') {
+            return {
+                success: true,
+                headers: enhancedCorsHeaders,
+                statusCode: 200,
+                message: 'CORS preflight successful'
+            };
+        }
         try {
             // Get order details with elevated permissions
             const elevatedGetOrder = auth.elevate(orders.getOrder);
@@ -179,7 +201,8 @@ export const createPerItemFulfillment = webMethod(
                     : `Order ${params.orderNumber} fulfilled successfully`,
                 emailSent: !!params.sendShippingEmail,
                 isPartialFulfillment,
-                result: fulfillmentResult
+                result: fulfillmentResult,
+                headers: enhancedCorsHeaders
             };
 
         } catch (error: unknown) {
@@ -190,7 +213,8 @@ export const createPerItemFulfillment = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Failed to create per-item fulfillment for order ${params.orderNumber}: ${errorMsg}`,
-                method: 'createPerItemFulfillment'
+                method: 'createPerItemFulfillment',
+                headers: enhancedCorsHeaders
             };
         }
     }
@@ -219,7 +243,29 @@ export const updatePerItemTracking = webMethod(
         sendShippingEmail?: boolean;
         itemId?: string;
         customCarrierName?: string;
-    }) => {
+    }, context?) => {
+        // Enhanced CORS handling for production
+        const requestHeaders = context?.request?.headers || {};
+        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+        
+        const enhancedCorsHeaders = {
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400',
+            'Vary': 'Origin'
+        };
+
+        // Handle OPTIONS method for CORS preflight
+        if (context?.request?.method === 'OPTIONS') {
+            return {
+                success: true,
+                headers: enhancedCorsHeaders,
+                statusCode: 200,
+                message: 'CORS preflight successful'
+            };
+        }
         try {
             const carrierMapping: Record<string, string> = {
                 'dhl': 'dhl',
@@ -267,7 +313,8 @@ export const updatePerItemTracking = webMethod(
                     method: 'updatePerItemTracking',
                     message: `Tracking updated for order ${orderNumber}: ${trackingNumber}`,
                     emailSent: !!sendShippingEmail,
-                    result: updateResult
+                    result: updateResult,
+                    headers: enhancedCorsHeaders
                 };
             } else {
                 // Create new fulfillment for specific item
@@ -296,7 +343,8 @@ export const updatePerItemTracking = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Failed to update per-item tracking for order ${orderNumber}: ${errorMsg}`,
-                method: 'updatePerItemTracking'
+                method: 'updatePerItemTracking',
+                headers: enhancedCorsHeaders
             };
         }
     }
@@ -313,7 +361,29 @@ export const getOrderFulfillmentDetails = webMethod(
     }: {
         orderId: string;
         orderNumber: string;
-    }) => {
+    }, context?) => {
+        // Enhanced CORS handling for production
+        const requestHeaders = context?.request?.headers || {};
+        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+        
+        const enhancedCorsHeaders = {
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400',
+            'Vary': 'Origin'
+        };
+
+        // Handle OPTIONS method for CORS preflight
+        if (context?.request?.method === 'OPTIONS') {
+            return {
+                success: true,
+                headers: enhancedCorsHeaders,
+                statusCode: 200,
+                message: 'CORS preflight successful'
+            };
+        }
         try {
             // Get order details
             const elevatedGetOrder = auth.elevate(orders.getOrder);
@@ -367,7 +437,8 @@ export const getOrderFulfillmentDetails = webMethod(
                     totalRemaining: totalItems - totalFulfilled,
                     lineItems: lineItemsWithFulfillment,
                     fulfillments: fulfillments
-                }
+                },
+                headers: enhancedCorsHeaders
             };
 
         } catch (error: unknown) {
@@ -378,7 +449,8 @@ export const getOrderFulfillmentDetails = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Failed to get fulfillment details for order ${orderNumber}: ${errorMsg}`,
-                method: 'getOrderFulfillmentDetails'
+                method: 'getOrderFulfillmentDetails',
+                headers: enhancedCorsHeaders
             };
         }
     }
@@ -395,7 +467,29 @@ export const validateItemsForFulfillment = webMethod(
     }: {
         orderId: string;
         selectedItems: ItemFulfillment[];
-    }) => {
+    }, context?) => {
+        // Enhanced CORS handling for production
+        const requestHeaders = context?.request?.headers || {};
+        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+        
+        const enhancedCorsHeaders = {
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400',
+            'Vary': 'Origin'
+        };
+
+        // Handle OPTIONS method for CORS preflight
+        if (context?.request?.method === 'OPTIONS') {
+            return {
+                success: true,
+                headers: enhancedCorsHeaders,
+                statusCode: 200,
+                message: 'CORS preflight successful'
+            };
+        }
         try {
             const elevatedGetOrder = auth.elevate(orders.getOrder);
             const orderDetails = await elevatedGetOrder(orderId);
@@ -403,7 +497,8 @@ export const validateItemsForFulfillment = webMethod(
             if (!orderDetails || !orderDetails.lineItems) {
                 return {
                     success: false,
-                    error: 'Order not found or has no line items'
+                    error: 'Order not found or has no line items',
+                    headers: enhancedCorsHeaders
                 };
             }
 
@@ -467,14 +562,16 @@ export const validateItemsForFulfillment = webMethod(
                     totalRequested: selectedItems.length,
                     validCount: validItems.length,
                     invalidCount: invalidItems.length
-                }
+                },
+                headers: enhancedCorsHeaders
             };
 
         } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             return {
                 success: false,
-                error: errorMsg
+                error: errorMsg,
+                headers: enhancedCorsHeaders
             };
         }
     }

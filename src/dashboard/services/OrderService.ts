@@ -1203,17 +1203,7 @@ export class OrderService {
             billingInfo: backendOrder.billingInfo,
             recipientInfo: backendOrder.recipientInfo,
             rawOrder: backendOrder.rawOrder || backendOrder,
-            buyerNote: (() => {
-                const buyerNote = backendOrder.buyerNote || '';
-                console.log('OrderService Debug - Buyer Note:', {
-                    orderId: backendOrder.id,
-                    orderNumber: backendOrder.number,
-                    buyerNote: buyerNote,
-                    rawOrderBuyerNote: backendOrder.rawOrder?.buyerNote,
-                    backendOrderKeys: Object.keys(backendOrder)
-                });
-                return buyerNote;
-            })(),
+            buyerNote: backendOrder.buyerNote || '',
             // 🔥 NEW: Add fulfillment status to main order
             fulfillmentStatus: this.calculateOverallFulfillmentStatus(items)
         };

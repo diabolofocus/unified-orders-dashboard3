@@ -200,23 +200,44 @@ export class OrderStore {
             if (existingIndex >= 0) {
                 this.orders[existingIndex] = order;
                 this.clearMemoizedComputed();
+                this.updateTrigger++;
             }
         } else {
             // Add new order to the beginning of the list
             this.orderIdSet.add(order._id);
             this.orders.unshift(order);
             this.clearMemoizedComputed();
+            this.updateTrigger++;
         }
     }
 
     addNewOrder(order: Order) {
+        console.log('📊 OrderStore: addNewOrder called', {
+            orderId: order._id,
+            orderNumber: order.number,
+            currentOrdersCount: this.orders.length,
+            orderExists: this.orderIdSet.has(order._id)
+        });
+
         // Check if order already exists using Set for O(1) lookup
-        if (this.orderIdSet.has(order._id)) return;
+        if (this.orderIdSet.has(order._id)) {
+            console.log('📊 OrderStore: Order already exists, skipping');
+            return;
+        }
 
         // Add to the beginning of the array (most recent first)
         this.orderIdSet.add(order._id);
         this.orders.unshift(order);
         this.clearMemoizedComputed();
+        
+        // Force UI update by incrementing trigger - CRITICAL for React re-rendering
+        this.updateTrigger++;
+
+        console.log('📊 OrderStore: Order added successfully', {
+            newOrdersCount: this.orders.length,
+            firstOrderId: this.orders[0]?._id,
+            updateTrigger: this.updateTrigger
+        });
 
         // If we have more than 100 orders, remove the oldest one
         if (this.orders.length > 100) {

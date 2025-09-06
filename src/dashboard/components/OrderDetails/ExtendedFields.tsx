@@ -93,13 +93,6 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
     const orderController = useOrderController();
     const { customFields, extendedFields } = getExtendedFieldsData(order);
 
-    // Debug custom fields - remove this after testing
-    console.log('ExtendedFields Debug - Custom Fields:', {
-        orderCustomFields: order.customFields,
-        rawOrderCustomFields: order.rawOrder?.customFields,
-        extractedCustomFields: customFields,
-        hasArrayCustomFields: Array.isArray(customFields) && customFields.length > 0
-    });
 
     const hasArrayCustomFields = Array.isArray(customFields) && customFields.length > 0;
     const hasExtendedFields = extendedFields?.namespaces && Object.keys(extendedFields.namespaces).length > 0;
