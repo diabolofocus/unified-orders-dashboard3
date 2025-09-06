@@ -1,6 +1,6 @@
 // components/OrderDetails/ExtendedFields.tsx - SIMPLE VERSION
 import React from 'react';
-import { Box, Text } from '@wix/design-system';
+import { Box, Divider, Text } from '@wix/design-system';
 import { useOrderController } from '../../hooks/useOrderController';
 import { settingsStore } from '../../stores/SettingsStore';
 import type { Order } from '../../types/Order';
@@ -15,6 +15,8 @@ const getExtendedFieldsData = (order: Order) => {
 
     if (Array.isArray(order.customFields) && order.customFields.length > 0) {
         customFields = order.customFields;
+    } else if (Array.isArray(order.rawOrder?.customFields) && order.rawOrder.customFields.length > 0) {
+        customFields = order.rawOrder.customFields;
     }
 
     // Get extended fields - focus on namespaces structure
@@ -91,18 +93,19 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
     const orderController = useOrderController();
     const { customFields, extendedFields } = getExtendedFieldsData(order);
 
-    // Debug buyer note data flow
-    console.log('ExtendedFields Debug - Order:', {
-        buyerNote: order.buyerNote,
-        rawOrderBuyerNote: order.rawOrder?.buyerNote,
-        orderId: order.id,
-        orderNumber: order.number
+    // Debug custom fields - remove this after testing
+    console.log('ExtendedFields Debug - Custom Fields:', {
+        orderCustomFields: order.customFields,
+        rawOrderCustomFields: order.rawOrder?.customFields,
+        extractedCustomFields: customFields,
+        hasArrayCustomFields: Array.isArray(customFields) && customFields.length > 0
     });
 
     const hasArrayCustomFields = Array.isArray(customFields) && customFields.length > 0;
     const hasExtendedFields = extendedFields?.namespaces && Object.keys(extendedFields.namespaces).length > 0;
     const hasBuyerNote = !!(order.buyerNote || order.rawOrder?.buyerNote);
 
+    // Show the section if we have any kind of additional info
     if (!hasArrayCustomFields && !hasExtendedFields && !hasBuyerNote) {
         return null;
     }
@@ -118,7 +121,10 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
         const fieldTitle = field.translatedTitle || field.title || 'Custom Field';
         let displayValue = '';
 
-        if (field.value?.stringValue !== undefined) {
+        // Handle direct string value (common case)
+        if (typeof field.value === 'string') {
+            displayValue = field.value;
+        } else if (field.value?.stringValue !== undefined) {
             displayValue = field.value.stringValue;
         } else if (field.value?.numberValue !== undefined) {
             displayValue = String(field.value.numberValue);
@@ -135,12 +141,13 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
 
     return (
         <Box gap="8px" direction="vertical">
-            <Text size="small" className="section-title">Additional Info:</Text>
+            <Divider />
+            {/* <Text size="small" className="section-title">Additional Info:</Text> */}
 
             {/* Buyer Note */}
             {hasBuyerNote && (
-                <Box gap="4px" direction="vertical">
-                    <Text size="small">
+                <Box gap="4px" direction="vertical" marginTop="8px">
+                    <Text size="small" className="section-title">
                         Buyer Note:
                     </Text>
                     <Text
@@ -168,14 +175,18 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
 
             {/* Array-style Custom Fields (ecom orders structure) */}
             {hasArrayCustomFields && (
-                <Box gap="8px" direction="vertical">
+                <Box gap="12px" direction="vertical" marginTop="8px">
+                    {/* <Text size="small" underline secondary>Custom Fields:</Text> */}
                     {customFields.map((field: any, index: number) => {
-// Debug log removed
+                        console.log(`Custom Field ${index}:`, field);
 
                         const fieldTitle = field.translatedTitle || field.title || `Field ${index + 1}`;
 
                         let displayValue = '';
-                        if (field.value?.stringValue !== undefined) {
+                        // Handle direct string value (common case)
+                        if (typeof field.value === 'string') {
+                            displayValue = field.value;
+                        } else if (field.value?.stringValue !== undefined) {
                             displayValue = field.value.stringValue;
                         } else if (field.value?.numberValue !== undefined) {
                             displayValue = String(field.value.numberValue);
@@ -187,11 +198,16 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
                             displayValue = translateFieldValue(field.value);
                         }
 
+                        // Skip empty fields
+                        if (!displayValue || displayValue.trim() === '') {
+                            return null;
+                        }
+
                         return (
                             <Box key={`custom-field-${index}`} gap="4px" direction="vertical">
-                                {/* <Text size="tiny" secondary weight="bold">
+                                <Text size="small" className="section-title">
                                     {fieldTitle}:
-                                </Text> */}
+                                </Text>
                                 <Text
                                     size="small"
                                     className={settingsStore.clickToCopyEnabled ? 'clickable-info' : ''}
@@ -215,7 +231,7 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
 
             {/* Extended Fields Namespaces */}
             {hasExtendedFields && (
-                <Box direction="vertical" gap="8px">
+                <Box direction="vertical" gap="8px" marginTop="8px">
                     {Object.entries(extendedFields.namespaces).map(([namespace, fields]) => {
 
                         return (
@@ -232,8 +248,8 @@ export const ExtendedFields: React.FC<ExtendedFieldsProps> = ({ order }) => {
 
 
                                             return (
-                                                <Box key={fieldKey} direction="horizontal" gap="4px">
-                                                    <Text size="small">
+                                                <Box key={fieldKey} direction="vertical" gap="4px">
+                                                    <Text size="small" className="section-title">
                                                         {displayName}:
                                                     </Text>
                                                     <Text

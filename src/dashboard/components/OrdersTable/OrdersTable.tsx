@@ -1209,6 +1209,65 @@ const OrdersTable = observer(() => {
     };
 
     const handleRowClick = async (order: Order, event?: any) => {
+        // Debug: Log COMPLETE order data including all extended fields
+        console.log('=== COMPLETE ORDER DATA DEBUG ===');
+        console.log('Order ID:', order._id);
+        console.log('Order Number:', order.number);
+        
+        // Buyer note debugging
+        console.log('--- BUYER NOTE ANALYSIS ---');
+        console.log('order.buyerNote:', order.buyerNote);
+        console.log('order.rawOrder?.buyerNote:', order.rawOrder?.buyerNote);
+        
+        // Extended fields debugging
+        console.log('--- EXTENDED FIELDS ANALYSIS ---');
+        console.log('order.extendedFields:', order.extendedFields);
+        console.log('order.customFields:', order.customFields);
+        console.log('order.rawOrder?.extendedFields:', order.rawOrder?.extendedFields);
+        console.log('order.rawOrder?.customFields:', order.rawOrder?.customFields);
+        
+        // Complete object stringified for full visibility
+        console.log('--- COMPLETE ORDER OBJECT (JSON) ---');
+        console.log(JSON.stringify(order, null, 2));
+        
+        console.log('--- COMPLETE RAW ORDER OBJECT (JSON) ---');
+        console.log(JSON.stringify(order.rawOrder, null, 2));
+        
+        // Object keys analysis
+        console.log('--- OBJECT STRUCTURE ANALYSIS ---');
+        console.log('Order top-level keys:', Object.keys(order));
+        console.log('Raw Order top-level keys:', order.rawOrder ? Object.keys(order.rawOrder) : 'No raw order');
+        
+        // Look for any field containing "note", "comment", "message", "remark"
+        console.log('--- SEARCHING FOR NOTE-LIKE FIELDS ---');
+        const searchForNoteFields = (obj: any, path: string = '') => {
+            if (!obj || typeof obj !== 'object') return;
+            
+            Object.entries(obj).forEach(([key, value]) => {
+                const currentPath = path ? `${path}.${key}` : key;
+                
+                if (key.toLowerCase().includes('note') || 
+                    key.toLowerCase().includes('comment') || 
+                    key.toLowerCase().includes('message') ||
+                    key.toLowerCase().includes('remark') ||
+                    key.toLowerCase().includes('instruction')) {
+                    console.log(`Found potential note field at ${currentPath}:`, value);
+                }
+                
+                // Recursively search nested objects
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                    searchForNoteFields(value, currentPath);
+                }
+            });
+        };
+        
+        console.log('Searching in main order object:');
+        searchForNoteFields(order);
+        console.log('Searching in raw order object:');
+        searchForNoteFields(order.rawOrder);
+        
+        console.log('=====================================');
+
         // Remove all previous selections
         document.querySelectorAll('[data-selected-order]').forEach(row => {
             row.removeAttribute('data-selected-order');
