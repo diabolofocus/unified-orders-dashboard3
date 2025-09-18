@@ -170,7 +170,6 @@ const DashboardPage: FC = () => {
       // Debug log removed
       return controller;
     } catch (error: unknown) {
-      console.error('DashboardPage: Error initializing OrderController:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error initializing OrderController';
       throw new Error(errorMessage);
     }

@@ -33,7 +33,30 @@ interface ProductSku {
  */
 export const fetchProductSkus = webMethod(
   Permissions.Anyone,
-  async (): Promise<{ success: boolean; skus: ProductSku[]; error?: string }> => {
+  async (params: any, context?): Promise<{ success: boolean; skus: ProductSku[]; error?: string; headers?: any }> => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        skus: [],
+        headers: enhancedCorsHeaders,
+        message: 'CORS preflight successful'
+      } as any;
+    }
+
     try {
       const { queryProducts } = products;
 
@@ -113,12 +136,14 @@ export const fetchProductSkus = webMethod(
       return {
         success: true,
         skus,
+        headers: enhancedCorsHeaders
       };
     } catch (error) {
       return {
         success: false,
         skus: [],
         error: error instanceof Error ? error.message : 'Unknown error fetching SKUs',
+        headers: enhancedCorsHeaders
       };
     }
   }

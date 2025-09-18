@@ -22,6 +22,7 @@ import { SidePanel } from './SidePanel';
 import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
 import { settingsStore } from '../../stores/SettingsStore';
+import NoOrdersSvg from '../../assets/no-orders-found.svg';
 import { useOrderController } from '../../hooks/useOrderController';
 import { useOrderUpdates } from '../../hooks/useOrderUpdates';
 import { StatusBadge } from '../shared/StatusBadge';
@@ -311,6 +312,13 @@ const OrdersTable = observer(() => {
         }
     };
 
+    const handleAddNewOrder = () => {
+        dashboard.navigate(
+            pages.newOrder(),
+            { displayMode: "overlay" }
+        );
+    };
+
     const handleBulkFulfillment = async (params: {
         trackingNumber?: string;
         shippingProvider?: string;
@@ -519,8 +527,11 @@ const OrdersTable = observer(() => {
      */
     const getShippingAddress = (order: Order) => {
         if (order.shippingAddress) return order.shippingAddress;
+        // Check for the actual shipping destination address first
+        if (order.rawOrder?.shippingInfo?.logistics?.shippingDestination?.address) return order.rawOrder.shippingInfo.logistics.shippingDestination.address;
         if (order.rawOrder?.shippingInfo?.shipmentDetails?.address) return order.rawOrder.shippingInfo.shipmentDetails.address;
         if (order.rawOrder?.recipientInfo?.contactDetails?.address) return order.rawOrder.recipientInfo.contactDetails.address;
+        // Only fall back to billing address as last resort
         if (order.billingInfo?.address) return order.billingInfo.address;
         return null;
     };
@@ -1156,7 +1167,7 @@ const OrdersTable = observer(() => {
                             cost: apiOrder.shippingInfo?.cost?.formattedAmount || '0'
                         },
                         weightUnit: apiOrder.weightUnit || 'kg',
-                        shippingAddress: apiOrder.shippingInfo?.shipmentDetails?.address,
+                        shippingAddress: apiOrder.shippingInfo?.logistics?.shippingDestination?.address || apiOrder.shippingInfo?.shipmentDetails?.address,
                         billingInfo: apiOrder.billingInfo,
                         recipientInfo: apiOrder.recipientInfo,
                         buyerNote: apiOrder.buyerNote,
@@ -1213,60 +1224,23 @@ const OrdersTable = observer(() => {
         console.log('=== COMPLETE ORDER DATA DEBUG ===');
         console.log('Order ID:', order._id);
         console.log('Order Number:', order.number);
-        
+
         // Buyer note debugging
         console.log('--- BUYER NOTE ANALYSIS ---');
         console.log('order.buyerNote:', order.buyerNote);
         console.log('order.rawOrder?.buyerNote:', order.rawOrder?.buyerNote);
-        
+
         // Extended fields debugging
         console.log('--- EXTENDED FIELDS ANALYSIS ---');
         console.log('order.extendedFields:', order.extendedFields);
         console.log('order.customFields:', order.customFields);
         console.log('order.rawOrder?.extendedFields:', order.rawOrder?.extendedFields);
         console.log('order.rawOrder?.customFields:', order.rawOrder?.customFields);
-        
+
         // Complete object stringified for full visibility
         console.log('--- COMPLETE ORDER OBJECT (JSON) ---');
         console.log(JSON.stringify(order, null, 2));
-        
-        console.log('--- COMPLETE RAW ORDER OBJECT (JSON) ---');
-        console.log(JSON.stringify(order.rawOrder, null, 2));
-        
-        // Object keys analysis
-        console.log('--- OBJECT STRUCTURE ANALYSIS ---');
-        console.log('Order top-level keys:', Object.keys(order));
-        console.log('Raw Order top-level keys:', order.rawOrder ? Object.keys(order.rawOrder) : 'No raw order');
-        
-        // Look for any field containing "note", "comment", "message", "remark"
-        console.log('--- SEARCHING FOR NOTE-LIKE FIELDS ---');
-        const searchForNoteFields = (obj: any, path: string = '') => {
-            if (!obj || typeof obj !== 'object') return;
-            
-            Object.entries(obj).forEach(([key, value]) => {
-                const currentPath = path ? `${path}.${key}` : key;
-                
-                if (key.toLowerCase().includes('note') || 
-                    key.toLowerCase().includes('comment') || 
-                    key.toLowerCase().includes('message') ||
-                    key.toLowerCase().includes('remark') ||
-                    key.toLowerCase().includes('instruction')) {
-                    console.log(`Found potential note field at ${currentPath}:`, value);
-                }
-                
-                // Recursively search nested objects
-                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                    searchForNoteFields(value, currentPath);
-                }
-            });
-        };
-        
-        console.log('Searching in main order object:');
-        searchForNoteFields(order);
-        console.log('Searching in raw order object:');
-        searchForNoteFields(order.rawOrder);
-        
-        console.log('=====================================');
+
 
         // Remove all previous selections
         document.querySelectorAll('[data-selected-order]').forEach(row => {
@@ -2176,6 +2150,7 @@ const OrdersTable = observer(() => {
                         className="orders-table-container"
                         style={{
                             height: 'auto',
+                            minHeight: finalFilteredOrders.length === 0 ? 'calc(100vh - 320px)' : 'auto',
                             maxHeight: 'calc(100vh - 280px)', // Adjust this value based on your layout
                             overflowY: 'auto',
                             overflowX: 'hidden'
@@ -2183,7 +2158,7 @@ const OrdersTable = observer(() => {
                     >
                         {finalFilteredOrders.length === 0 ? (
                             <Box align="center" paddingTop="40px" paddingBottom="40px" direction="vertical" gap="12px">
-                                <Icons.Search size="24px" style={{ color: '#ccc' }} />
+                                <img src={NoOrdersSvg} alt="No orders" style={{ width: '152px', height: '152px' }} />
                                 <Text secondary>
                                     {skuFilter.length > 0 || fulfillmentStatusFilter || paymentStatusFilter || (dateFilter && dateFilter !== 'all')
                                         ? `No orders found with current filters${skuFilter.length > 0 ? ` (${skuFilter.length} SKU${skuFilter.length !== 1 ? 's' : ''})` : ''}${fulfillmentStatusFilter ? ` (Fulfillment: ${fulfillmentStatusFilter})` : ''}${paymentStatusFilter ? ` (Payment: ${paymentStatusFilter})` : ''}${archiveStatusFilter ? ` (Archive: ${archiveStatusFilter})` : ''}${dateFilter && dateFilter !== 'all' ? ` (Date: ${dateFilter === 'custom' ? 'Custom Range' : dateFilter})` : ''}` : hasActiveSearch
@@ -2260,6 +2235,20 @@ const OrdersTable = observer(() => {
                                         </Button>
                                     )}
                                 </Box>
+                                {/* Add New Order button - only show when there are truly no orders, not just filtered */}
+                                {orderStore.orders.length === 0 && !hasActiveSearch &&
+                                    !dateFilter && skuFilter.length === 0 && !fulfillmentStatusFilter &&
+                                    !paymentStatusFilter && !archiveStatusFilter && productsApiFilter.length === 0 && (
+                                        <Box>
+                                            <TextButton
+                                                size="small"
+                                                prefixIcon={<Icons.Add />}
+                                                onClick={handleAddNewOrder}
+                                            >
+                                                Add New Order
+                                            </TextButton>
+                                        </Box>
+                                    )}
                             </Box>
                         ) : (
                             <Table.Content titleBarVisible={false} />

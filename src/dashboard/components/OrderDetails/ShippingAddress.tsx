@@ -12,8 +12,11 @@ interface ShippingAddressProps {
 
 const getShippingAddress = (order: Order): ShippingAddressType | null => {
   if (order.shippingAddress) return order.shippingAddress;
+  // Check for the actual shipping destination address first
+  if (order.rawOrder?.shippingInfo?.logistics?.shippingDestination?.address) return order.rawOrder.shippingInfo.logistics.shippingDestination.address;
   if (order.rawOrder?.shippingInfo?.shipmentDetails?.address) return order.rawOrder.shippingInfo.shipmentDetails.address;
   if (order.rawOrder?.recipientInfo?.contactDetails?.address) return order.rawOrder.recipientInfo.contactDetails.address;
+  // Only fall back to billing address as last resort
   if (order.billingInfo?.address) return order.billingInfo.address;
   return null;
 };

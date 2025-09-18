@@ -6,6 +6,7 @@ import { Card, Box, Text, Heading, Tabs, EmptyState, Divider, Loader, Button, Ic
 import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
 import { settingsStore } from '../../stores/SettingsStore';
+import NoSelectionSvg from '../../assets/no-selection.svg';
 import { useOrderController } from '../../hooks/useOrderController';
 import { formatDate } from '../../utils/formatters';
 import { CustomerInfo } from './CustomerInfo';
@@ -92,22 +93,21 @@ export const OrderDetails: React.FC = observer(() => {
     }, [selectedOrder, refreshTrigger]);
 
     useEffect(() => {
-        if (selectedOrder) {
-            setActiveTabId(1);
-        }
+        // Always reset to first tab when order changes (including when no order is selected)
+        setActiveTabId(1);
     }, [selectedOrder?._id]);
 
     // Auto-select oldest unfulfilled order if none selected but orders exist
     useEffect(() => {
         if (!selectedOrder && orderStore.orders.length > 0) {
             // Find the oldest unfulfilled order
-            const unfulfilledOrders = orderStore.orders.filter(order => 
+            const unfulfilledOrders = orderStore.orders.filter(order =>
                 order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED'
             );
-            
+
             if (unfulfilledOrders.length > 0) {
                 // Sort by creation date (oldest first)
-                const oldestUnfulfilled = unfulfilledOrders.sort((a, b) => 
+                const oldestUnfulfilled = unfulfilledOrders.sort((a, b) =>
                     new Date(a._createdDate).getTime() - new Date(b._createdDate).getTime()
                 )[0];
                 orderController.selectOrder(oldestUnfulfilled);
@@ -128,7 +128,7 @@ export const OrderDetails: React.FC = observer(() => {
                 selectedOrder.customer?.email ||
                 selectedOrder.buyerInfo?.email;
 
-// Debug log removed
+            // Debug log removed
 
             if (!customerEmail) {
                 console.warn('No customer email found');
@@ -140,7 +140,7 @@ export const OrderDetails: React.FC = observer(() => {
                 // Use proper Wix ecom API filtering with correct types
                 const { orders } = await import('@wix/ecom');
 
-// Debug log removed
+                // Debug log removed
 
                 const searchOptions = {
                     filter: {
@@ -157,7 +157,7 @@ export const OrderDetails: React.FC = observer(() => {
 
                 const result = await orders.searchOrders(searchOptions);
 
-// Debug log removed
+                // Debug log removed
 
                 if (result.orders && result.orders.length > 0) {
                     // Include ALL orders (including the current one) and sort by date
@@ -176,13 +176,13 @@ export const OrderDetails: React.FC = observer(() => {
                             const dateB = b._createdDate ? new Date(b._createdDate).getTime() : 0;
                             return dateB - dateA; // Sort by newest first
                         });
-// Debug log removed
+                    // Debug log removed
                     console.log('📋 Orders:', allOrders.map(o => `#${o.number} (${o.total})`));
 
                     setCustomerOrders(allOrders);
 
                 } else {
-// Debug log removed
+                    // Debug log removed
                     setCustomerOrders([]);
                 }
 
@@ -190,7 +190,7 @@ export const OrderDetails: React.FC = observer(() => {
                 console.error('❌ Wix API failed:', apiError);
 
                 // If the filter doesn't work, try without the filter and manual filtering
-// Debug log removed
+                // Debug log removed
                 try {
                     const { orders } = await import('@wix/ecom');
 
@@ -221,7 +221,7 @@ export const OrderDetails: React.FC = observer(() => {
                             }))
                             .slice(0, 10);
 
-// Debug log removed
+                        // Debug log removed
                         setCustomerOrders(filteredOrders);
                     } else {
                         setCustomerOrders([]);
@@ -285,10 +285,10 @@ export const OrderDetails: React.FC = observer(() => {
 
                     // Wait a moment for Wix backend to process the fulfillment
                     await new Promise(resolve => setTimeout(resolve, 1500));
-                    
+
                     // Transform the order with fulfillment data through OrderService to ensure proper status calculation
                     const transformedOrder = await orderService.fetchSingleOrder(selectedOrder._id);
-                    
+
                     if (transformedOrder.success && transformedOrder.order) {
                         // Update the store with the freshly transformed order
                         orderStore.updateOrder(transformedOrder.order);
@@ -309,14 +309,14 @@ export const OrderDetails: React.FC = observer(() => {
                         const lineItems = updatedOrder.rawOrder?.lineItems || [];
                         let totalQuantity = 0;
                         let fulfilledQuantity = 0;
-                        
+
                         lineItems.forEach((item: any) => {
                             const quantity = item.quantity || 1;
                             const fulfilled = item.fulfilledQuantity || 0;
                             totalQuantity += quantity;
                             fulfilledQuantity += fulfilled;
                         });
-                        
+
                         // Determine correct status
                         let newStatus = 'NOT_FULFILLED';
                         if (fulfilledQuantity >= totalQuantity && totalQuantity > 0) {
@@ -324,7 +324,7 @@ export const OrderDetails: React.FC = observer(() => {
                         } else if (fulfilledQuantity > 0) {
                             newStatus = 'PARTIALLY_FULFILLED';
                         }
-                        
+
                         const finalOrder = {
                             ...updatedOrder,
                             status: newStatus as OrderStatus
@@ -413,9 +413,11 @@ export const OrderDetails: React.FC = observer(() => {
         }
     };
 
-    const tabItems = [
+    const tabItems = selectedOrder ? [
         { id: 1, title: 'Order Details' },
         { id: 2, title: 'Order History' }
+    ] : [
+        { id: 1, title: 'Order Details' }
     ];
 
     const renderOrderDetailsTab = () => (
@@ -427,12 +429,12 @@ export const OrderDetails: React.FC = observer(() => {
                             <EmptyState
                                 theme="section"
                                 title={
-                                    <Text weight="normal" size="medium">
-                                        No Order Selected
+                                    <Text size="medium">
+                                        No orders selected
                                     </Text>
                                 }
                                 subtitle="Click on any order to view and fulfill it"
-                                image={<Icons.Package size="48px" style={{ color: '#ccc' }} />}
+                                image={<img src={NoSelectionSvg} alt="No orders" style={{ width: '128px', height: '128px' }} />}
                             />
                         </Box>
                     </Card.Content>

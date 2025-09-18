@@ -20,31 +20,19 @@ export class RealtimeOrderService {
     }
 
     constructor() {
-        console.log('🔄 RealtimeOrderService: Constructor started, checking settings...');
-        console.log('🔄 RealtimeOrderService: Settings store automaticDetection:', settingsStore.automaticDetection);
         
         // Setup visibility change detection
         this.setupVisibilityHandling();
         
         // Wait a bit for settings to initialize, then start polling
         setTimeout(() => {
-            console.log('🔄 RealtimeOrderService: Starting delayed initialization...');
-            console.log('🔄 RealtimeOrderService: Settings after delay:', {
-                automaticDetection: settingsStore.automaticDetection,
-                soundAlert: settingsStore.soundAlert
-            });
-            
             this.startPolling().then(() => {
-                console.log('🔄 RealtimeOrderService: Polling started successfully');
                 // After the first poll, mark that initial load is complete
                 setTimeout(() => {
                     this._initialLoad = false;
-                    console.log('🔄 RealtimeOrderService: Initial load completed, ready for notifications');
                 }, 3000); // Give more time for initial orders to be processed
             });
         }, 1000); // Wait 1 second for settings to initialize
-        
-        console.log('🔄 RealtimeOrderService: Constructor completed, polling will start in 1 second...');
     }
 
     onNewOrder(callback: (order: Order) => void) {
@@ -65,39 +53,22 @@ export class RealtimeOrderService {
 
         this.isPolling = true;
         this.pollingInterval = setInterval(async () => {
-            console.log('⏰ RealtimeOrderService: Polling interval triggered', {
-                automaticDetection: settingsStore.automaticDetection,
-                documentHidden: document.hidden,
-                timeSinceLastFetch: Date.now() - this.lastFetchTime
-            });
-            
             // Always check the setting inside the interval - this allows for dynamic start/stop
             if (settingsStore.automaticDetection && !document.hidden) {
                 // Throttle requests to prevent excessive API calls
                 const now = Date.now();
                 if (now - this.lastFetchTime >= this.MIN_FETCH_INTERVAL) {
-                    console.log('⏰ RealtimeOrderService: Conditions met, calling checkForNewOrders...');
                     this.lastFetchTime = now;
                     await this.checkForNewOrders();
-                } else {
-                    console.log('⏰ RealtimeOrderService: Throttled - too soon since last fetch');
                 }
-            } else {
-                console.log('⏰ RealtimeOrderService: Skipped - automaticDetection disabled or document hidden');
             }
         }, 60000);
 
-        console.log('🔄 RealtimeOrderService: Polling started (60s intervals)');
         return true;
     }
 
     private async checkForNewOrders() {
         try {
-            console.log('🔍 RealtimeOrderService: Checking for new orders...', {
-                automaticDetection: settingsStore.automaticDetection,
-                isInitialLoad: this.isInitialLoad,
-                processedOrdersCount: typeof window !== 'undefined' ? window.__GLOBAL_PROCESSED_ORDERS?.size : 0
-            });
 
             const response = await orders.searchOrders({
                 sort: [{ fieldName: '_createdDate', order: 'DESC' }],
@@ -105,11 +76,8 @@ export class RealtimeOrderService {
             });
 
             if (!response.orders || response.orders.length === 0) {
-                console.log('🔍 RealtimeOrderService: No orders found');
                 return;
             }
-
-            console.log(`🔍 RealtimeOrderService: Found ${response.orders.length} orders`);
 
             // Initialize processed orders set if it doesn't exist
             if (typeof window !== 'undefined') {
@@ -143,13 +111,6 @@ export class RealtimeOrderService {
                 // Only notify for orders that are both new and recent
                 if (timeDiff <= twoMinutesInMs) {
                     const transformedOrder = this.transformOrder(rawOrder);
-
-                    console.log('🆕 RealtimeOrderService: Processing new order', {
-                        orderId: transformedOrder._id,
-                        orderNumber: transformedOrder.number,
-                        isInitialLoad: this.isInitialLoad,
-                        callbacksCount: this.onNewOrderCallbacks.length
-                    });
 
                     this.onNewOrderCallbacks.forEach(callback => {
                         setTimeout(() => {
@@ -249,7 +210,6 @@ export class RealtimeOrderService {
      * Force restart polling - useful when settings change
      */
     public forceRestart() {
-        console.log('🔄 RealtimeOrderService: Force restarting...');
         this.stopPolling();
         this.startPolling();
     }
@@ -258,7 +218,6 @@ export class RealtimeOrderService {
      * Manual check for new orders (for testing/debugging)
      */
     public async manualCheck() {
-        console.log('🔍 RealtimeOrderService: Manual check triggered');
         await this.checkForNewOrders();
     }
 

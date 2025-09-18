@@ -9,6 +9,7 @@ import { settingsStore } from '../../stores/SettingsStore';
 import * as Icons from '@wix/wix-ui-icons-common';
 import { useStores } from '../../hooks/useStores';
 import { OrdersTable } from './OrdersTable';
+import CompleteSvg from '../../assets/complete.svg';
 import { processWixImageUrl } from '../../utils/image-processor';
 import { dashboard } from '@wix/dashboard';
 
@@ -140,12 +141,12 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
         rateLimiter.current.processing = true;
 
-        while (rateLimiter.current.queue.length > 0 && 
-               rateLimiter.current.activeRequests < rateLimiter.current.maxConcurrent) {
-            
+        while (rateLimiter.current.queue.length > 0 &&
+            rateLimiter.current.activeRequests < rateLimiter.current.maxConcurrent) {
+
             const now = Date.now();
             const timeSinceLastRequest = now - rateLimiter.current.lastRequest;
-            
+
             if (timeSinceLastRequest < rateLimiter.current.minInterval) {
                 await new Promise(resolve => setTimeout(resolve, rateLimiter.current.minInterval - timeSinceLastRequest));
             }
@@ -158,7 +159,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
             (async () => {
                 let retryCount = 0;
                 const maxRetries = 3;
-                
+
                 const attemptRequest = async (): Promise<any[]> => {
                     try {
                         // Check cache again in case another request cached it
@@ -175,15 +176,15 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         return fulfillments;
                     } catch (error: any) {
                         // Check if it's a rate limit error (429) or server error (5xx)
-                        const isRetryableError = error?.status === 429 || 
-                                               (error?.status >= 500 && error?.status < 600) ||
-                                               error?.code === 'RATE_LIMIT_EXCEEDED';
-                        
+                        const isRetryableError = error?.status === 429 ||
+                            (error?.status >= 500 && error?.status < 600) ||
+                            error?.code === 'RATE_LIMIT_EXCEEDED';
+
                         if (isRetryableError && retryCount < maxRetries) {
                             retryCount++;
                             const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000); // Exponential backoff, max 5s
                             console.warn(`Retrying fulfillment request for order ${orderId} (attempt ${retryCount}/${maxRetries}) after ${delay}ms`);
-                            
+
                             await new Promise(resolve => setTimeout(resolve, delay));
                             return attemptRequest();
                         } else {
@@ -262,14 +263,14 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Function to handle order tag clicks
     const handleOrderTagClick = async (orderId: string) => {
         try {
-// Debug log removed
+            // Debug log removed
 
             // Find the order in the current store first
             let orderToSelect = orderStore.orders.find(order => order._id === orderId);
 
             if (!orderToSelect) {
                 // If not found in store, fetch it from the API
-// Debug log removed
+                // Debug log removed
 
                 const { orders: ordersApi } = await import('@wix/ecom');
                 const response = await ordersApi.getOrder(orderId);
@@ -326,7 +327,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
                     // Add it to the store
                     orderStore.addOrder(orderToSelect);
-// Debug log removed
+                    // Debug log removed
                 } else {
                     throw new Error('Order not found');
                 }
@@ -359,7 +360,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         fulfillmentCache.clear();
 
         try {
-// Debug log removed
+            // Debug log removed
 
             // Make a direct API call to get ALL unfulfilled and partially fulfilled orders
             const { orders } = await import('@wix/ecom');
@@ -392,7 +393,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                         const fetchedOrders = response.orders || [];
                         allOrders.push(...fetchedOrders);
 
-// Debug log removed
+                        // Debug log removed
 
                         // Check if there are more pages
                         hasMore = response.metadata?.hasNext || false;
@@ -413,10 +414,10 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 return allOrders;
             };
 
-// Debug log removed
+            // Debug log removed
             const unfulfilledOrdersFromApi = await fetchAllOrdersWithStatus("NOT_FULFILLED");
 
-// Debug log removed
+            // Debug log removed
             const partiallyFulfilledOrdersFromApi = await fetchAllOrdersWithStatus("PARTIALLY_FULFILLED");
 
             // Combine and deduplicate orders
@@ -459,7 +460,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 const batchSize = 5; // Process 5 items at a time
                 for (let i = 0; i < items.length; i += batchSize) {
                     const itemBatch = items.slice(i, i + batchSize);
-                    
+
                     // Process batch concurrently but with rate limiting
                     await Promise.all(itemBatch.map(async (item: any) => {
                         const productName = (typeof item.productName === 'object' && item.productName?.original)
@@ -559,13 +560,13 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
             console.error('❌ Error in getPreparationItems:', error);
 
             // Fallback to using local orders if API call fails
-// Debug log removed
+            // Debug log removed
             try {
                 const localUnfulfilledOrders = orderStore.orders.filter(order => {
                     return order.status === 'NOT_FULFILLED' || order.status === 'PARTIALLY_FULFILLED';
                 });
 
-// Debug log removed
+                // Debug log removed
 
                 // Process local orders the same way but without the async fulfillment checks
                 const productMap = new Map<string, PreparationItem>();
@@ -726,7 +727,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Function to download packing list as PDF
     const handleDownloadPackingList = async () => {
         try {
-// Debug log removed
+            // Debug log removed
 
             // Helper function to convert Wix image URLs to accessible URLs
             const convertWixImageUrl = (imageUrl: string): string => {
@@ -773,15 +774,15 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
             const convertImageToBase64 = async (imageUrl: string): Promise<string> => {
                 try {
                     if (!imageUrl || imageUrl.trim() === '') {
-// Debug log removed
+                        // Debug log removed
                         return '';
                     }
 
-// Debug log removed
+                    // Debug log removed
 
                     // Convert Wix image URL to accessible format
                     const accessibleUrl = convertWixImageUrl(imageUrl);
-// Debug log removed
+                    // Debug log removed
 
                     // Try multiple fallback URLs
                     const urlsToTry = [
@@ -798,7 +799,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
                     for (const urlToTry of urlsToTry) {
                         try {
-// Debug log removed
+                            // Debug log removed
 
                             const response = await fetch(urlToTry as string, {
                                 mode: 'cors',
@@ -813,7 +814,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                             }
 
                             const blob = await response.blob();
-// Debug log removed
+                            // Debug log removed
 
                             if (blob.size === 0) {
                                 console.warn('Empty blob received');
@@ -824,7 +825,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                                 const reader = new FileReader();
                                 reader.onload = () => {
                                     const result = reader.result as string;
-// Debug log removed
+                                    // Debug log removed
                                     resolve(result);
                                 };
                                 reader.onerror = () => reject(new Error('Failed to convert image to base64'));
@@ -850,9 +851,9 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
 
                     if (item.rawImageUrl) {
                         try {
-// Debug log removed
+                            // Debug log removed
                             base64Image = await convertImageToBase64(item.rawImageUrl);
-// Debug log removed
+                            // Debug log removed
                         } catch (error) {
                             console.error(`Failed to convert image for ${item.productName}:`, error);
                         }
@@ -1021,14 +1022,14 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 // Clean up
                 document.body.removeChild(pageElement);
 
-// Debug log removed
+                // Debug log removed
             }
 
             // Download the PDF
             const fileName = `packing-list-${new Date().toISOString().split('T')[0]}.pdf`;
             pdf.save(fileName);
 
-// Debug log removed
+            // Debug log removed
 
         } catch (error) {
             console.error('Failed to generate packing list PDF:', error);
@@ -1039,7 +1040,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     // Function to print packing list
     const handlePrintPackingList = async () => {
         try {
-// Debug log removed
+            // Debug log removed
 
             // Helper function to convert Wix image URLs to accessible URLs
             const convertWixImageUrl = (imageUrl: string): string => {
@@ -1263,7 +1264,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                 }, 1000);
             }, 500);
 
-// Debug log removed
+            // Debug log removed
 
         } catch (error) {
             console.error('Failed to print packing list:', error);
@@ -1516,7 +1517,7 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
                             borderBottom: 'none'
                         }}
                     >
-                        <Icons.Check size="48px" style={{ color: '#4caf50' }} />
+                        <img src={CompleteSvg} alt="Complete" style={{ width: '128px', height: '128px' }} />
                         <Text size="medium" weight="normal">All orders fulfilled!</Text>
                         <Text secondary size="small" align="center">
                             No products need preparation at this time

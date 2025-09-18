@@ -27,8 +27,31 @@ const CACHE_TAG = 'customer-rankings';
 // Remove the old cache - we'll use Wix Cache API instead
 export const getCustomerRankings = webMethod(
   Permissions.Anyone,
-  async () => {
+  async (params: any, context?) => {
     const startTime = Date.now();
+
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
+      };
+    }
 
     try {
 // Debug log removed
@@ -44,7 +67,8 @@ export const getCustomerRankings = webMethod(
       return {
         ...result,
         processingTime,
-        fromCache: false
+        fromCache: false,
+        headers: enhancedCorsHeaders
       };
 
     } catch (error) {
@@ -58,7 +82,8 @@ export const getCustomerRankings = webMethod(
         lastCalculated: new Date().toISOString(),
         processingTime: Date.now() - startTime,
         totalOrders: 0,
-        fromCache: false
+        fromCache: false,
+        headers: enhancedCorsHeaders
       };
     }
   },
@@ -219,7 +244,30 @@ function parseOrderTotal(totalValue: any): number {
 // Cache invalidation method - call this when orders are created/updated
 export const invalidateCustomerRankingsCache = webMethod(
   Permissions.Anyone,
-  async () => {
+  async (params: any, context?) => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
+      };
+    }
+
     try {
       // Import cache API
       const { cache } = await import('@wix/cache');
@@ -232,7 +280,8 @@ export const invalidateCustomerRankingsCache = webMethod(
       return {
         success: true,
         message: 'Customer rankings cache invalidated',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        headers: enhancedCorsHeaders
       };
     } catch (error) {
       console.error('Error invalidating customer rankings cache:', error);
@@ -240,7 +289,8 @@ export const invalidateCustomerRankingsCache = webMethod(
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        headers: enhancedCorsHeaders
       };
     }
   }
@@ -249,18 +299,43 @@ export const invalidateCustomerRankingsCache = webMethod(
 // Optional: Get cache status
 export const getCustomerRankingsCacheStatus = webMethod(
   Permissions.Anyone,
-  async () => {
+  async (params: any, context?) => {
+    // Enhanced CORS handling for production
+    const requestHeaders = context?.request?.headers || {};
+    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
+
+    const enhancedCorsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin'
+    };
+
+    // Handle OPTIONS method for CORS preflight
+    if (context?.request?.method === 'OPTIONS') {
+      return {
+        success: true,
+        headers: enhancedCorsHeaders,
+        statusCode: 200,
+        message: 'CORS preflight successful'
+      };
+    }
+
     try {
       return {
         success: true,
         cacheTag: CACHE_TAG,
         cacheTTL: CACHE_TTL,
-        message: 'Cache configured with 2-hour TTL and automatic invalidation on order changes'
+        message: 'Cache configured with 2-hour TTL and automatic invalidation on order changes',
+        headers: enhancedCorsHeaders
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        headers: enhancedCorsHeaders
       };
     }
   }

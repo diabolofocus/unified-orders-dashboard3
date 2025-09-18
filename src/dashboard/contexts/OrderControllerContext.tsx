@@ -9,7 +9,6 @@ interface OrderControllerContextType {
 export const OrderControllerContext = createContext<OrderControllerContextType>({
     orderController: null,
     testNotifications: async () => {
-        console.warn('testNotifications called before OrderControllerProvider was initialized');
     }
 });
 

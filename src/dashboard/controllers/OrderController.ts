@@ -54,7 +54,6 @@ export class OrderController {
         }
 
         // Don't reset initial load here - let the service handle its own initialization
-        console.log('🔄 OrderController: Constructor completed, real-time service should be starting...');
     }
 
     // === SIMPLIFIED REAL-TIME METHODS ===
@@ -64,25 +63,16 @@ export class OrderController {
      */
     private async initializeRealtimeUpdates() {
         if (this.realtimeInitialized) {
-            console.log('🔄 OrderController: Real-time updates already initialized');
             return;
         }
-
-        console.log('🔄 OrderController: Initializing real-time updates...');
         this.realtimeInitialized = true;
 
         // Register callback
         this.realtimeService.onNewOrder((newOrder: Order) => {
-            console.log('🔄 OrderController: New order callback triggered', {
-                orderId: newOrder._id,
-                orderNumber: newOrder.number,
-                isInitialLoad: this.realtimeService.isInitialLoad
-            });
             // Check if this is the initial load
             this.handleNewOrder(newOrder, this.realtimeService.isInitialLoad);
         });
 
-        console.log('🔄 OrderController: Real-time callback registered, service will auto-start polling');
     }
 
     /**
@@ -99,17 +89,9 @@ export class OrderController {
     }
 
     private async handleNewOrder(newOrder: Order, isInitialLoad: boolean = false) {
-        console.log('🎯 OrderController: handleNewOrder called', {
-            orderId: newOrder._id,
-            orderNumber: newOrder.number,
-            isInitialLoad,
-            isDuplicate: this.processedOrders.has(newOrder._id),
-            existsInStore: !!this.orderStore.getOrderById(newOrder._id)
-        });
 
         // Skip if this is a duplicate order
         if (this.processedOrders.has(newOrder._id)) {
-            console.log('🎯 OrderController: Order already processed, skipping');
             return;
         }
 
@@ -119,23 +101,19 @@ export class OrderController {
 
             // Skip if order already exists in store
             if (this.orderStore.getOrderById(newOrder._id)) {
-                console.log('🎯 OrderController: Order already in store, skipping');
                 return;
             }
 
-            console.log('🎯 OrderController: Adding order to store...');
             // Add to store
             this.orderStore.addNewOrder(newOrder);
 
             // Skip sound and toast for initial load orders
             if (!isInitialLoad) {
-                console.log('🎯 OrderController: Showing notifications for new order');
                 // Show toast notification for new orders
                 this.showToast(`New order #${newOrder.number} received!`, 'success');
 
                 // Play sound if enabled
                 if (settingsStore.soundAlert) {
-                    console.log('🎯 OrderController: Playing sound alert');
                     try {
                         // Try to enable audio (may fail if no user interaction has occurred)
                         const audioEnabled = await this.soundService.enableAudio();
@@ -217,7 +195,6 @@ export class OrderController {
      * Restart real-time polling (useful when settings change)
      */
     public restartRealtimePolling() {
-        console.log('🔄 OrderController: Restarting real-time polling...');
         this.realtimeService.forceRestart();
     }
 
@@ -225,7 +202,6 @@ export class OrderController {
      * Manual check for new orders (for testing/debugging)
      */
     public async manualOrderCheck() {
-        console.log('🔍 OrderController: Manual order check triggered');
         await this.realtimeService.manualCheck();
     }
 
@@ -967,11 +943,6 @@ export class OrderController {
 
             const result = await this.orderService.fetchSingleOrder(orderId);
             if (result.success && result.order) {
-                console.log('✅ Fresh order data received:', {
-                    orderId: result.order._id,
-                    fulfillments: result.order.rawOrder?.fulfillments?.length || 0,
-                    status: result.order.status
-                });
 
                 // Update the order in the store
                 this.orderStore.updateOrder(result.order);
@@ -979,12 +950,10 @@ export class OrderController {
                 // Re-select the refreshed order
                 this.orderStore.selectOrder(result.order);
             } else {
-                console.warn('❌ Failed to refresh order:', result.error);
                 // Don't leave the order selected if refresh failed
                 this.orderStore.selectOrder(null);
             }
         } catch (error) {
-            console.error('❌ Error refreshing order:', error);
             // Don't leave the order selected if refresh failed
             this.orderStore.selectOrder(null);
         }

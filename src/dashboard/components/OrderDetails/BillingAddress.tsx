@@ -20,6 +20,8 @@ const getBillingInfo = (order: Order) => {
 const getShippingAddress = (order: Order) => {
     // Try to get shipping address from different possible locations
     if (order.shippingAddress) return order.shippingAddress;
+    // Check for the actual shipping destination address first
+    if (order.rawOrder?.shippingInfo?.logistics?.shippingDestination?.address) return order.rawOrder.shippingInfo.logistics.shippingDestination.address;
     if (order.rawOrder?.shippingInfo?.shipmentDetails?.address) return order.rawOrder.shippingInfo.shipmentDetails.address;
     if (order.rawOrder?.recipientInfo?.address) return order.rawOrder.recipientInfo.address;
     if (order.rawOrder?.recipientInfo?.contactDetails?.address) return order.rawOrder.recipientInfo.contactDetails.address;
