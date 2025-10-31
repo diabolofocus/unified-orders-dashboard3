@@ -5,6 +5,23 @@ import { auth } from '@wix/essentials';
 import { orderFulfillments, orders } from '@wix/ecom';
 import { smartFulfillOrderElevated } from './fulfillment-elevated.web';
 
+// Helper function to handle CORS preflight requests
+const handleCorsPreflightIfNeeded = (context?: any) => {
+    if (context?.request?.method === 'OPTIONS') {
+        return {
+            statusCode: 204,
+            headers: {
+                'Access-Control-Allow-Origin': context?.request?.headers?.origin || '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-wix-consistent, x-wix-client-artifact-id, x-wix-linguist',
+                'Access-Control-Max-Age': '86400'
+            },
+            body: ''
+        };
+    }
+    return null;
+};
+
 interface EmailInfo {
   emailRequested: boolean;
   emailSentAutomatically: boolean;
@@ -183,29 +200,10 @@ interface PerItemFulfillmentParams {
  */
 export const createPerItemFulfillment = webMethod(
   Permissions.Anyone,
-  async (params: PerItemFulfillmentParams, context?) => {
-    // Enhanced CORS handling for production
-    const requestHeaders = context?.request?.headers || {};
-    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-    
-    const enhancedCorsHeaders = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400',
-      'Vary': 'Origin'
-    };
+  async (params: PerItemFulfillmentParams, context?: any) => {
+    const preflightResponse = handleCorsPreflightIfNeeded(context);
+    if (preflightResponse) return preflightResponse;
 
-    // Handle OPTIONS method for CORS preflight
-    if (context?.request?.method === 'OPTIONS') {
-      return {
-        success: true,
-        headers: enhancedCorsHeaders,
-        statusCode: 200,
-        message: 'CORS preflight successful'
-      };
-    }
     try {
       const elevatedGetOrder = auth.elevate(orders.getOrder);
       const orderDetails = await elevatedGetOrder(params.orderId);
@@ -302,8 +300,7 @@ export const createPerItemFulfillment = webMethod(
           : `Order ${params.orderNumber} fulfilled successfully`,
         emailSent: !!params.sendShippingEmail,
         isPartialFulfillment,
-        result: fulfillmentResult,
-        headers: enhancedCorsHeaders
+        result: fulfillmentResult
       };
 
     } catch (error: unknown) {
@@ -314,8 +311,7 @@ export const createPerItemFulfillment = webMethod(
         success: false,
         error: errorMsg,
         message: `Failed to create per-item fulfillment for order ${params.orderNumber}: ${errorMsg}`,
-        method: 'createPerItemFulfillment',
-        headers: enhancedCorsHeaders
+        method: 'createPerItemFulfillment'
       };
     }
   }
@@ -342,29 +338,10 @@ export const updatePerItemTracking = webMethod(
     orderNumber: string;
     sendShippingEmail?: boolean;
     itemId?: string;
-  }, context?) => {
-    // Enhanced CORS handling for production
-    const requestHeaders = context?.request?.headers || {};
-    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-    
-    const enhancedCorsHeaders = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400',
-      'Vary': 'Origin'
-    };
+  }, context?: any) => {
+    const preflightResponse = handleCorsPreflightIfNeeded(context);
+    if (preflightResponse) return preflightResponse;
 
-    // Handle OPTIONS method for CORS preflight
-    if (context?.request?.method === 'OPTIONS') {
-      return {
-        success: true,
-        headers: enhancedCorsHeaders,
-        statusCode: 200,
-        message: 'CORS preflight successful'
-      };
-    }
     try {
       const carrierMapping: Record<string, string> = {
         'dhl': 'dhl',
@@ -407,8 +384,7 @@ export const updatePerItemTracking = webMethod(
           method: 'updatePerItemTracking',
           message: `Tracking updated for order ${orderNumber}: ${trackingNumber}`,
           emailSent: !!sendShippingEmail,
-          result: updateResult,
-          headers: enhancedCorsHeaders
+          result: updateResult
         };
       } else {
         return await createPerItemFulfillment({
@@ -429,8 +405,7 @@ export const updatePerItemTracking = webMethod(
         success: false,
         error: errorMsg,
         message: `Failed to update per-item tracking for order ${orderNumber}: ${errorMsg}`,
-        method: 'updatePerItemTracking',
-        headers: enhancedCorsHeaders
+        method: 'updatePerItemTracking'
       };
     }
   }
@@ -623,29 +598,10 @@ export const fulfillOrderInWix = webMethod(
     lineItems?: Array<{ id: string; quantity: number }>;
     trackingUrl?: string;
     customCarrierName?: string;
-  }, context?) => {
-    // Enhanced CORS handling for production
-    const requestHeaders = context?.request?.headers || {};
-    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-    
-    const enhancedCorsHeaders = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400',
-      'Vary': 'Origin'
-    };
+  }, context?: any) => {
+    const preflightResponse = handleCorsPreflightIfNeeded(context);
+    if (preflightResponse) return preflightResponse;
 
-    // Handle OPTIONS method for CORS preflight
-    if (context?.request?.method === 'OPTIONS') {
-      return {
-        success: true,
-        headers: enhancedCorsHeaders,
-        statusCode: 200,
-        message: 'CORS preflight successful'
-      };
-    }
     try {
       const rawResult = await smartFulfillOrderElevated({
         orderId,
@@ -670,7 +626,6 @@ export const fulfillOrderInWix = webMethod(
           isPartialFulfillment: result.isPartialFulfillment || false,
           isTrackingUpdate: false,
           result: result.result || result,
-          headers: enhancedCorsHeaders,
           emailInfo: {
             emailRequested: sendShippingEmail,
             emailSentAutomatically: result.emailSent || false,
@@ -684,7 +639,6 @@ export const fulfillOrderInWix = webMethod(
           error: result.error || 'Fulfillment failed',
           message: result.message || `Failed to fulfill order ${orderNumber}`,
           method: 'fulfillOrderInWix',
-          headers: enhancedCorsHeaders,
           emailInfo: {
             emailRequested: sendShippingEmail,
             emailSentAutomatically: false,
@@ -700,7 +654,6 @@ export const fulfillOrderInWix = webMethod(
         error: errorMsg,
         message: `Failed to fulfill order ${orderNumber}: ${errorMsg}`,
         method: 'fulfillOrderInWix',
-        headers: enhancedCorsHeaders,
         emailInfo: {
           emailRequested: sendShippingEmail,
           emailSentAutomatically: false,
@@ -711,38 +664,12 @@ export const fulfillOrderInWix = webMethod(
   }
 );
 
-// Legacy CORS headers configuration (replaced by enhanced headers in production)
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
 export const testOrdersConnection = webMethod(
   Permissions.Anyone,
-  async ({ limit = 3, cursor = '' }: { limit?: number; cursor?: string } = {}, context) => {
-    // Enhanced CORS handling for production
-    const requestHeaders = context?.request?.headers || {};
-    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-    
-    const enhancedCorsHeaders = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400',
-      'Vary': 'Origin'
-    };
+  async ({ limit = 3, cursor = '' }: { limit?: number; cursor?: string } = {}, context?: any) => {
+    const preflightResponse = handleCorsPreflightIfNeeded(context);
+    if (preflightResponse) return preflightResponse;
 
-    // Handle OPTIONS method for CORS preflight
-    if (context?.request?.method === 'OPTIONS') {
-      return {
-        success: true,
-        headers: enhancedCorsHeaders,
-        statusCode: 200,
-        message: 'CORS preflight successful'
-      };
-    }
     const maxRetries = 3;
     let lastError: any;
 
@@ -988,7 +915,6 @@ export const testOrdersConnection = webMethod(
           };
         }) || [];
 
-        // Return response with enhanced CORS headers
         return {
           success: true,
           method: '@wix/ecom',
@@ -999,9 +925,7 @@ export const testOrdersConnection = webMethod(
             nextCursor: result.metadata?.cursors?.next || '',
             prevCursor: result.metadata?.cursors?.prev || ''
           },
-          message: `Successfully parsed ${parsedOrders.length} orders from your store with enhanced fulfillment details! (Limit: ${limit})`,
-          // Include enhanced CORS headers in the response
-          headers: enhancedCorsHeaders
+          message: `Successfully parsed ${parsedOrders.length} orders from your store with enhanced fulfillment details! (Limit: ${limit})`
         };
 
       } catch (currentError: unknown) {
@@ -1020,7 +944,6 @@ export const testOrdersConnection = webMethod(
 
     const finalErrorMsg = lastError instanceof Error ? lastError.message : String(lastError);
 
-    // Return error response with enhanced CORS headers
     return {
       success: false,
       error: 'eCommerce API not accessible',
@@ -1032,38 +955,16 @@ export const testOrdersConnection = webMethod(
         nextCursor: '',
         prevCursor: ''
       },
-      message: `Could not access @wix/ecom orders API after ${maxRetries} attempts. Check permissions and app setup. Last error: ${finalErrorMsg}`,
-      // Include enhanced CORS headers in the response
-      headers: enhancedCorsHeaders
+      message: `Could not access @wix/ecom orders API after ${maxRetries} attempts. Check permissions and app setup. Last error: ${finalErrorMsg}`
     };
   }
 );
 
 export const getSingleOrder = webMethod(
   Permissions.Anyone,
-  async (orderId: string, context?) => {
-    // Enhanced CORS handling for production
-    const requestHeaders = context?.request?.headers || {};
-    const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-    
-    const enhancedCorsHeaders = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400',
-      'Vary': 'Origin'
-    };
-
-    // Handle OPTIONS method for CORS preflight
-    if (context?.request?.method === 'OPTIONS') {
-      return {
-        success: true,
-        headers: enhancedCorsHeaders,
-        statusCode: 200,
-        message: 'CORS preflight successful'
-      };
-    }
+  async (orderId: string, context?: any) => {
+    const preflightResponse = handleCorsPreflightIfNeeded(context);
+    if (preflightResponse) return preflightResponse;
 
     try {
       const { orders } = await import('@wix/ecom');
@@ -1252,14 +1153,13 @@ export const getSingleOrder = webMethod(
         billingInfo: order.billingInfo,
         recipientInfo: order.recipientInfo,
         rawOrder: order,
-        buyerNote: order.buyerNote || order.buyerInfo?.note || order.checkoutInfo?.buyerNote || '',
+        buyerNote: order.buyerNote || '',
         fulfillmentStatus: order.fulfillmentStatus || 'NOT_FULFILLED'
       };
 
       return {
         success: true,
-        order: parsedOrder,
-        headers: enhancedCorsHeaders
+        order: parsedOrder
       };
 
     } catch (error: unknown) {
@@ -1268,8 +1168,7 @@ export const getSingleOrder = webMethod(
 
       return {
         success: false,
-        error: errorMsg,
-        headers: enhancedCorsHeaders
+        error: errorMsg
       };
     }
   }

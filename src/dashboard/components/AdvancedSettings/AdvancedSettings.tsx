@@ -124,7 +124,7 @@ export const AdvancedSettings: React.FC = observer(() => {
     const loadCacheStatus = async () => {
       try {
         const { getCustomerRankingsCacheStatus } = await import('../../../backend/customer-rankings.web');
-        const status = await getCustomerRankingsCacheStatus();
+        const status = await getCustomerRankingsCacheStatus({});
         setCacheStatus(status.success ? 'Active (2-hour TTL)' : 'Error');
       } catch (error) {
         setCacheStatus('Error loading status');

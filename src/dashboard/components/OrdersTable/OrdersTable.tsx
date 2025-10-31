@@ -1220,26 +1220,6 @@ const OrdersTable = observer(() => {
     };
 
     const handleRowClick = async (order: Order, event?: any) => {
-        // Debug: Log COMPLETE order data including all extended fields
-        console.log('=== COMPLETE ORDER DATA DEBUG ===');
-        console.log('Order ID:', order._id);
-        console.log('Order Number:', order.number);
-
-        // Buyer note debugging
-        console.log('--- BUYER NOTE ANALYSIS ---');
-        console.log('order.buyerNote:', order.buyerNote);
-        console.log('order.rawOrder?.buyerNote:', order.rawOrder?.buyerNote);
-
-        // Extended fields debugging
-        console.log('--- EXTENDED FIELDS ANALYSIS ---');
-        console.log('order.extendedFields:', order.extendedFields);
-        console.log('order.customFields:', order.customFields);
-        console.log('order.rawOrder?.extendedFields:', order.rawOrder?.extendedFields);
-        console.log('order.rawOrder?.customFields:', order.rawOrder?.customFields);
-
-        // Complete object stringified for full visibility
-        console.log('--- COMPLETE ORDER OBJECT (JSON) ---');
-        console.log(JSON.stringify(order, null, 2));
 
 
         // Remove all previous selections

@@ -28,7 +28,7 @@ export const useSkus = () => {
             const { fetchProductSkus } = await import('../../backend/products-api.web');
 
             // Call the backend function
-            const response = await fetchProductSkus();
+            const response = await fetchProductSkus({});
 
             if (response.success) {
                 setSkus(response.skus);

@@ -40,7 +40,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type }) => {
     return (
         <Badge
             skin={config.skin}
-            size="small"
+            size="tiny"
             type={config.type || 'solid'}
         >
             {config.text}

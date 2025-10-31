@@ -4,6 +4,23 @@ import { webMethod, Permissions } from '@wix/web-methods';
 import { auth } from '@wix/essentials';
 import { orderFulfillments, orders } from '@wix/ecom';
 
+// Helper function to handle CORS preflight requests
+const handleCorsPreflightIfNeeded = (context?: any) => {
+    if (context?.request?.method === 'OPTIONS') {
+        return {
+            statusCode: 204,
+            headers: {
+                'Access-Control-Allow-Origin': context?.request?.headers?.origin || '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-wix-consistent, x-wix-client-artifact-id, x-wix-linguist',
+                'Access-Control-Max-Age': '86400'
+            },
+            body: ''
+        };
+    }
+    return null;
+};
+
 // Safe utility functions for backend use
 const safeGetItemQuantity = (item: any): number => {
     return item?.quantity || 1;
@@ -52,29 +69,9 @@ export const smartFulfillOrderElevated = webMethod(
         lineItems?: FulfillmentLineItem[];
         trackingUrl?: string;
         customCarrierName?: string;
-    }, context?) => {
-        // Enhanced CORS handling for production
-        const requestHeaders = context?.request?.headers || {};
-        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-        
-        const enhancedCorsHeaders = {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '86400',
-            'Vary': 'Origin'
-        };
-
-        // Handle OPTIONS method for CORS preflight
-        if (context?.request?.method === 'OPTIONS') {
-            return {
-                success: true,
-                headers: enhancedCorsHeaders,
-                statusCode: 200,
-                message: 'CORS preflight successful'
-            };
-        }
+    }, context?: any) => {
+        const preflightResponse = handleCorsPreflightIfNeeded(context);
+        if (preflightResponse) return preflightResponse;
 
         try {
             const fulfillmentsCheck = await getFulfillmentsElevated({ orderId, orderNumber });
@@ -92,7 +89,7 @@ export const smartFulfillOrderElevated = webMethod(
                 }
 
                 if (sendShippingEmail) {
-                    const result = await updateFulfillmentElevated({
+                    return await updateFulfillmentElevated({
                         orderId,
                         fulfillmentId,
                         trackingNumber,
@@ -102,9 +99,8 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
-                    return { ...result, headers: enhancedCorsHeaders };
                 } else {
-                    const result = await updateFulfillmentRegular({
+                    return await updateFulfillmentRegular({
                         orderId,
                         fulfillmentId,
                         trackingNumber,
@@ -114,11 +110,10 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
-                    return { ...result, headers: enhancedCorsHeaders };
                 }
             } else {
                 if (sendShippingEmail) {
-                    const result = await createFulfillmentElevated({
+                    return await createFulfillmentElevated({
                         orderId,
                         trackingNumber,
                         shippingProvider,
@@ -128,9 +123,8 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
-                    return { ...result, headers: enhancedCorsHeaders };
                 } else {
-                    const result = await createFulfillmentRegular({
+                    return await createFulfillmentRegular({
                         orderId,
                         trackingNumber,
                         shippingProvider,
@@ -140,7 +134,6 @@ export const smartFulfillOrderElevated = webMethod(
                         trackingUrl,
                         customCarrierName
                     });
-                    return { ...result, headers: enhancedCorsHeaders };
                 }
             }
 
@@ -151,8 +144,7 @@ export const smartFulfillOrderElevated = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Smart fulfillment failed for order ${orderNumber}: ${errorMsg}`,
-                method: 'smartFulfillOrderElevated',
-                headers: enhancedCorsHeaders
+                method: 'smartFulfillOrderElevated'
             };
         }
     }

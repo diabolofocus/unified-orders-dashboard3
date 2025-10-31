@@ -7,7 +7,7 @@ function getCorsHeaders(request: Request): Record<string, string> {
 
     const baseHeaders: Record<string, string> = {
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': '*',
         'Content-Type': 'application/json'
     };
 

@@ -2,6 +2,23 @@ import { webMethod, Permissions } from '@wix/web-methods';
 import { auth } from '@wix/essentials';
 import { orderFulfillments, orders } from '@wix/ecom';
 
+// Helper function to handle CORS preflight requests
+const handleCorsPreflightIfNeeded = (context?: any) => {
+    if (context?.request?.method === 'OPTIONS') {
+        return {
+            statusCode: 204,
+            headers: {
+                'Access-Control-Allow-Origin': context?.request?.headers?.origin || '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-wix-consistent, x-wix-client-artifact-id, x-wix-linguist',
+                'Access-Control-Max-Age': '86400'
+            },
+            body: ''
+        };
+    }
+    return null;
+};
+
 // Safe utility functions for backend use
 const safeGetItemQuantity = (item: any): number => {
     return item?.quantity || 1;
@@ -47,29 +64,10 @@ interface PerItemFulfillmentParams {
  */
 export const createPerItemFulfillment = webMethod(
     Permissions.Anyone,
-    async (params: PerItemFulfillmentParams, context?) => {
-        // Enhanced CORS handling for production
-        const requestHeaders = context?.request?.headers || {};
-        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-        
-        const enhancedCorsHeaders = {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '86400',
-            'Vary': 'Origin'
-        };
+    async (params: PerItemFulfillmentParams, context?: any) => {
+        const preflightResponse = handleCorsPreflightIfNeeded(context);
+        if (preflightResponse) return preflightResponse;
 
-        // Handle OPTIONS method for CORS preflight
-        if (context?.request?.method === 'OPTIONS') {
-            return {
-                success: true,
-                headers: enhancedCorsHeaders,
-                statusCode: 200,
-                message: 'CORS preflight successful'
-            };
-        }
         try {
             // Get order details with elevated permissions
             const elevatedGetOrder = auth.elevate(orders.getOrder);
@@ -201,8 +199,7 @@ export const createPerItemFulfillment = webMethod(
                     : `Order ${params.orderNumber} fulfilled successfully`,
                 emailSent: !!params.sendShippingEmail,
                 isPartialFulfillment,
-                result: fulfillmentResult,
-                headers: enhancedCorsHeaders
+                result: fulfillmentResult
             };
 
         } catch (error: unknown) {
@@ -213,8 +210,7 @@ export const createPerItemFulfillment = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Failed to create per-item fulfillment for order ${params.orderNumber}: ${errorMsg}`,
-                method: 'createPerItemFulfillment',
-                headers: enhancedCorsHeaders
+                method: 'createPerItemFulfillment'
             };
         }
     }
@@ -243,29 +239,10 @@ export const updatePerItemTracking = webMethod(
         sendShippingEmail?: boolean;
         itemId?: string;
         customCarrierName?: string;
-    }, context?) => {
-        // Enhanced CORS handling for production
-        const requestHeaders = context?.request?.headers || {};
-        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-        
-        const enhancedCorsHeaders = {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '86400',
-            'Vary': 'Origin'
-        };
+    }, context?: any) => {
+        const preflightResponse = handleCorsPreflightIfNeeded(context);
+        if (preflightResponse) return preflightResponse;
 
-        // Handle OPTIONS method for CORS preflight
-        if (context?.request?.method === 'OPTIONS') {
-            return {
-                success: true,
-                headers: enhancedCorsHeaders,
-                statusCode: 200,
-                message: 'CORS preflight successful'
-            };
-        }
         try {
             const carrierMapping: Record<string, string> = {
                 'dhl': 'dhl',
@@ -313,8 +290,7 @@ export const updatePerItemTracking = webMethod(
                     method: 'updatePerItemTracking',
                     message: `Tracking updated for order ${orderNumber}: ${trackingNumber}`,
                     emailSent: !!sendShippingEmail,
-                    result: updateResult,
-                    headers: enhancedCorsHeaders
+                    result: updateResult
                 };
             } else {
                 // Create new fulfillment for specific item
@@ -343,8 +319,7 @@ export const updatePerItemTracking = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Failed to update per-item tracking for order ${orderNumber}: ${errorMsg}`,
-                method: 'updatePerItemTracking',
-                headers: enhancedCorsHeaders
+                method: 'updatePerItemTracking'
             };
         }
     }
@@ -361,29 +336,10 @@ export const getOrderFulfillmentDetails = webMethod(
     }: {
         orderId: string;
         orderNumber: string;
-    }, context?) => {
-        // Enhanced CORS handling for production
-        const requestHeaders = context?.request?.headers || {};
-        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-        
-        const enhancedCorsHeaders = {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '86400',
-            'Vary': 'Origin'
-        };
+    }, context?: any) => {
+        const preflightResponse = handleCorsPreflightIfNeeded(context);
+        if (preflightResponse) return preflightResponse;
 
-        // Handle OPTIONS method for CORS preflight
-        if (context?.request?.method === 'OPTIONS') {
-            return {
-                success: true,
-                headers: enhancedCorsHeaders,
-                statusCode: 200,
-                message: 'CORS preflight successful'
-            };
-        }
         try {
             // Get order details
             const elevatedGetOrder = auth.elevate(orders.getOrder);
@@ -437,8 +393,7 @@ export const getOrderFulfillmentDetails = webMethod(
                     totalRemaining: totalItems - totalFulfilled,
                     lineItems: lineItemsWithFulfillment,
                     fulfillments: fulfillments
-                },
-                headers: enhancedCorsHeaders
+                }
             };
 
         } catch (error: unknown) {
@@ -449,8 +404,7 @@ export const getOrderFulfillmentDetails = webMethod(
                 success: false,
                 error: errorMsg,
                 message: `Failed to get fulfillment details for order ${orderNumber}: ${errorMsg}`,
-                method: 'getOrderFulfillmentDetails',
-                headers: enhancedCorsHeaders
+                method: 'getOrderFulfillmentDetails'
             };
         }
     }
@@ -467,29 +421,10 @@ export const validateItemsForFulfillment = webMethod(
     }: {
         orderId: string;
         selectedItems: ItemFulfillment[];
-    }, context?) => {
-        // Enhanced CORS handling for production
-        const requestHeaders = context?.request?.headers || {};
-        const origin = requestHeaders['origin'] || requestHeaders['Origin'] || '*';
-        
-        const enhancedCorsHeaders = {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '86400',
-            'Vary': 'Origin'
-        };
+    }, context?: any) => {
+        const preflightResponse = handleCorsPreflightIfNeeded(context);
+        if (preflightResponse) return preflightResponse;
 
-        // Handle OPTIONS method for CORS preflight
-        if (context?.request?.method === 'OPTIONS') {
-            return {
-                success: true,
-                headers: enhancedCorsHeaders,
-                statusCode: 200,
-                message: 'CORS preflight successful'
-            };
-        }
         try {
             const elevatedGetOrder = auth.elevate(orders.getOrder);
             const orderDetails = await elevatedGetOrder(orderId);
@@ -497,8 +432,7 @@ export const validateItemsForFulfillment = webMethod(
             if (!orderDetails || !orderDetails.lineItems) {
                 return {
                     success: false,
-                    error: 'Order not found or has no line items',
-                    headers: enhancedCorsHeaders
+                    error: 'Order not found or has no line items'
                 };
             }
 
@@ -562,16 +496,14 @@ export const validateItemsForFulfillment = webMethod(
                     totalRequested: selectedItems.length,
                     validCount: validItems.length,
                     invalidCount: invalidItems.length
-                },
-                headers: enhancedCorsHeaders
+                }
             };
 
         } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             return {
                 success: false,
-                error: errorMsg,
-                headers: enhancedCorsHeaders
+                error: errorMsg
             };
         }
     }
