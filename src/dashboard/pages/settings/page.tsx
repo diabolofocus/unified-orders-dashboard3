@@ -33,6 +33,7 @@ import { OrderControllerProvider } from '../../contexts/OrderControllerContext';
 import { NotificationSettings } from '../../components/NotificationSettings/NotificationSettings';
 import { ComponentsVisibility } from '../../components/ComponentsVisibility/ComponentsVisibility';
 import { AdvancedSettings } from '../../components/AdvancedSettings/AdvancedSettings';
+import { PromoBanner } from '../../components/PromoBanner/PromoBanner';
 
 const DashboardPage: FC = () => {
   // Component rendering
@@ -237,6 +238,9 @@ const DashboardPage: FC = () => {
                   </Card>
 
                   <AdvancedSettings />
+
+                  {/* Promotional Banner */}
+                  <PromoBanner />
                 </Box>
               </Page.Content>
               <style>{`
