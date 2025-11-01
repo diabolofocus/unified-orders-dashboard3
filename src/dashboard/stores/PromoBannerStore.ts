@@ -132,8 +132,21 @@ export class PromoBannerStore {
    * Opens the upgrade page in a new tab
    */
   openUpgradePage(): void {
+    console.log('Opening upgrade page. URL:', this.upgradeUrl);
+
     if (this.upgradeUrl) {
+      console.log('Attempting to open URL:', this.upgradeUrl);
       window.open(this.upgradeUrl, '_blank');
+    } else {
+      console.warn('No upgrade URL available. App may not be published yet.');
+      // Fallback: Show a message to the user
+      if (typeof window !== 'undefined' && (window as any).dashboard) {
+        (window as any).dashboard.showToast({
+          message: 'Upgrade URL is not available yet. The app needs to be published to the Wix App Market first.',
+          type: 'warning',
+          duration: 5000
+        });
+      }
     }
   }
 }

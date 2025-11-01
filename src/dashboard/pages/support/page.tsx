@@ -648,15 +648,6 @@ Please describe your feature request in detail here...`
                             />
                           </FormField>
 
-                          <FormField label="System Information">
-                            <InputArea
-                              value={systemInfoText}
-                              readOnly
-                              minHeight="200px"
-                              placeholder="Small" size="small"
-                            />
-                          </FormField>
-
                           <FlexBox direction="horizontal" gap="12px" justify="end">
                             <Button
                               type="submit"

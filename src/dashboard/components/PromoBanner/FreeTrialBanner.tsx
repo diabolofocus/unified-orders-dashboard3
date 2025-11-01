@@ -10,6 +10,31 @@ export const FreeTrialBanner: React.FC = observer(() => {
   useEffect(() => {
     // Initialize the store when component mounts
     promoBannerStore.initialize();
+
+    // Debug: Log app instance info after initialization
+    setTimeout(() => {
+      console.log('=== FREE TRIAL BANNER DEBUG ===');
+      console.log('App Instance Info:', JSON.stringify(promoBannerStore.appInstanceInfo, null, 2));
+      console.log('App Def ID:', promoBannerStore.appInstanceInfo?.appDefId);
+      console.log('Instance ID:', promoBannerStore.appInstanceInfo?.instanceId);
+      console.log('Upgrade URL:', promoBannerStore.upgradeUrl);
+      console.log('Should Show Banner:', promoBannerStore.shouldShowFreeTrialBanner);
+      console.log('Is Free:', promoBannerStore.appInstanceInfo?.isFree);
+      console.log('Has Premium Plan:', promoBannerStore.appInstanceInfo?.hasPremiumPlan);
+      console.log('Is In Free Trial:', promoBannerStore.appInstanceInfo?.isInFreeTrial);
+
+      // Check if URL construction is working
+      if (!promoBannerStore.upgradeUrl && promoBannerStore.appInstanceInfo?.appDefId && promoBannerStore.appInstanceInfo?.instanceId) {
+        console.warn('⚠️ appDefId and instanceId exist but upgrade URL was not generated!');
+        console.log('Expected URL format: https://www.wix.com/apps/upgrade/' + promoBannerStore.appInstanceInfo.appDefId + '?appInstanceId=' + promoBannerStore.appInstanceInfo.instanceId);
+      } else if (!promoBannerStore.upgradeUrl) {
+        console.warn('⚠️ Upgrade URL not available. This is expected for unpublished apps.');
+        console.log('Missing fields:');
+        console.log('  - appDefId:', promoBannerStore.appInstanceInfo?.appDefId || 'MISSING');
+        console.log('  - instanceId:', promoBannerStore.appInstanceInfo?.instanceId || 'MISSING');
+      }
+      console.log('==============================');
+    }, 2000);
   }, [promoBannerStore]);
 
   // Don't render anything while loading
@@ -75,7 +100,7 @@ export const FreeTrialBanner: React.FC = observer(() => {
 
       {/* Message */}
       <Box direction="vertical" gap="4px" align="left" style={{ flex: 1 }}>
-        <Text size="medium" weight="bold" style={{ color: '#000000' }}>
+        <Text size="medium" weight="normal" style={{ color: '#000000' }}>
           {isInTrial ? 'Free Trial Active' : '14-Day Free Trial Available'}
         </Text>
         <Text size="small" style={{ color: '#666666' }}>
