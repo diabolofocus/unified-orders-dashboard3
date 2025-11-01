@@ -239,7 +239,7 @@ const DashboardPage: FC = () => {
 
                   <AdvancedSettings />
 
-                  {/* Promotional Banner */}
+                  {/* Promotional Banner - Always shown */}
                   <PromoBanner />
                 </Box>
               </Page.Content>

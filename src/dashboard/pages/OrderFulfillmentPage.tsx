@@ -15,6 +15,7 @@ import { ConnectionStatus } from '../components/shared/ConnectionStatus';
 import { LoadingScreen } from '../components/shared/LoadingScreen';
 import { OrdersTableWithTabs } from '../components/OrdersTable/OrdersTableWithTabs';
 import { OrderDetails } from '../components/OrderDetails/OrderDetails';
+import { FreeTrialBanner } from '../components/PromoBanner/FreeTrialBanner';
 
 export const OrderFulfillmentPage: React.FC = observer(() => {
   const settings = settingsStore.getSettings();
@@ -215,6 +216,9 @@ export const OrderFulfillmentPage: React.FC = observer(() => {
               height: '100%'
             }}
           >
+            {/* Free Trial Banner - Only shows if user doesn't have premium plan */}
+            <FreeTrialBanner />
+
             {/* Connection Status Row - Only show if enabled in settings */}
             {settings.showAnalyticsCard && <ConnectionStatus />}
 

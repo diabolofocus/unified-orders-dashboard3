@@ -14,7 +14,7 @@ export const PromoBanner: React.FC = () => {
         direction="vertical"
         padding="24px"
         gap="16px"
-        backgroundColor="#f0f4ff"
+        backgroundColor="#ffffff"
         borderRadius="8px"
         align="left"
       >
@@ -24,7 +24,7 @@ export const PromoBanner: React.FC = () => {
             width="48px"
             height="48px"
             borderRadius="50%"
-            backgroundColor="#ffffff"
+            backgroundColor="#eceeef"
             align="center"
             verticalAlign="middle"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
