@@ -42,6 +42,7 @@ type Settings = {
   initialOrderLimit: number;
   enableClickToCopy: boolean;
   showCustomerRankings: boolean;
+  packingListFirst: boolean;
   customerTiers: {
     returningCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
     loyalCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
@@ -70,6 +71,7 @@ const DEFAULT_SETTINGS: Settings = {
   enableClickToCopy: true,
   showCustomerBadges: true,
   showCustomerRankings: true,
+  packingListFirst: false,
   customerTiers: {
     returningCustomer: { threshold: 2, name: 'RETURNING CUSTOMER', skin: 'general' },
     loyalCustomer: { threshold: 3, name: 'LOYAL CUSTOMER', skin: 'standard' },
@@ -377,6 +379,15 @@ export class SettingsStore {
 
   get clickToCopyEnabled() {
     return this.settings.enableClickToCopy;
+  }
+
+  setPackingListFirst = (enabled: boolean) => {
+    this.settings.packingListFirst = enabled;
+    this.saveSettings();
+  };
+
+  get packingListFirst() {
+    return this.settings.packingListFirst;
   }
 
   async fetchOrderSettings() {

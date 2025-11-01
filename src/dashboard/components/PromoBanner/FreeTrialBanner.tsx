@@ -85,10 +85,9 @@ export const FreeTrialBanner: React.FC = observer(() => {
 
       {/* CTA Button */}
       <Button
-        size="medium"
+        size="small"
         priority="primary"
         onClick={handleUpgrade}
-        prefixIcon={<Icons.StarFilled />}
       >
         {promoBannerStore.ctaButtonText}
       </Button>

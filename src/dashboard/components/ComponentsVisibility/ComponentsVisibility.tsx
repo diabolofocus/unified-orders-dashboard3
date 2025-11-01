@@ -110,6 +110,16 @@ export const ComponentsVisibility: React.FC = observer(() => {
                     })}
                     <Divider />
 
+                    {renderListItem({
+                        title: 'Packing List as Primary Tab',
+                        subtitle: 'Show the packing list as the first tab instead of the orders table',
+                        padding: '18px 0px 18px',
+                        toggleChecked: settingsStore.packingListFirst,
+                        onToggleChange: (checked: boolean) => settingsStore.setPackingListFirst(checked),
+                        disabled: false
+                    })}
+                    <Divider />
+
                     <Box direction="vertical" padding="24px 0px" gap="24px">
                         <Text size="medium" weight="bold">Analytics</Text>
                         <Box padding="0 0px 0 0px" direction="vertical" gap="24px">

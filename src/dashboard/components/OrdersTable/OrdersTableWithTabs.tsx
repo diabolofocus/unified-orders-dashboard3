@@ -58,7 +58,11 @@ interface PreparationItem {
 
 export const OrdersTableWithTabs: React.FC = observer(() => {
     const { orderStore } = useStores();
-    const [activeTabId, setActiveTabId] = useState<string | number>(1);
+    const settings = settingsStore.getSettings();
+
+    // Determine initial tab based on settings
+    const initialTab = settings.packingListFirst ? 2 : 1;
+    const [activeTabId, setActiveTabId] = useState<string | number>(initialTab);
     const isMounted = useRef(true);
 
     // Cleanup on unmount
@@ -68,10 +72,16 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         };
     }, []);
 
-    const tabItems = [
-        { id: 1, title: 'Order List' },
-        { id: 2, title: 'Packing List' }
-    ];
+    // Update tab items order based on settings
+    const tabItems = settings.packingListFirst
+        ? [
+            { id: 2, title: 'Packing List' },
+            { id: 1, title: 'Order List' }
+          ]
+        : [
+            { id: 1, title: 'Order List' },
+            { id: 2, title: 'Packing List' }
+          ];
 
     const getProductOptionsKey = (item: any): string => {
         if (!item || !item.descriptionLines) {
