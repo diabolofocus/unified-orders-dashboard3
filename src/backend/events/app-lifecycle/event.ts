@@ -9,42 +9,71 @@ const PORTFOLIO_WEBHOOK_URL = 'https://karpo.studio/_functions/appInstanceEvent'
  */
 async function sendToPortfolio(eventType: string, event: any, metadata: any): Promise<void> {
   try {
-    console.log(`=== ${eventType} EVENT ===`);
-    console.log('Event data:', JSON.stringify(event, null, 2));
-    console.log('Metadata:', JSON.stringify(metadata, null, 2));
+    // Extract data from event
+    const eventData = event.data || {};
 
-    // Get app instance details with owner email using elevated permissions
-    const elevatedGetAppInstance = auth.elevate(appInstances.getAppInstance);
-    const appInstanceData = await elevatedGetAppInstance();
+    let appInstanceData = null;
+
+    // Try to fetch app instance details with elevated permissions
+    // This will fail for APP_REMOVED (already uninstalled)
+    if (eventType !== 'APP_REMOVED') {
+      try {
+        const elevatedGetAppInstance = auth.elevate(appInstances.getAppInstance);
+        appInstanceData = await elevatedGetAppInstance();
+      } catch (error) {
+        // If we can't get app instance, continue with event data only
+      }
+    }
 
     const payload = {
       eventType,
-      instanceId: metadata.instanceId || event.instanceId,
-      appId: 'aeb5e016-2505-4705-b39f-7724f4845fbd',
+      instanceId: metadata.instanceId,
+      appId: eventData.appId || 'aeb5e016-2505-4705-b39f-7724f4845fbd',
       appName: 'Unified Orders Dashboard',
       timestamp: new Date().toISOString(),
 
-      // Site information
-      siteId: appInstanceData.site?.siteId || 'N/A',
-      siteUrl: appInstanceData.site?.url || 'N/A',
-      siteName: appInstanceData.site?.siteDisplayName || 'N/A',
+      // Site information (only available when we can fetch app instance)
+      siteId: appInstanceData?.site?.siteId || null,
+      siteUrl: appInstanceData?.site?.url || null,
+      siteName: appInstanceData?.site?.siteDisplayName || null,
 
-      // Owner information
-      ownerEmail: appInstanceData.site?.ownerInfo?.email || 'N/A',
-      ownerId: appInstanceData.site?.siteId || 'N/A', // Using siteId as owner identifier
+      // Owner information (only available when we can fetch app instance)
+      ownerEmail: appInstanceData?.site?.ownerInfo?.email || null,
+      ownerId: appInstanceData?.site?.siteId || null,
 
-      // Plan information (if available)
-      planId: event.plan?.planId || null,
-      planName: event.plan?.planName || null,
-      planVendorId: event.plan?.planVendorId || null,
-      isFree: event.plan?.isFree !== undefined ? event.plan.isFree : null,
+      // Plan event specific fields
+      vendorProductId: eventData.vendorProductId || null,
+      cycle: eventData.cycle || null,
+      operationTimestamp: eventData.operationTimeStamp || null,
+      expiresOn: eventData.expiresOn || null,
 
-      // Additional event data
-      eventData: event,
-      eventMetadata: metadata
+      // Purchase/Change specific fields
+      couponName: eventData.couponName || null,
+      invoiceId: eventData.invoiceId || null,
+      previousVendorProductId: eventData.previousVendorProductId || null,
+      previousCycle: eventData.previousCycle || null,
+
+      // Cancellation specific fields
+      cancelReason: eventData.cancelReason || null,
+      userReason: eventData.userReason || null,
+      subscriptionCancellationType: eventData.subscriptionCancellationType || null,
+      cancelledDuringFreeTrial: eventData.cancelledDuringFreeTrial || null,
+
+      // Reactivation specific fields
+      reason: eventData.reason || null,
+
+      // Origin instance (for APP_INSTALLED)
+      originInstanceId: eventData.originInstanceId || null,
+
+      // Identity information from metadata
+      identityType: metadata.identity?.identityType || null,
+      wixUserId: metadata.identity?.wixUserId || null,
+      memberId: metadata.identity?.memberId || null,
+
+      // Full event data for debugging
+      rawEventData: JSON.stringify(eventData),
+      rawMetadata: JSON.stringify(metadata)
     };
-
-    console.log('Sending to portfolio:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(PORTFOLIO_WEBHOOK_URL, {
       method: 'POST',
@@ -55,16 +84,12 @@ async function sendToPortfolio(eventType: string, event: any, metadata: any): Pr
       body: JSON.stringify(payload)
     });
 
-    const result = await response.json();
-    console.log(`Portfolio response (${response.status}):`, JSON.stringify(result, null, 2));
-
+    // Optionally handle response errors silently
     if (!response.ok) {
-      console.error(`Portfolio webhook failed with status ${response.status}`);
+      // Portfolio webhook failed - could log to monitoring service
     }
   } catch (error: any) {
-    console.error(`=== ERROR IN ${eventType} HANDLER ===`);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
+    // Event handler error - could log to monitoring service
   }
 }
 
