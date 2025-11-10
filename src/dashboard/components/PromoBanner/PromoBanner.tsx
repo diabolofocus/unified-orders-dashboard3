@@ -47,25 +47,22 @@ export const PromoBanner: React.FC = () => {
 
         {/* Content Section */}
         <Box direction="vertical" gap="12px" align="left">
-          <Text size="medium" style={{ color: '#000000' }}>
-            Looking for personalized features or a custom dashboard tailored to your specific workflow?
-          </Text>
 
           {/* Feature Highlights */}
-          <Box direction="vertical" gap="8px" paddingTop="8px" align="left">
-            <Box direction="horizontal" gap="8px" align="center">
+          <Box direction="vertical" gap="8px" paddingTop="8px" verticalAlign="middle">
+            <Box direction="horizontal" gap="8px" verticalAlign="middle">
               <Icons.Confirm style={{ color: '#00c851', fontSize: '16px', flexShrink: 0 }} />
               <Text size="small" style={{ color: '#000000' }}>Custom dashboards and order management workflows</Text>
             </Box>
-            <Box direction="horizontal" gap="8px" align="center">
+            <Box direction="horizontal" gap="8px" verticalAlign="middle">
               <Icons.Confirm style={{ color: '#00c851', fontSize: '16px', flexShrink: 0 }} />
               <Text size="small" style={{ color: '#000000' }}>Integration with third-party services and APIs</Text>
             </Box>
-            <Box direction="horizontal" gap="8px" align="center">
+            <Box direction="horizontal" gap="8px" verticalAlign="middle">
               <Icons.Confirm style={{ color: '#00c851', fontSize: '16px', flexShrink: 0 }} />
               <Text size="small" style={{ color: '#000000' }}>Automation tools and custom reporting solutions</Text>
             </Box>
-            <Box direction="horizontal" gap="8px" align="center">
+            <Box direction="horizontal" gap="8px" verticalAlign="middle">
               <Icons.Confirm style={{ color: '#00c851', fontSize: '16px', flexShrink: 0 }} />
               <Text size="small" style={{ color: '#000000' }}>Ongoing support and maintenance</Text>
             </Box>

@@ -60,8 +60,14 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
     const { orderStore } = useStores();
     const settings = settingsStore.getSettings();
 
-    // Determine initial tab based on settings
-    const initialTab = settings.packingListFirst ? 2 : 1;
+    // Map tab IDs to their numeric equivalents for backward compatibility
+    const tabIdMap: Record<string, number> = {
+        'order-list': 1,
+        'packing-list': 2
+    };
+
+    // Determine initial tab based on new tab order array
+    const initialTab = tabIdMap[settings.tabOrder[0]] || 1;
     const [activeTabId, setActiveTabId] = useState<string | number>(initialTab);
     const isMounted = useRef(true);
 
@@ -72,16 +78,15 @@ export const OrdersTableWithTabs: React.FC = observer(() => {
         };
     }, []);
 
-    // Update tab items order based on settings
-    const tabItems = settings.packingListFirst
-        ? [
-            { id: 2, title: 'Packing List' },
-            { id: 1, title: 'Order List' }
-          ]
-        : [
-            { id: 1, title: 'Order List' },
-            { id: 2, title: 'Packing List' }
-          ];
+    // Update tab items order based on new tabOrder array
+    const tabItems = settings.tabOrder.map(tabId => {
+        if (tabId === 'order-list') {
+            return { id: 1, title: 'Order List' };
+        } else if (tabId === 'packing-list') {
+            return { id: 2, title: 'Packing List' };
+        }
+        return { id: 1, title: 'Order List' }; // Fallback
+    });
 
     const getProductOptionsKey = (item: any): string => {
         if (!item || !item.descriptionLines) {

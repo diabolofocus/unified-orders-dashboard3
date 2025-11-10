@@ -34,6 +34,7 @@ import { NotificationSettings } from '../../components/NotificationSettings/Noti
 import { ComponentsVisibility } from '../../components/ComponentsVisibility/ComponentsVisibility';
 import { AdvancedSettings } from '../../components/AdvancedSettings/AdvancedSettings';
 import { PromoBanner } from '../../components/PromoBanner/PromoBanner';
+import { PlanManagementCard } from '../../components/PlanManagementCard/PlanManagementCard';
 
 const DashboardPage: FC = () => {
   // Component rendering
@@ -225,6 +226,13 @@ const DashboardPage: FC = () => {
                   padding="0px"
                   gap="24px"
                 >
+                  {/* Plan Management Card */}
+                  <Card>
+                    <Box padding="0px">
+                      <PlanManagementCard />
+                    </Box>
+                  </Card>
+
                   <Card>
                     <Box padding="0px">
                       <NotificationSettings />

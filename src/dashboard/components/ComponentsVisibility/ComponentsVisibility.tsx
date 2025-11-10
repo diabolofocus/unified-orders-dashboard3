@@ -10,6 +10,7 @@ import {
     Divider
 } from '@wix/design-system';
 import * as Icons from '@wix/wix-ui-icons-common';
+import { TabOrderSettings } from '../TabOrderSettings/TabOrderSettings';
 
 
 export const ComponentsVisibility: React.FC = observer(() => {
@@ -110,14 +111,29 @@ export const ComponentsVisibility: React.FC = observer(() => {
                     })}
                     <Divider />
 
-                    {renderListItem({
-                        title: 'Packing List as Primary Tab',
-                        subtitle: 'Show the packing list as the first tab instead of the orders table',
-                        padding: '18px 0px 18px',
-                        toggleChecked: settingsStore.packingListFirst,
-                        onToggleChange: (checked: boolean) => settingsStore.setPackingListFirst(checked),
-                        disabled: false
-                    })}
+                    <Box padding="18px 0px 18px">
+                        <TabOrderSettings
+                            tabs={[
+                                {
+                                    id: 'order-list',
+                                    label: 'Order List',
+                                    description: 'Standard table view of all orders'
+                                },
+                                {
+                                    id: 'packing-list',
+                                    label: 'Packing List',
+                                    description: 'Consolidated view for packing items'
+                                }
+                            ].sort((a, b) => {
+                                const order = settingsStore.tabOrder;
+                                return order.indexOf(a.id) - order.indexOf(b.id);
+                            })}
+                            onReorder={(newTabs) => {
+                                const newOrder = newTabs.map(tab => tab.id);
+                                settingsStore.setTabOrder(newOrder);
+                            }}
+                        />
+                    </Box>
                     <Divider />
 
                     <Box direction="vertical" padding="24px 0px" gap="24px">

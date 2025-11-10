@@ -42,12 +42,15 @@ type Settings = {
   initialOrderLimit: number;
   enableClickToCopy: boolean;
   showCustomerRankings: boolean;
-  packingListFirst: boolean;
+  packingListFirst: boolean; // Deprecated: kept for backward compatibility
+  tabOrder: string[]; // New: array of tab IDs in order ['order-list', 'packing-list']
   customerTiers: {
     returningCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
     loyalCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
     vipCustomer: { threshold: number; name: string; skin: 'general' | 'standard' | 'premium' };
   };
+  planType: 'trial' | 'premium';
+  trialEndDate: string | null; // ISO date string
 };
 
 
@@ -72,11 +75,14 @@ const DEFAULT_SETTINGS: Settings = {
   showCustomerBadges: true,
   showCustomerRankings: true,
   packingListFirst: false,
+  tabOrder: ['order-list', 'packing-list'], // Default order
   customerTiers: {
     returningCustomer: { threshold: 2, name: 'RETURNING CUSTOMER', skin: 'general' },
     loyalCustomer: { threshold: 3, name: 'LOYAL CUSTOMER', skin: 'standard' },
     vipCustomer: { threshold: 4, name: 'VIP CUSTOMER', skin: 'premium' },
   },
+  planType: 'trial',
+  trialEndDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
 };
 
 
@@ -383,11 +389,27 @@ export class SettingsStore {
 
   setPackingListFirst = (enabled: boolean) => {
     this.settings.packingListFirst = enabled;
+    // Update tabOrder for backward compatibility
+    this.settings.tabOrder = enabled
+      ? ['packing-list', 'order-list']
+      : ['order-list', 'packing-list'];
     this.saveSettings();
   };
 
   get packingListFirst() {
-    return this.settings.packingListFirst;
+    // Check both old and new property for backward compatibility
+    return this.settings.packingListFirst || this.settings.tabOrder[0] === 'packing-list';
+  }
+
+  setTabOrder = (tabOrder: string[]) => {
+    this.settings.tabOrder = tabOrder;
+    // Update packingListFirst for backward compatibility
+    this.settings.packingListFirst = tabOrder[0] === 'packing-list';
+    this.saveSettings();
+  };
+
+  get tabOrder() {
+    return this.settings.tabOrder;
   }
 
   async fetchOrderSettings() {
@@ -429,6 +451,50 @@ export class SettingsStore {
 
       throw error;
     }
+  }
+
+  // Plan Management
+  get planType() {
+    return this.settings.planType;
+  }
+
+  get trialEndDate() {
+    return this.settings.trialEndDate;
+  }
+
+  get trialDaysLeft(): number | null {
+    if (!this.settings.trialEndDate || this.settings.planType === 'premium') {
+      return null;
+    }
+
+    const endDate = new Date(this.settings.trialEndDate);
+    const today = new Date();
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return Math.max(0, diffDays);
+  }
+
+  setPlanType(planType: 'trial' | 'premium') {
+    runInAction(() => {
+      this.settings.planType = planType;
+      this.saveSettings();
+    });
+  }
+
+  setTrialEndDate(endDate: string | null) {
+    runInAction(() => {
+      this.settings.trialEndDate = endDate;
+      this.saveSettings();
+    });
+  }
+
+  upgradeToPremium() {
+    runInAction(() => {
+      this.settings.planType = 'premium';
+      this.settings.trialEndDate = null;
+      this.saveSettings();
+    });
   }
 
 
