@@ -314,8 +314,7 @@ const OrdersTable = observer(() => {
 
     const handleAddNewOrder = () => {
         dashboard.navigate(
-            pages.newOrder(),
-            { displayMode: "overlay" }
+            pages.newOrder()
         );
     };
 

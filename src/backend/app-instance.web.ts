@@ -8,6 +8,9 @@ import { appInstances } from '@wix/app-management';
 // This is your app's unique identifier from the Wix App Dashboard
 const APP_DEF_ID = 'aeb5e016-2505-4705-b39f-7724f4845fbd';
 
+// Free trial duration in days (must match what you configured in Wix Dev Center)
+const FREE_TRIAL_DURATION_DAYS = 14;
+
 /**
  * Response interface for app instance information
  */
@@ -36,29 +39,21 @@ export const getAppInstanceInfo = webMethod(
       const instance = response.instance;
       const billing = instance?.billing;
 
-      // Debug: Log what we received
-      console.log('=== APP INSTANCE INFO (getAppInstanceInfo) ===');
-      console.log('Instance ID:', instance?.instanceId);
-      console.log('Is Free:', instance?.isFree);
-      console.log('Instance keys:', instance ? Object.keys(instance) : 'No instance');
       const instanceAny = instance as any;
-      console.log('appDefId candidates:', {
-        appDefId: instanceAny?.appDefId,
-        appId: instanceAny?.appId,
-        'app.appDefId': instanceAny?.app?.appDefId,
-        'app.id': instanceAny?.app?.id
-      });
-      console.log('===========================================');
 
-      // Check if user is in free trial
+      // Check if user is in free trial (according to Wix docs, users on free trial have isFree: false)
       const isInFreeTrial = billing?.freeTrialInfo?.status === 'IN_PROGRESS';
 
-      // Calculate days remaining in free trial
+      // So we use billing.timeStamp (trial start date) + trial duration to calculate end date
       let freeTrialDaysRemaining: number | undefined;
-      if (isInFreeTrial && billing?.expirationDate) {
-        const expirationDate = new Date(billing.expirationDate);
+      if (isInFreeTrial && billing?.timeStamp) {
+        const trialStartDate = new Date(billing.timeStamp);
+        const trialEndDate = new Date(trialStartDate);
+        trialEndDate.setDate(trialEndDate.getDate() + FREE_TRIAL_DURATION_DAYS);
+
         const now = new Date();
-        const daysRemaining = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const remainingTime = trialEndDate.getTime() - now.getTime();
+        const daysRemaining = Math.ceil(remainingTime / (1000 * 60 * 60 * 24));
         freeTrialDaysRemaining = Math.max(0, daysRemaining);
       }
 
@@ -73,7 +68,6 @@ export const getAppInstanceInfo = webMethod(
       // Use the hardcoded APP_DEF_ID if not found in API response
       const appDefId = appDefIdFromApi || APP_DEF_ID;
 
-      console.log('appDefId resolution:', { appDefIdFromApi, usingHardcoded: !appDefIdFromApi, finalAppDefId: appDefId });
 
       return {
         instanceId: instance?.instanceId || '',
@@ -108,20 +102,9 @@ export const getUpgradeUrl = webMethod(
       const elevatedGetAppInstance = auth.elevate(appInstances.getAppInstance);
       const response = await elevatedGetAppInstance();
 
-      // Debug: Log the full response to see what's available
-      console.log('=== APP INSTANCE FULL RESPONSE (getUpgradeUrl) ===');
-      console.log('Full response:', JSON.stringify(response, null, 2));
-      console.log('Instance keys:', response.instance ? Object.keys(response.instance) : 'No instance');
-
       // Try to find appDefId in different locations
       const instanceAny = response.instance as any;
-      console.log('Checking for appDefId in different locations:');
-      console.log('  - instance.appDefId:', instanceAny?.appDefId);
-      console.log('  - instance.appId:', instanceAny?.appId);
-      console.log('  - instance.app?.appDefId:', instanceAny?.app?.appDefId);
-      console.log('  - instance.app?.id:', instanceAny?.app?.id);
-      console.log('  - response.appDefId:', (response as any)?.appDefId);
-      console.log('===================================');
+
 
       // Try to find appDefId in API response (usually not there)
       const appDefIdFromApi = instanceAny?.appDefId || instanceAny?.appId || instanceAny?.app?.appDefId || instanceAny?.app?.id;
@@ -131,12 +114,8 @@ export const getUpgradeUrl = webMethod(
       const instanceId = response.instance?.instanceId;
       const appName = response.instance?.appName;
 
-      console.log('Getting upgrade URL - appDefId:', appDefId, 'instanceId:', instanceId, 'appName:', appName);
-      console.log('appDefId source:', appDefIdFromApi ? 'API response' : 'hardcoded constant');
-
       if (appDefId && instanceId) {
         const upgradeUrl = `https://www.wix.com/apps/upgrade/${appDefId}?appInstanceId=${instanceId}`;
-        console.log('✅ Generated upgrade URL:', upgradeUrl);
         return upgradeUrl;
       }
 

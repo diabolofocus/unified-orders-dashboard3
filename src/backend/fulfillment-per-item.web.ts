@@ -204,7 +204,6 @@ export const createPerItemFulfillment = webMethod(
 
         } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            console.error(`❌ PER-ITEM: createPerItemFulfillment failed:`, error);
 
             return {
                 success: false,
@@ -313,7 +312,6 @@ export const updatePerItemTracking = webMethod(
 
         } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            console.error(`❌ PER-ITEM: updatePerItemTracking failed:`, error);
 
             return {
                 success: false,
@@ -398,7 +396,6 @@ export const getOrderFulfillmentDetails = webMethod(
 
         } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            console.error(`❌ PER-ITEM: getOrderFulfillmentDetails failed:`, error);
 
             return {
                 success: false,

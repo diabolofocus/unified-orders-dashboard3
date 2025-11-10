@@ -224,13 +224,11 @@ export const createFulfillmentRegular = webMethod(
                     .filter(requestedItem => {
                         const orderItem = orderItemMap.get(requestedItem.id);
                         if (!orderItem) {
-                            console.warn(`⚠️ REGULAR: Item ${requestedItem.id} not found in order ${orderNumber}`);
                             return false;
                         }
 
                         const remainingQuantity = safeGetRemainingQuantity(orderItem);
                         if (requestedItem.quantity > remainingQuantity) {
-                            console.warn(`⚠️ REGULAR: Requested quantity ${requestedItem.quantity} exceeds remaining ${remainingQuantity} for item ${requestedItem.id}`);
                             return false;
                         }
 
@@ -379,13 +377,11 @@ export const createFulfillmentElevated = webMethod(
                     .filter(requestedItem => {
                         const orderItem = orderItemMap.get(requestedItem.id);
                         if (!orderItem) {
-                            console.warn(`⚠️ ELEVATED: Item ${requestedItem.id} not found in order ${orderNumber}`);
                             return false;
                         }
 
                         const remainingQuantity = safeGetRemainingQuantity(orderItem);
                         if (requestedItem.quantity > remainingQuantity) {
-                            console.warn(`⚠️ ELEVATED: Requested quantity ${requestedItem.quantity} exceeds remaining ${remainingQuantity} for item ${requestedItem.id}`);
                             return false;
                         }
 

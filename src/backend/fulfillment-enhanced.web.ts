@@ -120,7 +120,6 @@ const getOrderWithFulfillments = async (orderId: string) => {
 
     } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error(`Failed to get order with fulfillments:`, error);
 
         return {
             success: false,
@@ -176,9 +175,6 @@ const createNewFulfillment = async (params: {
             fulfillmentLineItems = lineItems
                 .filter(item => {
                     const exists = orderItemIds.includes(item.id);
-                    if (!exists) {
-                        console.warn(`⚠️ Item ${item.id} not found in order ${params.orderNumber}`);
-                    }
                     return exists && item.quantity > 0;
                 })
                 .map(item => ({

@@ -84,7 +84,6 @@ export class PromoBannerStore {
         this.isLoading = false;
       });
     } catch (error) {
-      console.error('Error fetching app instance info:', error);
       runInAction(() => {
         this.error = 'Failed to load app information';
         this.isLoading = false;
@@ -111,7 +110,6 @@ export class PromoBannerStore {
         this.upgradeUrl = url;
       });
     } catch (error) {
-      console.error('Error fetching upgrade URL:', error);
       runInAction(() => {
         this.upgradeUrl = '';
       });
@@ -132,13 +130,9 @@ export class PromoBannerStore {
    * Opens the upgrade page in a new tab
    */
   openUpgradePage(): void {
-    console.log('Opening upgrade page. URL:', this.upgradeUrl);
-
     if (this.upgradeUrl) {
-      console.log('Attempting to open URL:', this.upgradeUrl);
       window.open(this.upgradeUrl, '_blank');
     } else {
-      console.warn('No upgrade URL available. App may not be published yet.');
       // Fallback: Show a message to the user
       if (typeof window !== 'undefined' && (window as any).dashboard) {
         (window as any).dashboard.showToast({
