@@ -5,7 +5,7 @@
   "dependencies": {
     "@types/react-toastify": "^4.0.2",
     "@wix/analytics-data": "^1.0.24",
-    "@wix/app-management": "^1.0.114",
+    "@wix/app-management": "^1.0.123",
     "@wix/cache": "^1.0.25",
     "@wix/crm": "^1.0.767",
     "@wix/dashboard": "^1.3.36",
@@ -24,8 +24,8 @@
   "devDependencies": {
     "@types/react": "^16.0.0",
     "@types/react-dom": "^16.0.0",
-    "@wix/cli": "^1.1.131",
-    "@wix/cli-app": "^1.1.131",
+    "@wix/cli": "^1.1.132",
+    "@wix/cli-app": "^1.1.132",
     "@wix/sdk-types": "^1.0.0",
     "react": "16.14.0",
     "react-dom": "16.14.0",
