@@ -55,15 +55,28 @@ export class PromoBannerStore {
   }
 
   /**
-   * Gets the CTA button text based on the user's plan status
+   * Gets the badge text for days remaining (used instead of CTA button during trial)
    */
-  get ctaButtonText(): string {
-    if (!this.appInstanceInfo) return 'Upgrade Now';
-
-    if (this.appInstanceInfo.isInFreeTrial) {
-      return 'Upgrade to Premium';
+  get daysRemainingBadgeText(): string {
+    if (!this.appInstanceInfo?.isInFreeTrial || this.appInstanceInfo.freeTrialDaysRemaining === undefined) {
+      return '';
     }
 
+    const days = this.appInstanceInfo.freeTrialDaysRemaining;
+    if (days === 0) {
+      return 'Switches to Premium tomorrow';
+    } else if (days === 1) {
+      return 'Switches to Premium in 1 day';
+    } else {
+      return `Switches to Premium in ${days} days`;
+    }
+  }
+
+  /**
+   * Gets the CTA button text based on the user's plan status
+   * Only shown when user is NOT in a free trial
+   */
+  get ctaButtonText(): string {
     return 'Start Free Trial';
   }
 
