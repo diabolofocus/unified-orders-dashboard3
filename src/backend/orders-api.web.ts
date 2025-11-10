@@ -7,19 +7,19 @@ import { smartFulfillOrderElevated } from './fulfillment-elevated.web';
 
 // Helper function to handle CORS preflight requests
 const handleCorsPreflightIfNeeded = (context?: any) => {
-    if (context?.request?.method === 'OPTIONS') {
-        return {
-            statusCode: 204,
-            headers: {
-                'Access-Control-Allow-Origin': context?.request?.headers?.origin || '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-wix-consistent, x-wix-client-artifact-id, x-wix-linguist',
-                'Access-Control-Max-Age': '86400'
-            },
-            body: ''
-        };
-    }
-    return null;
+  if (context?.request?.method === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': context?.request?.headers?.origin || '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-wix-consistent, x-wix-client-artifact-id, x-wix-linguist',
+        'Access-Control-Max-Age': '86400'
+      },
+      body: ''
+    };
+  }
+  return null;
 };
 
 interface EmailInfo {
@@ -68,7 +68,7 @@ const safeGetProductName = (item: any): string => {
 // Optimized helper functions for backend processing
 const processImageUrl = (image: string | undefined): string => {
   if (!image || typeof image !== 'string') return '';
-  
+
   if (image.startsWith('wix:image://v1/')) {
     const imageId = image.replace('wix:image://v1/', '').split('#')[0].split('~')[0];
     return `https://static.wixstatic.com/media/${imageId}`;
@@ -199,7 +199,7 @@ interface PerItemFulfillmentParams {
  * Create fulfillment for specific items
  */
 export const createPerItemFulfillment = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (params: PerItemFulfillmentParams, context?: any) => {
     const preflightResponse = handleCorsPreflightIfNeeded(context);
     if (preflightResponse) return preflightResponse;
@@ -321,7 +321,7 @@ export const createPerItemFulfillment = webMethod(
  * Update tracking for specific items
  */
 export const updatePerItemTracking = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async ({
     orderId,
     fulfillmentId,
@@ -415,7 +415,7 @@ export const updatePerItemTracking = webMethod(
  * Get detailed fulfillment information
  */
 export const getOrderFulfillmentDetails = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async ({
     orderId,
     orderNumber
@@ -496,7 +496,7 @@ export const getOrderFulfillmentDetails = webMethod(
  * Validate items before fulfillment
  */
 export const validateItemsForFulfillment = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async ({
     orderId,
     selectedItems
@@ -579,7 +579,7 @@ export const validateItemsForFulfillment = webMethod(
 );
 
 export const fulfillOrderInWix = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async ({
     orderId,
     trackingNumber,
@@ -665,7 +665,7 @@ export const fulfillOrderInWix = webMethod(
 );
 
 export const testOrdersConnection = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async ({ limit = 3, cursor = '' }: { limit?: number; cursor?: string } = {}, context?: any) => {
     const preflightResponse = handleCorsPreflightIfNeeded(context);
     if (preflightResponse) return preflightResponse;
@@ -936,7 +936,7 @@ export const testOrdersConnection = webMethod(
 
         if (attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000;
-// Debug log removed
+          // Debug log removed
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       }
@@ -961,7 +961,7 @@ export const testOrdersConnection = webMethod(
 );
 
 export const getSingleOrder = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (orderId: string, context?: any) => {
     const preflightResponse = handleCorsPreflightIfNeeded(context);
     if (preflightResponse) return preflightResponse;
@@ -1175,7 +1175,7 @@ export const getSingleOrder = webMethod(
 );
 
 export const multiply = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   (a: number, b: number) => {
     return a * b;
   }

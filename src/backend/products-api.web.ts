@@ -32,7 +32,7 @@ interface ProductSku {
  * Fetches all unique SKUs from the store's products and variants
  */
 export const fetchProductSkus = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (params: any, context?): Promise<{ success: boolean; skus: ProductSku[]; error?: string; headers?: any }> => {
     // Enhanced CORS handling for production
     const requestHeaders = context?.request?.headers || {};

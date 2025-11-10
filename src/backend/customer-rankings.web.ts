@@ -26,7 +26,7 @@ const CACHE_TAG = 'customer-rankings';
 
 // Remove the old cache - we'll use Wix Cache API instead
 export const getCustomerRankings = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (params: any, context?) => {
     const startTime = Date.now();
 
@@ -54,15 +54,15 @@ export const getCustomerRankings = webMethod(
     }
 
     try {
-// Debug log removed
+      // Debug log removed
 
       // The response will be automatically cached by Wix with the cache options below
-// Debug log removed
+      // Debug log removed
 
       const result = await calculateCustomerRankings();
 
       const processingTime = Date.now() - startTime;
-// Debug log removed
+      // Debug log removed
 
       return {
         ...result,
@@ -163,7 +163,7 @@ async function calculateCustomerRankings(): Promise<{
     }
   }
 
-// Debug log removed
+  // Debug log removed
 
   // Sort customers by total spending (highest first)
   const sortedCustomers = Array.from(customerSpending.entries())
@@ -243,7 +243,7 @@ function parseOrderTotal(totalValue: any): number {
 
 // Cache invalidation method - call this when orders are created/updated
 export const invalidateCustomerRankingsCache = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (params: any, context?) => {
     // Enhanced CORS handling for production
     const requestHeaders = context?.request?.headers || {};
@@ -275,7 +275,7 @@ export const invalidateCustomerRankingsCache = webMethod(
       // Invalidate the customer rankings cache
       await cache.invalidateCache([{ tag: CACHE_TAG }]);
 
-// Debug log removed
+      // Debug log removed
 
       return {
         success: true,
@@ -298,7 +298,7 @@ export const invalidateCustomerRankingsCache = webMethod(
 
 // Optional: Get cache status
 export const getCustomerRankingsCacheStatus = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (params: any, context?) => {
     // Enhanced CORS handling for production
     const requestHeaders = context?.request?.headers || {};

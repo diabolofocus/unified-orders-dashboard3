@@ -1,7 +1,7 @@
 import { Permissions, webMethod } from '@wix/web-methods';
 import { orders } from '@wix/ecom';
 
-export const generateOrderPrintUrl = webMethod(Permissions.Anyone, async (orderId) => {
+export const generateOrderPrintUrl = webMethod(Permissions.Admin, async (orderId) => {
     try {
         const retrievedOrder = await orders.getOrder(orderId);
 

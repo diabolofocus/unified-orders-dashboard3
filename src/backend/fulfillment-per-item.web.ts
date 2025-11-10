@@ -63,7 +63,7 @@ interface PerItemFulfillmentParams {
  * Create fulfillment for specific items
  */
 export const createPerItemFulfillment = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async (params: PerItemFulfillmentParams, context?: any) => {
         const preflightResponse = handleCorsPreflightIfNeeded(context);
         if (preflightResponse) return preflightResponse;
@@ -220,7 +220,7 @@ export const createPerItemFulfillment = webMethod(
  * 🔥 NEW: Update tracking for specific items
  */
 export const updatePerItemTracking = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         fulfillmentId,
@@ -329,7 +329,7 @@ export const updatePerItemTracking = webMethod(
  * Get detailed fulfillment information
  */
 export const getOrderFulfillmentDetails = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         orderNumber
@@ -414,7 +414,7 @@ export const getOrderFulfillmentDetails = webMethod(
  * Validate items before fulfillment
  */
 export const validateItemsForFulfillment = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         selectedItems

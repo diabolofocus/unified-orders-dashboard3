@@ -26,7 +26,7 @@ export interface AppInstanceInfo {
  * Returns information about free trial status and premium plan status
  */
 export const getAppInstanceInfo = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (): Promise<AppInstanceInfo> => {
     try {
       // Elevate permissions to access app instance data
@@ -102,7 +102,7 @@ export const getAppInstanceInfo = webMethod(
  * This URL directs users to the Wix pricing page where they can upgrade to a premium plan
  */
 export const getUpgradeUrl = webMethod(
-  Permissions.Anyone,
+  Permissions.Admin,
   async (): Promise<string> => {
     try {
       const elevatedGetAppInstance = auth.elevate(appInstances.getAppInstance);

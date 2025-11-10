@@ -100,7 +100,7 @@ const MyComponent = observer(() => {
 import { auth } from '@wix/essentials';
 import { appInstances } from '@wix/app-management';
 
-export const myMethod = webMethod(Permissions.Anyone, async () => {
+export const myMethod = webMethod(Permissions.Admin, async () => {
   const getInstance = auth.elevate(appInstances.getAppInstance);
   const { instance } = await getInstance();
 

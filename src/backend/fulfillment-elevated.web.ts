@@ -1,4 +1,5 @@
 // src/backend/fulfillment-elevated.web.ts - FIXED for true partial fulfillment
+// Updated for Wix CLI v1.1.125+ CORS compatibility
 
 import { webMethod, Permissions } from '@wix/web-methods';
 import { auth } from '@wix/essentials';
@@ -50,7 +51,7 @@ interface FulfillmentLineItem {
 
 // FIXED: Enhanced smart fulfillment that properly handles partial fulfillment
 export const smartFulfillOrderElevated = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         trackingNumber,
@@ -69,9 +70,10 @@ export const smartFulfillOrderElevated = webMethod(
         lineItems?: FulfillmentLineItem[];
         trackingUrl?: string;
         customCarrierName?: string;
-    }, context?: any) => {
-        const preflightResponse = handleCorsPreflightIfNeeded(context);
-        if (preflightResponse) return preflightResponse;
+    },
+        context?: any) => {
+        // const preflightResponse = handleCorsPreflightIfNeeded(context);
+        // if (preflightResponse) return preflightResponse;
 
         try {
             const fulfillmentsCheck = await getFulfillmentsElevated({ orderId, orderNumber });
@@ -152,7 +154,7 @@ export const smartFulfillOrderElevated = webMethod(
 
 // FIXED: Create fulfillment with REGULAR permissions and partial support
 export const createFulfillmentRegular = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         trackingNumber,
@@ -305,7 +307,7 @@ export const createFulfillmentRegular = webMethod(
 );
 
 export const createFulfillmentElevated = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         trackingNumber,
@@ -466,7 +468,7 @@ export const createFulfillmentElevated = webMethod(
 );
 
 export const updateFulfillmentRegular = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         fulfillmentId,
@@ -543,7 +545,7 @@ export const updateFulfillmentRegular = webMethod(
 );
 
 export const updateFulfillmentElevated = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         fulfillmentId,
@@ -622,7 +624,7 @@ export const updateFulfillmentElevated = webMethod(
 );
 
 export const getFulfillmentsElevated = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         orderNumber

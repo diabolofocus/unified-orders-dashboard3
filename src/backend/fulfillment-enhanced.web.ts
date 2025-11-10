@@ -43,7 +43,7 @@ const safeGetItemId = (item: any): string => {
 
 // Enhanced smart fulfillment with better partial support
 export const enhancedSmartFulfillment = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async (params: FulfillmentParams) => {
 
         try {
@@ -322,7 +322,7 @@ const updateExistingFulfillment = async (params: {
 };
 
 export const validateLineItems = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({
         orderId,
         lineItems
@@ -400,7 +400,7 @@ export const validateLineItems = webMethod(
 );
 
 export const debugLineItems = webMethod(
-    Permissions.Anyone,
+    Permissions.Admin,
     async ({ orderId }: { orderId: string }) => {
         try {
             const elevatedGetOrder = auth.elevate(orders.getOrder);
