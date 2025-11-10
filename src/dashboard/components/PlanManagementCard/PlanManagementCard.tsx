@@ -25,19 +25,6 @@ export const PlanManagementCard: React.FC = observer(() => {
         setIsExpanded(!isExpanded);
     };
 
-    const handleUpgradePlan = () => {
-        // Get the instance ID from URL params
-        const instanceId = new URLSearchParams(window.location.search).get('instance');
-
-        // App ID from wix.config.json
-        const appId = 'aeb5e016-2505-4705-b39f-7724f4845fbd';
-
-        // Construct the upgrade URL
-        const upgradeUrl = `https://www.wix.com/apps/upgrade/${appId}${instanceId ? `?appInstanceId=${instanceId}` : ''}`;
-
-        window.open(upgradeUrl, '_blank');
-    };
-
     const handleManagePlan = () => {
         // Navigate to plan management page
         window.open('https://www.wix.com/my-account/premium/', '_blank');
@@ -56,16 +43,12 @@ export const PlanManagementCard: React.FC = observer(() => {
                         >
                             {isPremium ? 'PREMIUM' : 'TRIAL'}
                         </Badge>
-                        {!isPremium && trialDaysLeft !== null && (
-                            <Text size="small" secondary>
-                                {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left
-                            </Text>
-                        )}
+
                     </Box>
                 }
                 subtitle={isPremium
                     ? "You're on the Premium plan with full access to all features"
-                    : `Your trial includes all premium features. ${trialDaysLeft !== null ? `Upgrade before it expires in ${trialDaysLeft} days.` : 'Upgrade to continue using premium features.'}`
+                    : `Your trial includes all premium features.`
                 }
                 suffix={
                     <IconButton
@@ -125,7 +108,7 @@ export const PlanManagementCard: React.FC = observer(() => {
                         ) : (
                             <>
                                 <Box direction="vertical" gap="12px" width="100%">
-                                    <Text weight="bold">Trial Features (Full Access):</Text>
+                                    <Text weight="normal">Features (Full Access):</Text>
                                     <Box direction="vertical" gap="8px" width="100%">
                                         <Box direction="horizontal" gap="8px" verticalAlign="middle">
                                             <Icons.Confirm style={{ color: '#00c851', fontSize: '16px', flexShrink: 0 }} />
@@ -146,30 +129,32 @@ export const PlanManagementCard: React.FC = observer(() => {
                                     </Box>
                                 </Box>
 
-                                {trialDaysLeft !== null && trialDaysLeft <= 7 && (
+                                {trialDaysLeft !== null && (
                                     <Box
-                                        width="100%"
-                                        padding="12px"
-                                        backgroundColor="#fff4e6"
-                                        borderRadius="4px"
+                                        width="auto"
+                                        padding="12px 16px"
+                                        backgroundColor={trialDaysLeft <= 3 ? "#fff4e6" : "#f0f4f8"}
+                                        borderRadius="8px"
+                                        style={{
+                                            display: 'inline-block',
+                                            alignSelf: 'flex-start'
+                                        }}
                                     >
-                                        <Text size="small" weight="bold" style={{ color: '#f57c00' }}>
-                                            Your trial expires in {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'}. Upgrade now to keep all premium features!
-                                        </Text>
+                                        <Box direction="vertical" gap="4px">
+                                            <Text size="small" weight="bold" style={{ color: trialDaysLeft <= 3 ? '#f57c00' : '#5b6987' }}>
+                                                {trialDaysLeft === 0
+                                                    ? 'Your plan switches to Premium tomorrow'
+                                                    : trialDaysLeft === 1
+                                                        ? 'Your plan switches to Premium in 1 day'
+                                                        : `Your plan switches to Premium in ${trialDaysLeft} days`
+                                                }
+                                            </Text>
+                                            <Text size="tiny" style={{ color: '#666666' }}>
+                                                You'll continue to have full access to all premium features.
+                                            </Text>
+                                        </Box>
                                     </Box>
                                 )}
-
-                                <Divider />
-
-                                <Box direction="horizontal" gap="12px" width="100%">
-                                    <Button
-                                        skin="premium"
-                                        size="small"
-                                        onClick={handleUpgradePlan}
-                                    >
-                                        Upgrade to Premium
-                                    </Button>
-                                </Box>
                             </>
                         )}
                     </Box>

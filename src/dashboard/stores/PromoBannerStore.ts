@@ -47,7 +47,7 @@ export class PromoBannerStore {
       } else if (days === 1) {
         return 'Your free trial ends tomorrow! Upgrade now to continue enjoying all premium features.';
       } else {
-        return `${days} days left in your free trial! Upgrade now to unlock all premium features.`;
+        return `${days} days left in your free trial!`;
       }
     }
 

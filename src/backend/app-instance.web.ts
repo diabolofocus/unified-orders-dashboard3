@@ -9,7 +9,7 @@ import { appInstances } from '@wix/app-management';
 const APP_DEF_ID = 'aeb5e016-2505-4705-b39f-7724f4845fbd';
 
 // Free trial duration in days (must match what you configured in Wix Dev Center)
-const FREE_TRIAL_DURATION_DAYS = 14;
+const FREE_TRIAL_DURATION_DAYS = 15;
 
 /**
  * Response interface for app instance information

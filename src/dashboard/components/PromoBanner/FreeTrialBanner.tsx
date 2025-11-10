@@ -83,14 +83,23 @@ export const FreeTrialBanner: React.FC = observer(() => {
         </Text>
       </Box>
 
-      {/* CTA Button */}
-      <Button
-        size="small"
-        priority="primary"
-        onClick={handleUpgrade}
-      >
-        {promoBannerStore.ctaButtonText}
-      </Button>
+      {/* CTA: Show badge if in trial, button if not */}
+      {isInTrial ? (
+        <Badge
+          skin="neutralSuccess"
+          size="medium"
+        >
+          {promoBannerStore.daysRemainingBadgeText}
+        </Badge>
+      ) : (
+        <Button
+          size="small"
+          priority="primary"
+          onClick={handleUpgrade}
+        >
+          {promoBannerStore.ctaButtonText}
+        </Button>
+      )}
     </Box>
   );
 });
