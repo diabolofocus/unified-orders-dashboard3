@@ -2,7 +2,7 @@
 
 ## Complete Field List for ALL Event Types
 
-Update your **AppInstallations** collection in karpo.studio with these fields:
+Update your **AppInstallations** collection with these fields:
 
 ### Event Information (All Events)
 | Field Name | Type | Description | Required |
@@ -77,7 +77,7 @@ Update your **AppInstallations** collection in karpo.studio with these fields:
 
 ## Quick Setup Instructions
 
-### In Wix CMS (karpo.studio):
+### In Wix CMS :
 
 1. Go to **CMS** → **AppInstallations** collection
 2. Click **Manage Fields**

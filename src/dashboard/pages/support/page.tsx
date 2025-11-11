@@ -392,19 +392,30 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
 
     try {
       const submissionData = {
-        type: 'bug-report',
         title: bugReport.title,
         description: bugReport.description,
-        userEmail: bugReport.userEmail || 'Not provided',
+        userEmail: userInfo.email || bugReport.userEmail || 'Not provided',
         userName: bugReport.userName || 'Not provided',
-        userInfo: userInfo,
-        systemInfo: systemInfo,
-        timestamp: new Date().toISOString()
+        siteUrl: userInfo.siteUrl || null,
+        siteName: userInfo.name || null,
+        siteId: userInfo.siteId || null,
+        appName: userInfo.appName || 'Unified Orders Dashboard',
+        appVersion: userInfo.appVersion || null,
+        instanceId: userInfo.instanceId || null,
+        browserInfo: systemInfo ? `${systemInfo.userAgent} | ${systemInfo.platform}` : null,
+        deviceInfo: systemInfo ? `Screen: ${systemInfo.screenResolution} | Language: ${systemInfo.language}` : null,
+        priority: 'medium',
+        status: 'new',
+        rawData: {
+          userInfo,
+          systemInfo,
+          timestamp: new Date().toISOString()
+        }
       };
 
       // Debug log removed
 
-      const response = await fetch('https://www.karpo.studio/_functions/supportSubmission', {
+      const response = await fetch('https://www.karpo.studio/_functions/bugReport', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -460,19 +471,30 @@ User Email: ${userInfo.email || 'Not available (requires READ SITE OWNER EMAIL p
 
     try {
       const submissionData = {
-        type: 'feature-request',
         title: featureRequest.title,
         description: featureRequest.description,
-        userEmail: featureRequest.userEmail || 'Not provided',
+        userEmail: userInfo.email || featureRequest.userEmail || 'Not provided',
         userName: featureRequest.userName || 'Not provided',
-        userInfo: userInfo,
-        systemInfo: systemInfo,
-        timestamp: new Date().toISOString()
+        siteUrl: userInfo.siteUrl || null,
+        siteName: userInfo.name || null,
+        siteId: userInfo.siteId || null,
+        appName: userInfo.appName || 'Unified Orders Dashboard',
+        appVersion: userInfo.appVersion || null,
+        instanceId: userInfo.instanceId || null,
+        browserInfo: systemInfo ? `${systemInfo.userAgent} | ${systemInfo.platform}` : null,
+        deviceInfo: systemInfo ? `Screen: ${systemInfo.screenResolution} | Language: ${systemInfo.language}` : null,
+        priority: 'medium',
+        status: 'new',
+        rawData: {
+          userInfo,
+          systemInfo,
+          timestamp: new Date().toISOString()
+        }
       };
 
       // Debug log removed
 
-      const response = await fetch('https://www.karpo.studio/_functions/supportSubmission', {
+      const response = await fetch('https://www.karpo.studio/_functions/featureRequest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
